@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -17,6 +18,29 @@ const STEP_META: Record<string, { label: string; icon: string }> = {
 
 type Rel = { relation_kind: string; name?: string; relationship?: string; phone?: string; id_number?: string };
 type Doc = { doc_type: string; file_path: string; status: string; uploaded_at?: string };
+
+// Submit button whose pending state comes from the actual form status, so it
+// always resets on completion or error and can never get stuck on "Saving…".
+function SubmitButton({
+  children,
+  pendingText = 'Saving…',
+  className = 'btn btn-lime btn-block',
+  disabled = false,
+  style,
+}: {
+  children: React.ReactNode;
+  pendingText?: string;
+  className?: string;
+  disabled?: boolean;
+  style?: React.CSSProperties;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={className} disabled={pending || disabled} style={style}>
+      {pending ? pendingText : children}
+    </button>
+  );
+}
 
 export default function OnboardingClient({
   profile,
@@ -42,15 +66,16 @@ export default function OnboardingClient({
   if (status === 'active') return <ApprovedState />;
   if (savedStep === 'submitted') return <SubmittedState investorId={profile?.investor_id} />;
 
-  // The current step is derived from the URL (?step=) clamped to how far the
-  // member has actually progressed (profile.onboarding_step). We deliberately
-  // do NOT hold it in useState — otherwise a soft redirect after "Save &
-  // continue" would leave the view stuck on the old step until a hard refresh.
-  const doneCount = Math.max((ORDER as readonly string[]).indexOf(savedStep), 0);
-  const reachableMax = Math.min(doneCount, ORDER.length - 1);
+  // Step is driven by the URL (?step=). We do NOT clamp it back to the saved
+  // step — the server actions only ever redirect here after successfully
+  // saving, so trusting the URL guarantees the wizard always moves forward.
+  // (Skipping ahead via a hand-typed URL is harmless: each advancing action
+  // validates its own data server-side, and submit re-checks the whole pack.)
+  const savedIdx = Math.max((ORDER as readonly string[]).indexOf(savedStep), 0);
   const reqIdx = requestedStep ? (ORDER as readonly string[]).indexOf(requestedStep) : -1;
-  const stepIdx = reqIdx >= 0 && reqIdx <= reachableMax ? reqIdx : reachableMax;
+  const stepIdx = reqIdx >= 0 ? reqIdx : Math.min(savedIdx, ORDER.length - 1);
   const step = ORDER[stepIdx];
+  const maxReach = Math.max(savedIdx, stepIdx);
 
   const relMap: Record<string, Rel> = {};
   relations.forEach((r) => (relMap[r.relation_kind] = r));
@@ -66,9 +91,9 @@ export default function OnboardingClient({
       <div className="card card-pad" style={{ marginTop: 20, marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {ORDER.map((s, i) => {
-            const done = i < doneCount;
+            const done = i < savedIdx;
             const isActive = s === step;
-            const reachable = i <= reachableMax;
+            const reachable = i <= maxReach;
             return (
               <button
                 key={s}
@@ -103,42 +128,72 @@ export default function OnboardingClient({
         </div>
       </div>
 
-      {step === 'personal' && <PersonalStep profile={profile} relMap={relMap} email={email} />}
+      {step === 'personal' && <PersonalStep profile={profile} relMap={relMap} email={email} err={err} />}
       {step === 'documents' && <DocumentsStep uid={profile.id} docs={docs} err={err} />}
       {step === 'agreements' && <AgreementsStep alreadySigned={agreementSigned} />}
-      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreementSigned={agreementSigned} />}
+      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreementSigned={agreementSigned} err={err} />}
+    </div>
+  );
+}
+
+function ErrorBanner({ text }: { text: string }) {
+  return (
+    <div className="badge badge-bad" style={{ marginBottom: 14 }}>
+      <i className="fa-solid fa-circle-exclamation" /> {text}
     </div>
   );
 }
 
 /* ----------------------------- Step 1: Personal ----------------------------- */
-function PersonalStep({ profile, relMap, email }: { profile: any; relMap: Record<string, Rel>; email: string }) {
-  const [saving, setSaving] = useState(false);
-  const Field = ({ label, name, def, type = 'text', required = false, placeholder = '' }: any) => (
+function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: Record<string, Rel>; email: string; err?: string }) {
+  // Controlled inputs so values are never lost (React resets uncontrolled
+  // forms after a server action; controlled state is immune to that).
+  const [f, setF] = useState({
+    full_name: profile?.full_name ?? '',
+    national_id: profile?.national_id ?? '',
+    kra_pin: profile?.kra_pin ?? '',
+    date_of_birth: profile?.date_of_birth ?? '',
+    phone: profile?.phone ?? '',
+    postal_address: profile?.postal_address ?? '',
+    physical_address: profile?.physical_address ?? '',
+  });
+  const [rel, setRel] = useState<Record<string, any>>(() => {
+    const b: Record<string, any> = {};
+    RELATION_KINDS.forEach((rk) => {
+      const r = relMap[rk.key] || {};
+      b[rk.key] = { name: r.name ?? '', relationship: r.relationship ?? '', phone: r.phone ?? '', id_number: r.id_number ?? '' };
+    });
+    return b;
+  });
+  const set = (k: string) => (e: any) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const setR = (rk: string, k: string) => (e: any) => setRel((s) => ({ ...s, [rk]: { ...s[rk], [k]: e.target.value } }));
+
+  const F = ({ label, k, type = 'text', required = false, placeholder = '' }: any) => (
     <div className="field">
       <label>{label} {required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
-      <input className="input" name={name} type={type} defaultValue={def ?? ''} required={required} placeholder={placeholder} />
+      <input className="input" name={k} type={type} value={f[k as keyof typeof f]} onChange={set(k)} required={required} placeholder={placeholder} />
     </div>
   );
 
   return (
-    <form action={savePersonalData} onSubmit={() => setSaving(true)} className="card card-pad">
+    <form action={savePersonalData} className="card card-pad">
       <SectionTitle icon="fa-user" title="Your details" desc="These are saved to your member record and used to pre-fill your membership forms." />
+      {err === 'save' && <ErrorBanner text="We couldn't save your details just now. Please check your entries and try again — if it keeps happening, let your administrator know." />}
       <div className="grid2">
-        <Field label="Full name" name="full_name" def={profile?.full_name} required placeholder="e.g. Jane Wanjiru" />
-        <Field label="Email" name="_email" def={email} />
+        <F label="Full name" k="full_name" required placeholder="e.g. Jane Wanjiru" />
+        <div className="field"><label>Email</label><input className="input" name="_email" defaultValue={email} readOnly /></div>
       </div>
       <div className="grid2">
-        <Field label="National ID / Passport number" name="national_id" def={profile?.national_id} required />
-        <Field label="KRA PIN" name="kra_pin" def={profile?.kra_pin} required />
+        <F label="National ID / Passport number" k="national_id" required />
+        <F label="KRA PIN" k="kra_pin" required />
       </div>
       <div className="grid2">
-        <Field label="Date of birth" name="date_of_birth" def={profile?.date_of_birth} type="date" />
-        <Field label="Phone" name="phone" def={profile?.phone} required placeholder="+254 7XX XXX XXX" />
+        <F label="Date of birth" k="date_of_birth" type="date" />
+        <F label="Phone" k="phone" required placeholder="+254 7XX XXX XXX" />
       </div>
       <div className="grid2">
-        <Field label="Postal address" name="postal_address" def={profile?.postal_address} placeholder="e.g. 190-60102" />
-        <Field label="Physical address" name="physical_address" def={profile?.physical_address} placeholder="e.g. Nairobi, Kenya" />
+        <F label="Postal address" k="postal_address" placeholder="e.g. 190-60102" />
+        <F label="Physical address" k="physical_address" placeholder="e.g. Nairobi, Kenya" />
       </div>
 
       {RELATION_KINDS.map((rk) => (
@@ -146,22 +201,22 @@ function PersonalStep({ profile, relMap, email }: { profile: any; relMap: Record
           <SectionTitle icon="fa-people-roof" title={rk.label} desc={rk.required ? 'Required' : 'Optional'} />
           <div className="grid2">
             <div className="field"><label>Name {rk.required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
-              <input className="input" name={`${rk.key}_name`} defaultValue={relMap[rk.key]?.name ?? ''} required={rk.required} /></div>
+              <input className="input" name={`${rk.key}_name`} value={rel[rk.key].name} onChange={setR(rk.key, 'name')} required={rk.required} /></div>
             <div className="field"><label>Relationship</label>
-              <input className="input" name={`${rk.key}_relationship`} defaultValue={relMap[rk.key]?.relationship ?? ''} placeholder="e.g. Sister" /></div>
+              <input className="input" name={`${rk.key}_relationship`} value={rel[rk.key].relationship} onChange={setR(rk.key, 'relationship')} placeholder="e.g. Sister" /></div>
           </div>
           <div className="grid2">
             <div className="field"><label>Phone {rk.required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
-              <input className="input" name={`${rk.key}_phone`} defaultValue={relMap[rk.key]?.phone ?? ''} required={rk.required} /></div>
+              <input className="input" name={`${rk.key}_phone`} value={rel[rk.key].phone} onChange={setR(rk.key, 'phone')} required={rk.required} /></div>
             <div className="field"><label>ID number</label>
-              <input className="input" name={`${rk.key}_id_number`} defaultValue={relMap[rk.key]?.id_number ?? ''} /></div>
+              <input className="input" name={`${rk.key}_id_number`} value={rel[rk.key].id_number} onChange={setR(rk.key, 'id_number')} /></div>
           </div>
         </div>
       ))}
 
-      <button className="btn btn-lime btn-block" type="submit" disabled={saving} style={{ marginTop: 8 }}>
-        {saving ? 'Saving…' : <>Save &amp; continue <i className="fa-solid fa-arrow-right" /></>}
-      </button>
+      <SubmitButton className="btn btn-lime btn-block" style={{ marginTop: 8 }}>
+        Save &amp; continue <i className="fa-solid fa-arrow-right" />
+      </SubmitButton>
     </form>
   );
 }
@@ -171,7 +226,6 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [advancing, setAdvancing] = useState(false);
   const uploaded = new Set(docs.map((d) => d.doc_type));
   const allUploaded = KYC_DOC_TYPES.every((d) => uploaded.has(d.key));
 
@@ -200,16 +254,8 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
   return (
     <div className="card card-pad">
       <SectionTitle icon="fa-file-arrow-up" title="Upload your documents" desc="One at a time. Allowed: PDF, JPG, PNG. Max 25MB each." />
-      {err === 'docs' && (
-        <div className="badge badge-bad" style={{ marginBottom: 14 }}>
-          <i className="fa-solid fa-circle-exclamation" /> Please upload all three documents before continuing.
-        </div>
-      )}
-      {msg && (
-        <div className="badge badge-bad" style={{ marginBottom: 14 }}>
-          <i className="fa-solid fa-circle-exclamation" /> {msg}
-        </div>
-      )}
+      {err === 'docs' && <ErrorBanner text="Please upload all three documents before continuing." />}
+      {msg && <ErrorBanner text={msg} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {KYC_DOC_TYPES.map((d) => {
@@ -234,8 +280,8 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
                   style={{ display: 'none' }}
                   disabled={isBusy}
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFile(d.key, f);
+                    const file = e.target.files?.[0];
+                    if (file) handleFile(d.key, file);
                     e.target.value = '';
                   }}
                 />
@@ -247,10 +293,10 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
 
       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
         <Link href="/onboarding?step=personal" className="btn btn-ghost"><i className="fa-solid fa-arrow-left" /> Back</Link>
-        <form action={continueFromDocuments} onSubmit={() => setAdvancing(true)} style={{ flex: 1 }}>
-          <button className="btn btn-lime btn-block" type="submit" disabled={!allUploaded || advancing}>
-            {advancing ? 'Saving…' : <>Save &amp; continue <i className="fa-solid fa-arrow-right" /></>}
-          </button>
+        <form action={continueFromDocuments} style={{ flex: 1 }}>
+          <SubmitButton className="btn btn-lime btn-block" disabled={!allUploaded}>
+            Save &amp; continue <i className="fa-solid fa-arrow-right" />
+          </SubmitButton>
         </form>
       </div>
       {!allUploaded && <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>Upload all three documents to continue.</div>}
@@ -261,9 +307,8 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
 /* --------------------------- Step 3: Agreements ---------------------------- */
 function AgreementsStep({ alreadySigned }: { alreadySigned: boolean }) {
   const [agreed, setAgreed] = useState(alreadySigned);
-  const [saving, setSaving] = useState(false);
   return (
-    <form action={saveAgreement} onSubmit={() => setSaving(true)} className="card card-pad">
+    <form action={saveAgreement} className="card card-pad">
       <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Read and accept the membership packet to continue." />
       <div style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>{AGREEMENT_TITLE}</div>
@@ -280,9 +325,9 @@ function AgreementsStep({ alreadySigned }: { alreadySigned: boolean }) {
       </label>
       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
         <Link href="/onboarding?step=documents" className="btn btn-ghost"><i className="fa-solid fa-arrow-left" /> Back</Link>
-        <button className="btn btn-lime btn-block" type="submit" disabled={!agreed || saving} style={{ flex: 1 }}>
-          {saving ? 'Saving…' : <>Agree &amp; continue <i className="fa-solid fa-arrow-right" /></>}
-        </button>
+        <SubmitButton className="btn btn-lime btn-block" disabled={!agreed} style={{ flex: 1 }}>
+          Agree &amp; continue <i className="fa-solid fa-arrow-right" />
+        </SubmitButton>
       </div>
     </form>
   );
@@ -290,11 +335,10 @@ function AgreementsStep({ alreadySigned }: { alreadySigned: boolean }) {
 
 /* --------------------------- Step 4: Review -------------------------------- */
 function ReviewStep({
-  profile, relMap, docs, agreementSigned,
+  profile, relMap, docs, agreementSigned, err,
 }: {
-  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreementSigned: boolean;
+  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreementSigned: boolean; err?: string;
 }) {
-  const [submitting, setSubmitting] = useState(false);
   const uploaded = new Set(docs.map((d) => d.doc_type));
   const Row = ({ k, v }: { k: string; v: any }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
@@ -311,6 +355,7 @@ function ReviewStep({
   return (
     <div className="card card-pad">
       <SectionTitle icon="fa-clipboard-check" title="Review & submit" desc="Please review your information. If everything is correct, submit your pack for committee approval." />
+      {err === 'incomplete' && <ErrorBanner text="Some required details or documents are still missing. Please complete every step before submitting." />}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Personal details</div>
@@ -338,10 +383,10 @@ function ReviewStep({
       <div style={{ margin: '18px 0 6px', fontWeight: 700, fontSize: 14 }}>Agreements</div>
       <Row k="Membership packet" v={agreementSigned ? 'Accepted' : 'Not accepted'} />
 
-      <form action={submitForApproval} onSubmit={() => setSubmitting(true)} style={{ marginTop: 20 }}>
-        <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
-          {submitting ? 'Submitting…' : <><i className="fa-solid fa-paper-plane" /> Submit for approval</>}
-        </button>
+      <form action={submitForApproval} style={{ marginTop: 20 }}>
+        <SubmitButton className="btn btn-primary btn-block" pendingText="Submitting…">
+          <i className="fa-solid fa-paper-plane" /> Submit for approval
+        </SubmitButton>
       </form>
       <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>
         Your pack goes to the AWIVEST committee. You&apos;ll be notified once it&apos;s reviewed.
