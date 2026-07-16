@@ -2,14 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, describeServiceKey } from '@/lib/supabase/admin';
 import { isStaff } from '@/lib/roles';
 
 /**
  * Confirm the caller is a signed-in staff member, then hand back an admin
  * (service-role) client for the privileged write. The admin client bypasses
- * row-level security, so agreement management works regardless of the storage
- * / table RLS state — the staff check here is the security boundary.
+ * row-level security — the staff check here is the security boundary.
  */
 async function requireStaffAdmin() {
   const supabase = createClient();
@@ -25,25 +24,35 @@ async function requireStaffAdmin() {
 export async function addAgreement(
   formData: FormData
 ): Promise<{ ok?: true; error?: string }> {
-  let admin;
-  let userId: string;
-  try {
-    ({ admin, userId } = await requireStaffAdmin());
-  } catch {
-    return { error: 'Only staff can add agreements. Please make sure you are signed in as a staff account.' };
+  // 1) Confirm signed-in staff. Precise messages so the real state is visible.
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: '[v3] You appear to be signed out. Please sign in again and retry.' };
+  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const role = me?.role ? String(me.role) : 'none';
+  if (!isStaff(me?.role)) {
+    return {
+      error: `[v3] Your account role is "${role}", which is not a staff role — the system will not let you add agreements. Set this account to a staff role (e.g. superadmin) first.`,
+    };
   }
 
+  // 2) Validate input.
   const title = String(formData.get('title') || '').trim();
   const description = String(formData.get('description') || '').trim() || null;
   const required = String(formData.get('required') || '') === '1';
   const file = formData.get('file');
+  if (!title) return { error: '[v3] Please give the agreement a title.' };
+  if (!(file instanceof File) || file.size === 0) return { error: '[v3] Please choose a file to upload.' };
 
-  if (!title) return { error: 'Please give the agreement a title.' };
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: 'Please choose a file to upload.' };
-  }
+  // 3) Confirm the server actually has a real service-role key. A wrong key
+  //    (e.g. the anon key) is the usual cause of a lingering RLS error here.
+  const keyInfo = describeServiceKey();
+  if (!keyInfo.ok) return { error: `[v3] ${keyInfo.message}` };
 
-  // Make sure the bucket exists (no-op if it already does).
+  // 4) Privileged write via the admin client (bypasses RLS).
+  const admin = createAdminClient();
   try {
     await admin.storage.createBucket('agreements', { public: true });
   } catch {
@@ -57,7 +66,7 @@ export async function addAgreement(
   const { error: upErr } = await admin.storage
     .from('agreements')
     .upload(path, bytes, { upsert: true, contentType: file.type || 'application/octet-stream' });
-  if (upErr) return { error: `Could not upload the file: ${upErr.message}` };
+  if (upErr) return { error: `[v3] Could not upload the file (key role: ${keyInfo.role}): ${upErr.message}` };
 
   const { error: insErr } = await admin.from('agreement_documents').insert({
     title,
@@ -66,9 +75,9 @@ export async function addAgreement(
     file_name: file.name,
     mime_type: file.type || null,
     required,
-    created_by: userId,
+    created_by: user.id,
   });
-  if (insErr) return { error: `Could not save the agreement: ${insErr.message}` };
+  if (insErr) return { error: `[v3] Could not save the agreement (key role: ${keyInfo.role}): ${insErr.message}` };
 
   revalidatePath('/staff/agreements');
   revalidatePath('/onboarding');
