@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isStaff } from '@/lib/roles';
-import { pandadocConfigured, createFromTemplate, sendForSigning } from '@/lib/pandadoc';
+import { pandadocConfigured, createFromTemplate, sendForSigning, listTemplates } from '@/lib/pandadoc';
 
 async function requireStaff() {
   const supabase = createClient();
@@ -82,9 +82,42 @@ export async function setMemberStatus(formData: FormData) {
   refresh(id);
 }
 
-// Send a one-off agreement (from the one-off template) to a single investor.
+// List PandaDoc templates for the one-off document picker (staff-only).
+export async function listEsignTemplates(): Promise<{
+  templates: { id: string; name: string }[];
+  defaultTemplateId?: string;
+  error?: string;
+}> {
+  let ctx: Awaited<ReturnType<typeof requireStaff>>;
+  try {
+    ctx = await requireStaff();
+  } catch {
+    return { templates: [], error: 'Only staff can view templates.' };
+  }
+  if (!pandadocConfigured()) {
+    return { templates: [], error: 'PandaDoc is not configured on the server.' };
+  }
+  try {
+    const { data: rows } = await ctx.supabase.from('app_settings').select('key,value');
+    const settings = Object.fromEntries(
+      ((rows ?? []) as any[]).map((r) => [r.key, r.value])
+    ) as Record<string, string>;
+    const templates = await listTemplates();
+    return {
+      templates,
+      defaultTemplateId: (settings['pandadoc_oneoff_template_id'] || '').trim() || undefined,
+    };
+  } catch (e: any) {
+    return { templates: [], error: e?.message || 'Could not load templates from PandaDoc.' };
+  }
+}
+
+// Send a one-off agreement (from a chosen template) to a single investor.
 // PandaDoc emails the investor a secure signing link. Staff-only.
-export async function sendOneOffAgreement(memberId: string): Promise<{ ok?: true; error?: string }> {
+export async function sendOneOffAgreement(
+  memberId: string,
+  templateId: string
+): Promise<{ ok?: true; templateName?: string; error?: string }> {
   let ctx: Awaited<ReturnType<typeof requireStaff>>;
   try {
     ctx = await requireStaff();
@@ -97,15 +130,16 @@ export async function sendOneOffAgreement(memberId: string): Promise<{ ok?: true
     return { error: 'PandaDoc is not configured on the server. Add PANDADOC_API_KEY in Vercel and redeploy.' };
   }
 
+  const tId = (templateId || '').trim();
+  if (!tId) {
+    return { error: 'Please choose a document to send.' };
+  }
+
   const { data: settingsRows } = await supabase.from('app_settings').select('key,value');
   const settings = Object.fromEntries(
     ((settingsRows ?? []) as any[]).map((r) => [r.key, r.value])
   ) as Record<string, string>;
-  const templateId = (settings['pandadoc_oneoff_template_id'] || '').trim();
   const role = (settings['pandadoc_signer_role'] || 'Investor').trim();
-  if (!templateId) {
-    return { error: 'Set a One-off Template ID in Settings first.' };
-  }
 
   const { data: m } = await supabase.from('profiles').select('email, full_name').eq('id', memberId).single();
   const email = (m?.email as string | undefined) || '';
@@ -116,7 +150,7 @@ export async function sendOneOffAgreement(memberId: string): Promise<{ ok?: true
   try {
     const parts = String(m?.full_name || '').trim().split(' ').filter(Boolean);
     const docId = await createFromTemplate({
-      templateId,
+      templateId: tId,
       roleName: role,
       email,
       firstName: parts[0],
