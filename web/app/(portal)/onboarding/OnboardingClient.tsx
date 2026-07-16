@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { KYC_DOC_TYPES, RELATION_KINDS } from '@/lib/onboarding';
-import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval } from './actions';
+import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
 
 const ORDER = ['personal', 'documents', 'agreements', 'review'] as const;
 const STEP_META: Record<string, { label: string; icon: string }> = {
@@ -51,6 +51,7 @@ export default function OnboardingClient({
   agreements,
   acceptances,
   email,
+  esignEnabled,
   requestedStep,
   err,
 }: {
@@ -60,6 +61,7 @@ export default function OnboardingClient({
   agreements: Agreement[];
   acceptances: Acceptance[];
   email: string;
+  esignEnabled: boolean;
   requestedStep?: string;
   err?: string;
 }) {
@@ -130,8 +132,10 @@ export default function OnboardingClient({
 
       {step === 'personal' && <PersonalStep profile={profile} relMap={relMap} email={email} err={err} />}
       {step === 'documents' && <DocumentsStep uid={profile.id} docs={docs} err={err} />}
-      {step === 'agreements' && <AgreementsStep agreements={agreements} acceptances={acceptances} memberName={memberName} err={err} />}
-      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreements={agreements} acceptances={acceptances} err={err} />}
+      {step === 'agreements' && (esignEnabled
+        ? <EsignStep profile={profile} err={err} />
+        : <AgreementsStep agreements={agreements} acceptances={acceptances} memberName={memberName} err={err} />)}
+      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreements={agreements} acceptances={acceptances} esignEnabled={esignEnabled} err={err} />}
     </div>
   );
 }
@@ -357,6 +361,109 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
   );
 }
 
+/* ------------------------- Step 3 (e-sign): PandaDoc ----------------------- */
+function EsignStep({ profile, err }: { profile: any; err?: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<null | 'open' | 'refresh'>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const signed = profile?.esign_status === 'completed';
+
+  async function openSign() {
+    setMsg(null);
+    setInfo(null);
+    setBusy('open');
+    try {
+      const res = await startEsign();
+      if (res.error) {
+        setMsg(res.error);
+        return;
+      }
+      if (res.url) {
+        window.open(res.url, '_blank', 'noopener,noreferrer');
+        setInfo('We opened your agreement in a new tab. Once you have signed there, come back and click "I have signed — refresh status".');
+      } else {
+        router.refresh();
+      }
+    } catch (e: any) {
+      setMsg(e?.message || 'We could not open your signing document just now. Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function refresh() {
+    setMsg(null);
+    setInfo(null);
+    setBusy('refresh');
+    try {
+      const res = await refreshEsignStatus();
+      if (res.error) {
+        setMsg(res.error);
+        return;
+      }
+      if (res.completed) {
+        router.push('/onboarding?step=review');
+        router.refresh();
+      } else {
+        setMsg('We have not received your completed signature from PandaDoc yet. If you just signed, please wait about 30 seconds and click refresh again.');
+      }
+    } catch (e: any) {
+      setMsg(e?.message || 'We could not check your signature status just now. Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="card card-pad">
+      <SectionTitle icon="fa-file-signature" title="Sign your membership agreement" desc="Your AWIVEST membership agreement is signed securely online. Open it, sign, then refresh your status here." />
+      {err === 'esign_incomplete' && <ErrorBanner text="Please complete your signature before continuing." />}
+      {msg && <ErrorBanner text={msg} />}
+
+      {signed ? (
+        <div className="badge badge-good" style={{ marginBottom: 6 }}>
+          <i className="fa-solid fa-circle-check" /> Signed{profile?.esign_signed_at ? ` on ${new Date(profile.esign_signed_at).toLocaleDateString()}` : ''}
+        </div>
+      ) : (
+        <>
+          <div style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>How this works</div>
+            <div className="muted">
+              1. Click <strong>Open &amp; e-sign now</strong> — your agreement opens in a new tab.<br />
+              2. Read it and add your signature there.<br />
+              3. Come back and click <strong>I have signed — refresh status</strong>. Officials counter-sign afterwards; you don&apos;t need to wait for them.
+            </div>
+          </div>
+          {info && (
+            <div className="badge" style={{ marginTop: 12, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <i className="fa-solid fa-circle-info" /> {info}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+            <button type="button" className="btn btn-lime" onClick={openSign} disabled={busy !== null} style={{ flex: '1 1 220px' }}>
+              {busy === 'open' ? 'Opening…' : (<><i className="fa-solid fa-pen-nib" /> Open &amp; e-sign now</>)}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={refresh} disabled={busy !== null} style={{ flex: '1 1 220px' }}>
+              {busy === 'refresh' ? 'Checking…' : (<><i className="fa-solid fa-rotate" /> I have signed — refresh status</>)}
+            </button>
+          </div>
+        </>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+        <Link href="/onboarding?step=documents" className="btn btn-ghost"><i className="fa-solid fa-arrow-left" /> Back</Link>
+        {signed ? (
+          <Link href="/onboarding?step=review" className="btn btn-lime" style={{ flex: 1, textAlign: 'center' }}>Continue <i className="fa-solid fa-arrow-right" /></Link>
+        ) : (
+          <button type="button" className="btn btn-lime" disabled style={{ flex: 1 }}>Continue <i className="fa-solid fa-arrow-right" /></button>
+        )}
+      </div>
+      {!signed && <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>Complete your signature to continue.</div>}
+    </div>
+  );
+}
+
 /* --------------------------- Step 3: Agreements ---------------------------- */
 function AgreementsStep({ agreements, acceptances, memberName, err }: { agreements: Agreement[]; acceptances: Acceptance[]; memberName: string; err?: string }) {
   const accByAgr: Record<string, Acceptance> = {};
@@ -430,9 +537,9 @@ function AgreementsStep({ agreements, acceptances, memberName, err }: { agreemen
 
 /* --------------------------- Step 4: Review -------------------------------- */
 function ReviewStep({
-  profile, relMap, docs, agreements, acceptances, err,
+  profile, relMap, docs, agreements, acceptances, esignEnabled, err,
 }: {
-  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreements: Agreement[]; acceptances: Acceptance[]; err?: string;
+  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreements: Agreement[]; acceptances: Acceptance[]; esignEnabled: boolean; err?: string;
 }) {
   const uploaded = new Set(docs.map((d) => d.doc_type));
   const signed = new Set(acceptances.map((a) => a.agreement_id));
@@ -480,7 +587,16 @@ function ReviewStep({
         <div style={{ fontWeight: 700, fontSize: 14 }}>Agreements</div>
         <Link href="/onboarding?step=agreements" className="btn btn-ghost btn-sm">Edit</Link>
       </div>
-      {agreements.length === 0 ? (
+      {esignEnabled ? (
+        <Row
+          k="Membership agreement (e-signed)"
+          v={
+            profile?.esign_status === 'completed'
+              ? `Signed${profile?.esign_signed_at ? ` on ${new Date(profile.esign_signed_at).toLocaleDateString()}` : ''}`
+              : 'Not signed'
+          }
+        />
+      ) : agreements.length === 0 ? (
         <Row k="Agreements" v="None to sign" />
       ) : (
         agreements.map((a) => (
