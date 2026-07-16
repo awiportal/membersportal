@@ -74,6 +74,11 @@ a{color:inherit;text-decoration:none}
 .input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:12px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:.18s}
 .input:focus{border-color:rgba(166,205,53,0.55);box-shadow:0 0 0 3px rgba(166,205,53,0.18)}
 .input::placeholder{color:var(--muted2)}
+/* Native <select> popups and date pickers render dark-on-dark without this.
+   color-scheme tells the browser to draw the controls for a dark UI, and the
+   explicit option colours keep the dropdown list readable everywhere. */
+.input{color-scheme:dark}
+select.input option{background-color:#261b25;color:var(--text)}
 .input-group{position:relative}
 .input-group i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted2)}
 .input-group .input{padding-left:42px}
