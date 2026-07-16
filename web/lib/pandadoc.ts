@@ -110,3 +110,36 @@ export async function isCompletedBy(id: string, email: string): Promise<{ comple
   const completed = status === 'document.completed' || !!(mine && mine.has_completed === true);
   return { completed, status };
 }
+
+/**
+ * Full signing summary for staff views: whether the member has signed their own
+ * part (what unlocks their onboarding), whether the whole document is executed
+ * by every party, and the per-signer breakdown.
+ */
+export async function getEsignSummary(
+  id: string,
+  memberEmail: string
+): Promise<{
+  status: string;
+  memberSigned: boolean;
+  fullyExecuted: boolean;
+  signers: { email: string; name: string; role?: string; completed: boolean }[];
+}> {
+  const doc = await pd(`/documents/${id}/details`);
+  const status: string = doc?.status || 'unknown';
+  const fullyExecuted = status === 'document.completed';
+  const recipients: any[] = doc?.recipients || [];
+  const signers = recipients.map((r) => {
+    const email = String(r?.email || '');
+    const name = [r?.first_name, r?.last_name].filter(Boolean).join(' ') || email;
+    return {
+      email,
+      name,
+      role: r?.role || undefined,
+      completed: fullyExecuted || r?.has_completed === true,
+    };
+  });
+  const mine = signers.find((s) => s.email.toLowerCase() === memberEmail.toLowerCase());
+  const memberSigned = fullyExecuted || !!(mine && mine.completed);
+  return { status, memberSigned, fullyExecuted, signers };
+}
