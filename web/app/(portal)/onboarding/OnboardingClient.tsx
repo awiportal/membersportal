@@ -42,15 +42,20 @@ export default function OnboardingClient({
   if (status === 'active') return <ApprovedState />;
   if (savedStep === 'submitted') return <SubmittedState investorId={profile?.investor_id} />;
 
-  const doneCount = Math.max(ORDER.indexOf(savedStep as any), 0);
-  const initial =
-    requestedStep && (ORDER as readonly string[]).includes(requestedStep)
-      ? requestedStep
-      : ORDER[Math.min(doneCount, ORDER.length - 1)];
-  const [step, setStep] = useState<string>(initial);
+  // The current step is derived from the URL (?step=) clamped to how far the
+  // member has actually progressed (profile.onboarding_step). We deliberately
+  // do NOT hold it in useState — otherwise a soft redirect after "Save &
+  // continue" would leave the view stuck on the old step until a hard refresh.
+  const doneCount = Math.max((ORDER as readonly string[]).indexOf(savedStep), 0);
+  const reachableMax = Math.min(doneCount, ORDER.length - 1);
+  const reqIdx = requestedStep ? (ORDER as readonly string[]).indexOf(requestedStep) : -1;
+  const stepIdx = reqIdx >= 0 && reqIdx <= reachableMax ? reqIdx : reachableMax;
+  const step = ORDER[stepIdx];
 
   const relMap: Record<string, Rel> = {};
   relations.forEach((r) => (relMap[r.relation_kind] = r));
+
+  const goto = (s: string) => router.push(`/onboarding?step=${s}`);
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
@@ -63,12 +68,12 @@ export default function OnboardingClient({
           {ORDER.map((s, i) => {
             const done = i < doneCount;
             const isActive = s === step;
-            const reachable = i <= doneCount;
+            const reachable = i <= reachableMax;
             return (
               <button
                 key={s}
                 type="button"
-                onClick={() => reachable && setStep(s)}
+                onClick={() => reachable && goto(s)}
                 className="btn btn-sm"
                 style={{
                   flex: '1 1 160px',
@@ -101,13 +106,14 @@ export default function OnboardingClient({
       {step === 'personal' && <PersonalStep profile={profile} relMap={relMap} email={email} />}
       {step === 'documents' && <DocumentsStep uid={profile.id} docs={docs} err={err} />}
       {step === 'agreements' && <AgreementsStep alreadySigned={agreementSigned} />}
-      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreementSigned={agreementSigned} onEdit={setStep} />}
+      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreementSigned={agreementSigned} />}
     </div>
   );
 }
 
 /* ----------------------------- Step 1: Personal ----------------------------- */
 function PersonalStep({ profile, relMap, email }: { profile: any; relMap: Record<string, Rel>; email: string }) {
+  const [saving, setSaving] = useState(false);
   const Field = ({ label, name, def, type = 'text', required = false, placeholder = '' }: any) => (
     <div className="field">
       <label>{label} {required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
@@ -116,7 +122,7 @@ function PersonalStep({ profile, relMap, email }: { profile: any; relMap: Record
   );
 
   return (
-    <form action={savePersonalData} className="card card-pad">
+    <form action={savePersonalData} onSubmit={() => setSaving(true)} className="card card-pad">
       <SectionTitle icon="fa-user" title="Your details" desc="These are saved to your member record and used to pre-fill your membership forms." />
       <div className="grid2">
         <Field label="Full name" name="full_name" def={profile?.full_name} required placeholder="e.g. Jane Wanjiru" />
@@ -153,8 +159,8 @@ function PersonalStep({ profile, relMap, email }: { profile: any; relMap: Record
         </div>
       ))}
 
-      <button className="btn btn-lime btn-block" type="submit" style={{ marginTop: 8 }}>
-        Save &amp; continue <i className="fa-solid fa-arrow-right" />
+      <button className="btn btn-lime btn-block" type="submit" disabled={saving} style={{ marginTop: 8 }}>
+        {saving ? 'Saving…' : <>Save &amp; continue <i className="fa-solid fa-arrow-right" /></>}
       </button>
     </form>
   );
@@ -165,6 +171,7 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
   const uploaded = new Set(docs.map((d) => d.doc_type));
   const allUploaded = KYC_DOC_TYPES.every((d) => uploaded.has(d.key));
 
@@ -238,11 +245,14 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
         })}
       </div>
 
-      <form action={continueFromDocuments} style={{ marginTop: 18 }}>
-        <button className="btn btn-lime btn-block" type="submit" disabled={!allUploaded}>
-          Save &amp; continue <i className="fa-solid fa-arrow-right" />
-        </button>
-      </form>
+      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+        <Link href="/onboarding?step=personal" className="btn btn-ghost"><i className="fa-solid fa-arrow-left" /> Back</Link>
+        <form action={continueFromDocuments} onSubmit={() => setAdvancing(true)} style={{ flex: 1 }}>
+          <button className="btn btn-lime btn-block" type="submit" disabled={!allUploaded || advancing}>
+            {advancing ? 'Saving…' : <>Save &amp; continue <i className="fa-solid fa-arrow-right" /></>}
+          </button>
+        </form>
+      </div>
       {!allUploaded && <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>Upload all three documents to continue.</div>}
     </div>
   );
@@ -251,8 +261,9 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
 /* --------------------------- Step 3: Agreements ---------------------------- */
 function AgreementsStep({ alreadySigned }: { alreadySigned: boolean }) {
   const [agreed, setAgreed] = useState(alreadySigned);
+  const [saving, setSaving] = useState(false);
   return (
-    <form action={saveAgreement} className="card card-pad">
+    <form action={saveAgreement} onSubmit={() => setSaving(true)} className="card card-pad">
       <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Read and accept the membership packet to continue." />
       <div style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>{AGREEMENT_TITLE}</div>
@@ -267,19 +278,23 @@ function AgreementsStep({ alreadySigned }: { alreadySigned: boolean }) {
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
         <span>I have read and agree to the {AGREEMENT_TITLE}.</span>
       </label>
-      <button className="btn btn-lime btn-block" type="submit" disabled={!agreed} style={{ marginTop: 18 }}>
-        Agree &amp; continue <i className="fa-solid fa-arrow-right" />
-      </button>
+      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+        <Link href="/onboarding?step=documents" className="btn btn-ghost"><i className="fa-solid fa-arrow-left" /> Back</Link>
+        <button className="btn btn-lime btn-block" type="submit" disabled={!agreed || saving} style={{ flex: 1 }}>
+          {saving ? 'Saving…' : <>Agree &amp; continue <i className="fa-solid fa-arrow-right" /></>}
+        </button>
+      </div>
     </form>
   );
 }
 
 /* --------------------------- Step 4: Review -------------------------------- */
 function ReviewStep({
-  profile, relMap, docs, agreementSigned, onEdit,
+  profile, relMap, docs, agreementSigned,
 }: {
-  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreementSigned: boolean; onEdit: (s: string) => void;
+  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreementSigned: boolean;
 }) {
+  const [submitting, setSubmitting] = useState(false);
   const uploaded = new Set(docs.map((d) => d.doc_type));
   const Row = ({ k, v }: { k: string; v: any }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
@@ -299,7 +314,7 @@ function ReviewStep({
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Personal details</div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit('personal')}>Edit</button>
+        <Link href="/onboarding?step=personal" className="btn btn-ghost btn-sm">Edit</Link>
       </div>
       <Row k="Full name" v={profile?.full_name} />
       <Row k="ID / Passport no." v={profile?.national_id} />
@@ -314,7 +329,7 @@ function ReviewStep({
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '18px 0 6px' }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Documents</div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit('documents')}>Edit</button>
+        <Link href="/onboarding?step=documents" className="btn btn-ghost btn-sm">Edit</Link>
       </div>
       {KYC_DOC_TYPES.map((d) => (
         <Row key={d.key} k={d.label} v={uploaded.has(d.key) ? 'Uploaded' : 'Missing'} />
@@ -323,9 +338,9 @@ function ReviewStep({
       <div style={{ margin: '18px 0 6px', fontWeight: 700, fontSize: 14 }}>Agreements</div>
       <Row k="Membership packet" v={agreementSigned ? 'Accepted' : 'Not accepted'} />
 
-      <form action={submitForApproval} style={{ marginTop: 20 }}>
-        <button className="btn btn-primary btn-block" type="submit">
-          <i className="fa-solid fa-paper-plane" /> Submit for approval
+      <form action={submitForApproval} onSubmit={() => setSubmitting(true)} style={{ marginTop: 20 }}>
+        <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
+          {submitting ? 'Submitting…' : <><i className="fa-solid fa-paper-plane" /> Submit for approval</>}
         </button>
       </form>
       <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>
