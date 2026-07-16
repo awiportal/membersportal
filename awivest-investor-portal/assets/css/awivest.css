@@ -1,0 +1,100 @@
+/* AWIVEST Investor Portal - front-end styles (v2.10.0) */
+:root{
+  --awv-primary:#b22c75;
+  --awv-primary-dark:#8f2360;
+  --awv-primary-tint:#fdeef6;
+  --awv-ink:#101828;
+  --awv-body:#344054;
+  --awv-muted:#667085;
+  --awv-line:#e3e8ef;
+  --awv-bg:#f6f8fb;
+  --awv-radius:12px;
+  --awv-shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+}
+.awivest-portal{max-width:1000px;margin:0 auto;padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--awv-body);line-height:1.55}
+.awivest-portal *{box-sizing:border-box}
+.awivest-portal h1,.awivest-portal h2,.awivest-portal h3,.awivest-portal h4{color:var(--awv-ink);line-height:1.25}
+.awivest-portal h2{font-size:22px;margin:0 0 6px}
+.awivest-portal h3{font-size:18px}
+.awivest-portal a{color:var(--awv-primary)}
+
+.awivest-card{background:#fff;border:1px solid var(--awv-line);border-radius:var(--awv-radius);padding:24px;margin-bottom:20px;box-shadow:var(--awv-shadow)}
+.awivest-card h2{margin-top:0}
+.awivest-card h3{margin-top:0}
+
+.awivest-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px;border-bottom:1px solid var(--awv-line);padding-bottom:10px}
+.awivest-nav a{padding:9px 16px;border-radius:8px;text-decoration:none;color:var(--awv-body);font-weight:600;transition:background .15s,color .15s}
+.awivest-nav a:hover{background:var(--awv-primary-tint)}
+.awivest-nav a.active{background:var(--awv-primary);color:#fff}
+
+.awivest-form label{display:block;margin-bottom:16px;font-weight:600;color:var(--awv-ink)}
+.awivest-form input[type=text],.awivest-form input[type=email],.awivest-form input[type=password],.awivest-form input[type=tel],.awivest-form input[type=number],.awivest-form input[type=date],.awivest-form select,.awivest-form textarea{display:block;width:100%;margin-top:6px;padding:11px 13px;border:1px solid #d0d5dd;border-radius:8px;font-weight:400;font-size:15px;color:var(--awv-ink);background:#fff;transition:border-color .15s,box-shadow .15s}
+.awivest-form input:focus,.awivest-form select:focus,.awivest-form textarea:focus{outline:none;border-color:var(--awv-primary);box-shadow:0 0 0 3px rgba(178,44,117,.15)}
+.awivest-form .awivest-inline{font-weight:400;display:flex;align-items:center;gap:8px}
+.awivest-form h4{margin:22px 0 12px;padding-top:16px;border-top:1px solid var(--awv-line);color:var(--awv-ink)}
+
+.awivest-portal a.awivest-btn,.awivest-portal button.awivest-btn,.awivest-btn{background:var(--awv-primary);color:#fff !important;border:1px solid var(--awv-primary);padding:12px 20px;border-radius:8px;font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;display:inline-block;line-height:1.2;transition:background .15s,box-shadow .15s}
+.awivest-portal a.awivest-btn:hover,.awivest-portal button.awivest-btn:hover,.awivest-btn:hover{background:var(--awv-primary-dark);border-color:var(--awv-primary-dark);color:#fff !important}
+.awivest-btn:focus{outline:none;box-shadow:0 0 0 3px rgba(178,44,117,.3)}
+.awivest-btn.small{padding:7px 13px;font-size:13px}
+.awivest-btn[disabled],.awivest-btn:disabled{opacity:.5;cursor:not-allowed}
+.awivest-portal a.awivest-btn-outline,.awivest-portal button.awivest-btn-outline,.awivest-btn-outline{background:#fff;color:var(--awv-primary) !important;border:1px solid var(--awv-primary)}
+.awivest-portal a.awivest-btn-outline:hover,.awivest-btn-outline:hover{background:var(--awv-primary-tint);color:var(--awv-primary-dark) !important}
+.awivest-btn-danger,.awivest-portal a.awivest-btn-danger{background:#b32d2e !important;border-color:#b32d2e;color:#fff !important}
+.awivest-btn-danger:hover{background:#8f2323 !important;color:#fff !important}
+
+.awivest-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.awivest-tabs a{padding:9px 17px;border-radius:8px 8px 0 0;text-decoration:none;color:var(--awv-body)}
+.awivest-tabs a.active{background:var(--awv-primary);color:#fff}
+
+.awivest-grid{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}
+.awivest-stat{flex:1;min-width:160px;background:var(--awv-bg);border:1px solid #eef2f6;border-radius:10px;padding:16px}
+.awivest-stat span{display:block;font-size:13px;color:var(--awv-muted);margin-bottom:4px}
+.awivest-stat strong{font-size:20px;color:var(--awv-ink)}
+
+.awivest-badge{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;text-transform:capitalize;background:#eef2f6;color:var(--awv-body)}
+.awivest-badge.approved,.awivest-badge.active,.awivest-badge.signed{background:#e6f4ea;color:#1a7f37}
+.awivest-badge.pending,.awivest-badge.submitted,.awivest-badge.sent,.awivest-badge.viewed{background:#fff4e5;color:#b54708}
+.awivest-badge.rejected,.awivest-badge.deactivated,.awivest-badge.not_submitted,.awivest-badge.declined,.awivest-badge.disagreed{background:#fde8e8;color:#b42318}
+
+.awivest-table{width:100%;border-collapse:collapse;margin-top:14px}
+.awivest-table th,.awivest-table td{text-align:left;padding:11px 12px;border-bottom:1px solid #eef2f6;font-size:14px;vertical-align:middle}
+.awivest-table th{color:var(--awv-muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.awivest-table tr:hover td{background:#fbfdff}
+
+.awivest-dropzone{border:2px dashed #cbd5e1;border-radius:10px;padding:28px;text-align:center;cursor:pointer;background:var(--awv-bg);position:relative;transition:border-color .15s,background .15s}
+.awivest-dropzone:hover{border-color:var(--awv-primary)}
+.awivest-dropzone.dragover{border-color:var(--awv-primary);background:var(--awv-primary-tint)}
+.awivest-dropzone input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.awivest-filename{margin-top:8px;font-weight:600;color:var(--awv-primary)}
+
+.awivest-alert{padding:13px 16px;border-radius:8px;margin-bottom:18px;font-size:14px}
+.awivest-alert.success{background:#e6f4ea;color:#1a7f37;border:1px solid #b7e0c2}
+.awivest-alert.error{background:#fde8e8;color:#b42318;border:1px solid #f5c2c2}
+.awivest-alert ul{margin:0;padding-left:18px}
+
+.awivest-hint{font-size:13px;color:var(--awv-muted);margin-top:6px}
+.awivest-muted{font-size:13px;color:var(--awv-muted)}
+.awivest-notice{border-left:4px solid #b54708;background:#fffaf2}
+.awivest-notice h3{margin-top:0;color:#b54708}
+
+.awivest-search{width:100%;padding:11px 13px;border:1px solid #d0d5dd;border-radius:8px;margin-top:8px;margin-bottom:4px}
+
+/* Document checklist status */
+.awivest-doc-list{list-style:none;margin:14px 0;padding:0}
+.awivest-doc-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 15px;border:1px solid var(--awv-line);border-radius:8px;margin-bottom:8px;background:#fff;font-weight:600;color:var(--awv-ink)}
+.awivest-doc-ok{color:#1a7f37;font-weight:700;white-space:nowrap}
+.awivest-doc-missing{color:#b42318;font-weight:700;white-space:nowrap}
+
+/* Signing */
+.awivest-sigpad{border:1px solid #d0d5dd;border-radius:8px;background:#fff;touch-action:none;max-width:100%;display:block}
+.awivest-sig-actions{display:flex;gap:10px;margin-top:12px}
+.awivest-check{display:block;margin:12px 0}
+.awivest-sign-wrap{margin:12px 0;padding:14px;border:1px dashed #cbd5e1;border-radius:8px;background:var(--awv-bg)}
+.awivest-consent-buttons{margin-top:14px}
+
+@media (max-width:600px){
+  .awivest-card{padding:18px}
+  .awivest-grid{flex-direction:column}
+  .awivest-portal h2{font-size:20px}
+}

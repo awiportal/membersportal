@@ -1,0 +1,644 @@
+/* AWIVEST Member Success Index (MSI) styles.
+   Reuses the portal brand colour (#b22c75) and works in light and dark mode. */
+
+:root {
+	--awivest-msi-brand: #b22c75;
+	--awivest-msi-brand-dark: #8f2360;
+	--awivest-msi-tint: #fdeef6;
+	--awivest-msi-ink: #2b2b2b;
+	--awivest-msi-muted: #6b6b6b;
+	--awivest-msi-line: #e7e7ea;
+	--awivest-msi-soft: #fafafa;
+	--awivest-msi-green: #2e8b57;
+	--awivest-msi-amber: #c98a00;
+	--awivest-msi-red: #c0392b;
+}
+
+/* ---- Intro / consent ---- */
+.awivest-msi-intro .awivest-msi-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 12px 0 4px;
+}
+
+.awivest-msi-intro .awivest-msi-badges span {
+	background: var(--awivest-msi-tint);
+	color: var(--awivest-msi-brand-dark);
+	border-radius: 999px;
+	padding: 4px 12px;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.awivest-msi-cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+	margin-top: 14px;
+}
+
+.awivest-msi-cols h4,
+.awivest-msi-privacy h4 {
+	margin: 0 0 6px;
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-cols ul {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.awivest-msi-cols li {
+	margin: 4px 0;
+}
+
+.awivest-msi-privacy {
+	margin-top: 16px;
+	padding: 14px 16px;
+	border: 1px solid var(--awivest-msi-line);
+	border-radius: 10px;
+	background: var(--awivest-msi-soft);
+}
+
+.awivest-msi-privacy p {
+	margin: 0;
+	color: var(--awivest-msi-muted);
+	font-size: 14px;
+}
+
+/* ---- Dashboard CTA + progress bar ---- */
+.awivest-msi-cta h3 {
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-progress {
+	height: 10px;
+	border-radius: 999px;
+	background: var(--awivest-msi-line);
+	overflow: hidden;
+	margin: 10px 0 14px;
+}
+
+.awivest-msi-progress span {
+	display: block;
+	height: 100%;
+	background: var(--awivest-msi-brand);
+	border-radius: 999px;
+	transition: width .3s ease;
+}
+
+/* ---- Wizard ---- */
+.awivest-msi-stephead {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--awivest-msi-muted);
+}
+
+.awivest-msi-stephead span:last-child {
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-field {
+	margin: 14px 0;
+}
+
+.awivest-msi-q {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.awivest-req {
+	color: var(--awivest-msi-brand);
+}
+
+.awivest-msi-radios {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+}
+
+.awivest-msi-inputwrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.awivest-msi-unit,
+.awivest-msi-unit-suffix {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--awivest-msi-muted);
+}
+
+.awivest-msi-navbtns {
+	display: flex;
+	gap: 10px;
+	margin-top: 18px;
+}
+
+.awivest-msi-savenote {
+	margin-top: 10px;
+	font-size: 12px;
+	color: var(--awivest-msi-muted);
+}
+
+/* ---- Results ---- */
+.awivest-msi-gauge {
+	text-align: center;
+	margin: 8px auto 18px;
+	width: 180px;
+	height: 180px;
+	border-radius: 50%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	border: 10px solid var(--awivest-msi-brand);
+	background: var(--awivest-msi-tint);
+}
+
+.awivest-msi-gauge-num {
+	font-size: 46px;
+	font-weight: 800;
+	line-height: 1;
+	color: var(--awivest-msi-ink);
+}
+
+.awivest-msi-gauge-num small {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--awivest-msi-muted);
+}
+
+.awivest-msi-gauge-band {
+	margin-top: 6px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	font-size: 13px;
+}
+
+.awivest-band-excellent {
+	border-color: var(--awivest-msi-green);
+}
+.awivest-band-excellent .awivest-msi-gauge-band {
+	color: var(--awivest-msi-green);
+}
+.awivest-band-good {
+	border-color: var(--awivest-msi-brand);
+}
+.awivest-band-good .awivest-msi-gauge-band {
+	color: var(--awivest-msi-brand-dark);
+}
+.awivest-band-average {
+	border-color: var(--awivest-msi-amber);
+}
+.awivest-band-average .awivest-msi-gauge-band {
+	color: var(--awivest-msi-amber);
+}
+.awivest-band-needs-improvement {
+	border-color: var(--awivest-msi-red);
+}
+.awivest-band-needs-improvement .awivest-msi-gauge-band {
+	color: var(--awivest-msi-red);
+}
+
+.awivest-msi-subs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px 24px;
+	margin: 8px 0 4px;
+}
+
+.awivest-msi-sub-top {
+	display: flex;
+	justify-content: space-between;
+	font-size: 13px;
+	margin-bottom: 4px;
+}
+
+.awivest-msi-bar {
+	height: 8px;
+	border-radius: 999px;
+	background: var(--awivest-msi-line);
+	overflow: hidden;
+}
+
+.awivest-msi-bar span {
+	display: block;
+	height: 100%;
+	background: var(--awivest-msi-brand);
+	border-radius: 999px;
+}
+
+.awivest-msi-bar-na span {
+	background: transparent;
+}
+
+.awivest-msi-bar-na {
+	background: repeating-linear-gradient(45deg, var(--awivest-msi-line), var(--awivest-msi-line) 4px, transparent 4px, transparent 8px);
+}
+
+.awivest-msi-grid2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin: 16px 0;
+}
+
+.awivest-msi-tips {
+	margin-top: 8px;
+	padding: 14px 16px;
+	border-left: 4px solid var(--awivest-msi-brand);
+	background: var(--awivest-msi-tint);
+	border-radius: 8px;
+}
+
+.awivest-msi-tips h4 {
+	margin: 0 0 6px;
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-tips ul {
+	margin: 0;
+	padding-left: 18px;
+}
+
+@media (max-width: 640px) {
+	.awivest-msi-cols,
+	.awivest-msi-subs,
+	.awivest-msi-grid2 {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--awivest-msi-ink: #ececec;
+		--awivest-msi-muted: #b5b5b5;
+		--awivest-msi-line: #3a3a3d;
+		--awivest-msi-soft: #26262a;
+		--awivest-msi-tint: #3a1830;
+	}
+}
+
+/* ---- Financial Profile sub-navigation ---- */
+.awivest-msi-subnav {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 14px;
+	border-bottom: 1px solid var(--awivest-msi-line);
+}
+
+.awivest-msi-subnav a {
+	padding: 8px 14px;
+	font-weight: 600;
+	color: var(--awivest-msi-muted);
+	text-decoration: none;
+	border-bottom: 3px solid transparent;
+	margin-bottom: -1px;
+}
+
+.awivest-msi-subnav a.is-active {
+	color: var(--awivest-msi-brand-dark);
+	border-bottom-color: var(--awivest-msi-brand);
+}
+
+/* ---- Goal cards ---- */
+.awivest-goal-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px;
+}
+
+.awivest-goal-head h3 {
+	margin: 0;
+}
+
+.awivest-badge {
+	background: var(--awivest-msi-tint);
+	color: var(--awivest-msi-brand-dark);
+	border-radius: 999px;
+	padding: 3px 12px;
+	font-size: 12px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.awivest-goal-stats {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 12px;
+	margin: 6px 0 4px;
+}
+
+.awivest-goal-stats div {
+	display: flex;
+	flex-direction: column;
+}
+
+.awivest-goal-stats span {
+	font-size: 12px;
+	color: var(--awivest-msi-muted);
+}
+
+.awivest-goal-stats strong {
+	font-size: 15px;
+	color: var(--awivest-msi-ink);
+}
+
+.awivest-goal-actions {
+	margin-top: 12px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.awivest-btn.small {
+	padding: 5px 12px;
+	font-size: 13px;
+}
+
+.awivest-btn-danger {
+	background: var(--awivest-msi-red);
+	border-color: var(--awivest-msi-red);
+	color: #fff;
+}
+
+/* ---- Goal form ---- */
+.awivest-goal-form {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px;
+}
+
+.awivest-goal-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-weight: 600;
+}
+
+.awivest-goal-form input,
+.awivest-goal-form select {
+	font-weight: 400;
+}
+
+.awivest-goal-form .awivest-msi-savenote,
+.awivest-goal-form button,
+.awivest-goal-form > a {
+	grid-column: 1 / -1;
+}
+
+/* ---- Dashboard goal tracker ---- */
+.awivest-goal-mini {
+	margin: 8px 0;
+}
+
+.awivest-goal-mini-top {
+	display: flex;
+	justify-content: space-between;
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+@media (max-width: 640px) {
+	.awivest-goal-stats {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.awivest-goal-form {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ---- Planning calculators ---- */
+.awivest-calc-form {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px;
+}
+
+.awivest-calc-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-weight: 600;
+}
+
+.awivest-calc-form button {
+	grid-column: 1 / -1;
+	justify-self: start;
+}
+
+.awivest-calc-inputwrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.awivest-calc-inputwrap input {
+	flex: 1;
+	font-weight: 400;
+}
+
+.awivest-calc-result h4 {
+	margin: 0 0 10px;
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-calc-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 16px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--awivest-msi-line);
+}
+
+.awivest-calc-row:last-of-type {
+	border-bottom: 0;
+}
+
+.awivest-calc-row span {
+	color: var(--awivest-msi-muted);
+	font-size: 14px;
+}
+
+.awivest-calc-row strong {
+	font-size: 16px;
+	color: var(--awivest-msi-ink);
+	white-space: nowrap;
+}
+
+.awivest-calc-row.is-strong strong {
+	color: var(--awivest-msi-brand-dark);
+	font-size: 18px;
+}
+
+.awivest-notice {
+	margin: 12px 0 0;
+	padding: 12px 14px;
+	border-radius: 8px;
+	font-size: 14px;
+	border-left: 4px solid var(--awivest-msi-brand);
+	background: var(--awivest-msi-tint);
+}
+
+.awivest-notice-ok {
+	border-left-color: var(--awivest-msi-green);
+}
+
+.awivest-notice-error {
+	border-left-color: var(--awivest-msi-red);
+}
+
+@media (max-width: 640px) {
+	.awivest-calc-form {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ---- Multiselect checkboxes ---- */
+.awivest-msi-checks {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px 18px;
+}
+
+.awivest-msi-checks .awivest-inline {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* ---- Risk profile block (results) ---- */
+.awivest-msi-risk {
+	margin-top: 16px;
+	padding: 14px 16px;
+	border: 1px solid var(--awivest-msi-line);
+	border-radius: 10px;
+	background: var(--awivest-msi-soft);
+}
+
+.awivest-msi-risk h4 {
+	margin: 0 0 8px;
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-risk p {
+	margin: 6px 0;
+}
+
+@media (max-width: 640px) {
+	.awivest-msi-checks {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ---- MCIS commitment ladder ---- */
+.awivest-msi-mcis {
+	margin-top: 16px;
+	padding: 14px 16px;
+	border: 1px solid var(--awivest-msi-line);
+	border-radius: 10px;
+}
+
+.awivest-msi-mcis h4 {
+	margin: 0 0 8px;
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-ladder {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 10px 0;
+}
+
+.awivest-msi-rung {
+	flex: 1 1 auto;
+	text-align: center;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 6px 8px;
+	border-radius: 6px;
+	background: var(--awivest-msi-line);
+	color: var(--awivest-msi-muted);
+	white-space: nowrap;
+}
+
+.awivest-msi-rung.is-on {
+	background: var(--awivest-msi-brand);
+	color: #fff;
+}
+
+/* ---- Personalised recommendations ---- */
+.awivest-msi-recs {
+	margin-top: 16px;
+}
+
+.awivest-msi-recs h4 {
+	margin: 0 0 8px;
+	color: var(--awivest-msi-brand-dark);
+}
+
+.awivest-msi-rec {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 10px 12px;
+	border-left: 4px solid var(--awivest-msi-brand);
+	background: var(--awivest-msi-soft);
+	border-radius: 8px;
+	margin-bottom: 8px;
+}
+
+.awivest-msi-rec strong {
+	color: var(--awivest-msi-ink);
+}
+
+/* --- MSI consent checkbox: force the native checkbox to render and stay tickable
+   regardless of theme resets (v2.11.7). Some themes hide native checkboxes; a hidden
+   `required` control is non-focusable, so the browser silently refuses to submit the
+   consent form and the "Start my Financial Profile" button appears dead. --- */
+#awivest-msi-consent-form .awivest-consent-line {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 8px 0 16px;
+}
+#awivest-msi-consent-form .awivest-consent-check,
+.awivest-form .awivest-inline input[type="checkbox"] {
+	-webkit-appearance: checkbox !important;
+	-moz-appearance: checkbox !important;
+	appearance: checkbox !important;
+	position: static !important;
+	opacity: 1 !important;
+	visibility: visible !important;
+	display: inline-block !important;
+	width: 20px !important;
+	height: 20px !important;
+	min-width: 20px !important;
+	min-height: 20px !important;
+	margin: 2px 0 0 0 !important;
+	padding: 0 !important;
+	flex: 0 0 auto !important;
+	pointer-events: auto !important;
+	clip: auto !important;
+	clip-path: none !important;
+	transform: none !important;
+	accent-color: #7a1f6b;
+}
+
+.awivest-msi-rec span {
+	color: var(--awivest-msi-muted);
+	font-size: 14px;
+}
