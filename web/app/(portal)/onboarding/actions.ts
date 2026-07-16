@@ -34,7 +34,6 @@ export async function savePersonalData(formData: FormData) {
     })
     .eq('id', uid);
 
-  // Surface a real failure instead of spinning forever.
   if (updErr) {
     console.error('savePersonalData profiles.update failed:', updErr.message);
     redirect('/onboarding?step=personal&err=save');
@@ -77,7 +76,6 @@ export async function continueFromDocuments() {
   const have = new Set((docs ?? []).map((d: any) => d.doc_type));
   const required = ['passport_photo', 'national_id', 'kra_pin'];
   if (!required.every((r) => have.has(r))) {
-    // Not all documents uploaded yet — stay on the documents step.
     redirect('/onboarding?step=documents&err=docs');
   }
 
@@ -86,9 +84,8 @@ export async function continueFromDocuments() {
   redirect('/onboarding?step=agreements');
 }
 
-// Step 3 — record consent to the membership agreement packet.
-// (PandaDoc e-signing replaces this with a legally-binding audit trail once configured.)
-export async function saveAgreement() {
+// Step 3a — sign one agreement (typed full-name signature)
+export async function signAgreement(formData: FormData) {
   const supabase = createClient();
   const {
     data: { user },
@@ -96,22 +93,43 @@ export async function saveAgreement() {
   if (!user) redirect('/login');
   const uid = user.id;
 
-  const { data: existing } = await supabase
-    .from('agreements')
-    .select('id')
-    .eq('member_id', uid)
-    .limit(1);
+  const agreement_id = String(formData.get('agreement_id') || '');
+  const signed_name = String(formData.get('signed_name') || '').trim();
+  if (!agreement_id || !signed_name) {
+    redirect('/onboarding?step=agreements&err=sign');
+  }
 
-  const payload = {
-    status: 'completed' as const,
-    provider: 'manual-consent',
-    signed_at: new Date().toISOString(),
-  };
+  const { error } = await supabase.from('agreement_acceptances').upsert(
+    { member_id: uid, agreement_id, signed_name, signed_at: new Date().toISOString() },
+    { onConflict: 'member_id,agreement_id' }
+  );
+  if (error) console.error('signAgreement failed:', error.message);
 
-  if (existing && existing.length) {
-    await supabase.from('agreements').update(payload).eq('id', existing[0].id);
-  } else {
-    await supabase.from('agreements').insert({ member_id: uid, ...payload });
+  revalidatePath('/onboarding');
+  redirect('/onboarding?step=agreements');
+}
+
+// Step 3b — advance past agreements once all required forms are signed
+export async function continueFromAgreements() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+  const uid = user.id;
+
+  const { data: agrDocs } = await supabase
+    .from('agreement_documents')
+    .select('id,required')
+    .eq('active', true);
+  const { data: accs } = await supabase
+    .from('agreement_acceptances')
+    .select('agreement_id')
+    .eq('member_id', uid);
+  const signed = new Set((accs ?? []).map((a: any) => a.agreement_id));
+  const missing = (agrDocs ?? []).filter((d: any) => d.required && !signed.has(d.id));
+  if (missing.length) {
+    redirect('/onboarding?step=agreements&err=agreements');
   }
 
   await supabase.from('profiles').update({ onboarding_step: 'review' }).eq('id', uid);
@@ -128,8 +146,7 @@ export async function submitForApproval() {
   if (!user) redirect('/login');
   const uid = user.id;
 
-  // Server-side completeness guard (so the pack can't be submitted half-done,
-  // even if someone jumps straight to ?step=review).
+  // Server-side completeness guard.
   const { data: p } = await supabase
     .from('profiles')
     .select('full_name,national_id,kra_pin,phone')
@@ -138,7 +155,19 @@ export async function submitForApproval() {
   const { data: kd } = await supabase.from('kyc_documents').select('doc_type').eq('member_id', uid);
   const have = new Set((kd ?? []).map((d: any) => d.doc_type));
   const docsOk = ['passport_photo', 'national_id', 'kra_pin'].every((r) => have.has(r));
-  if (!p?.full_name || !p?.national_id || !p?.kra_pin || !p?.phone || !docsOk) {
+
+  const { data: agrDocs } = await supabase
+    .from('agreement_documents')
+    .select('id,required')
+    .eq('active', true);
+  const { data: accs } = await supabase
+    .from('agreement_acceptances')
+    .select('agreement_id')
+    .eq('member_id', uid);
+  const signedSet = new Set((accs ?? []).map((a: any) => a.agreement_id));
+  const agreementsOk = (agrDocs ?? []).filter((d: any) => d.required).every((d: any) => signedSet.has(d.id));
+
+  if (!p?.full_name || !p?.national_id || !p?.kra_pin || !p?.phone || !docsOk || !agreementsOk) {
     redirect('/onboarding?step=review&err=incomplete');
   }
 

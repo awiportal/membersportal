@@ -17,11 +17,12 @@ export default async function MemberDetail({ params }: { params: { id: string } 
   const supabase = createClient();
   const id = params.id;
 
-  const [{ data: m }, { data: relations }, { data: docs }, { data: agreements }] = await Promise.all([
+  const [{ data: m }, { data: relations }, { data: docs }, { data: agrDocs }, { data: acceptances }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).single(),
     supabase.from('member_relations').select('*').eq('member_id', id),
     supabase.from('kyc_documents').select('*').eq('member_id', id).order('uploaded_at', { ascending: false }),
-    supabase.from('agreements').select('*').eq('member_id', id),
+    supabase.from('agreement_documents').select('*').eq('active', true).order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
+    supabase.from('agreement_acceptances').select('*').eq('member_id', id),
   ]);
   if (!m) notFound();
 
@@ -35,7 +36,9 @@ export default async function MemberDetail({ params }: { params: { id: string } 
   docsWithUrls.forEach((d) => (docByType[d.doc_type] = d));
   const relMap: Record<string, any> = {};
   ((relations ?? []) as any[]).forEach((r) => (relMap[r.relation_kind] = r));
-  const agreementSigned = ((agreements ?? []) as any[]).some((a) => a.status === 'completed');
+  const accByAgr: Record<string, any> = {};
+  ((acceptances ?? []) as any[]).forEach((a) => (accByAgr[a.agreement_id] = a));
+  const agreementDocs = (agrDocs ?? []) as any[];
 
   const Row = ({ k, v }: { k: string; v: any }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
@@ -141,12 +144,28 @@ export default async function MemberDetail({ params }: { params: { id: string } 
               );
             })}
           </div>
-          <div style={{ marginTop: 16, fontWeight: 700, fontSize: 14 }}>Agreement</div>
-          <div style={{ marginTop: 8 }}>
-            <span className={`badge ${agreementSigned ? 'badge-good' : 'badge-warn'}`}>
-              <i className={`fa-solid ${agreementSigned ? 'fa-circle-check' : 'fa-clock'}`} /> {agreementSigned ? 'Membership packet accepted' : 'Not accepted yet'}
-            </span>
-          </div>
+          <div style={{ marginTop: 16, fontWeight: 700, fontSize: 14 }}>Agreements</div>
+          {agreementDocs.length === 0 ? (
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>No agreements published.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              {agreementDocs.map((a) => {
+                const acc = accByAgr[a.id];
+                return (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13 }}>{a.title}{a.required ? '' : ' (optional)'}</span>
+                    {acc ? (
+                      <span className="badge badge-good" style={{ fontSize: 11 }} title={new Date(acc.signed_at).toLocaleString()}>
+                        <i className="fa-solid fa-signature" /> {acc.signed_name}
+                      </span>
+                    ) : (
+                      <span className="badge badge-warn" style={{ fontSize: 11 }}>Not signed</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

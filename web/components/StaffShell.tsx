@@ -37,13 +37,15 @@ export default function StaffShell({
         </div>
         <nav className="side-scroll">
           <div className="nav-group-label">Management</div>
-          <Link href="/staff" className={`nav-item ${pathname.startsWith('/staff') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+          <Link href="/staff" className={`nav-item ${(pathname === '/staff' || pathname.startsWith('/staff/members')) ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-user-check" /><span>Approvals &amp; Members</span>
+          </Link>
+          <Link href="/staff/agreements" className={`nav-item ${pathname.startsWith('/staff/agreements') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-file-contract" /><span>Agreements</span>
           </Link>
           <div className="nav-group-label">Coming soon</div>
           {[
             ['Documents & statements', 'fa-folder-open'],
-            ['Online forms', 'fa-file-signature'],
             ['Welfare', 'fa-hand-holding-heart'],
             ['Opportunities', 'fa-lightbulb'],
             ['Reports', 'fa-chart-column'],
