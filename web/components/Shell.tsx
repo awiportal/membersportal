@@ -5,6 +5,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { NAV } from '@/lib/nav';
 import { createClient } from '@/lib/supabase/client';
 
+// Sections a member can reach before their membership is approved (manual 3.7):
+// Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
+const ALLOWED_WHEN_PENDING = new Set(['dashboard', 'kyc', 'profile', 'notifications', 'settings']);
+
 export default function Shell({
   profile,
   email,
@@ -17,7 +21,9 @@ export default function Shell({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const active = (pathname || '/dashboard').replace(/^\//, '') || 'dashboard';
+  const isActive = profile?.status === 'active';
+  let active = (pathname || '/dashboard').replace(/^\//, '') || 'dashboard';
+  if ((pathname || '').startsWith('/onboarding')) active = 'kyc';
   const name = profile?.full_name || email || 'Member';
   const initials = name.split(' ').map((s: string) => s[0]).slice(0, 2).join('').toUpperCase();
 
@@ -26,6 +32,12 @@ export default function Shell({
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
+  }
+
+  function hrefFor(id: string) {
+    if (id === 'dashboard') return '/dashboard';
+    if (id === 'kyc') return isActive ? '/kyc' : '/onboarding';
+    return `/${id}`;
   }
 
   return (
@@ -40,18 +52,35 @@ export default function Shell({
           {NAV.map((group) => (
             <div key={group.group}>
               <div className="nav-group-label">{group.group}</div>
-              {group.items.map((it) => (
-                <Link
-                  key={it.id}
-                  href={it.id === 'dashboard' ? '/dashboard' : `/${it.id}`}
-                  className={`nav-item ${active === it.id ? 'active' : ''}`}
-                  onClick={() => setOpen(false)}
-                >
-                  <i className={`fa-solid ${it.icon}`} />
-                  <span>{it.label}</span>
-                  {it.tag && <span className="tag">{it.tag}</span>}
-                </Link>
-              ))}
+              {group.items.map((it) => {
+                const locked = !isActive && !ALLOWED_WHEN_PENDING.has(it.id);
+                if (locked) {
+                  return (
+                    <div
+                      key={it.id}
+                      className="nav-item"
+                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                      title="Available once your membership is approved"
+                    >
+                      <i className={`fa-solid ${it.icon}`} />
+                      <span>{it.label}</span>
+                      <i className="fa-solid fa-lock" style={{ marginLeft: 'auto', fontSize: 11 }} />
+                    </div>
+                  );
+                }
+                return (
+                  <Link
+                    key={it.id}
+                    href={hrefFor(it.id)}
+                    className={`nav-item ${active === it.id ? 'active' : ''}`}
+                    onClick={() => setOpen(false)}
+                  >
+                    <i className={`fa-solid ${it.icon}`} />
+                    <span>{it.label}</span>
+                    {it.tag && <span className="tag">{it.tag}</span>}
+                  </Link>
+                );
+              })}
             </div>
           ))}
         </nav>
@@ -74,7 +103,7 @@ export default function Shell({
           <button className="icon-btn menu-btn" onClick={() => setOpen(true)} aria-label="Open menu"><i className="fa-solid fa-bars" /></button>
           <label className="search"><i className="fa-solid fa-magnifying-glass" /><input placeholder="Search holdings, forms, documents…" aria-label="Search" /></label>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="badge badge-good hide-sm">{profile?.status ? String(profile.status)[0].toUpperCase() + String(profile.status).slice(1) : 'Member'}</span>
+            <span className={`badge ${isActive ? 'badge-good' : 'badge-warn'} hide-sm`}>{profile?.status ? String(profile.status)[0].toUpperCase() + String(profile.status).slice(1) : 'Member'}</span>
             <button className="icon-btn" aria-label="Notifications"><i className="fa-solid fa-bell" /></button>
             <div className="avatar" title={name}>{initials}</div>
           </div>
