@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { roleLabel, statusLabel } from '@/lib/roles';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
+import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
 import { approveMember, rejectMember, setMemberStatus } from '../../actions';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,18 @@ export default async function MemberDetail({ params }: { params: { id: string } 
     supabase.from('agreement_acceptances').select('*').eq('member_id', id),
   ]);
   if (!m) notFound();
+
+  // Live PandaDoc execution status for members who signed via e-sign.
+  let esign:
+    | { status: string; memberSigned: boolean; fullyExecuted: boolean; signers: { email: string; name: string; role?: string; completed: boolean }[] }
+    | null = null;
+  if (m.esign_document_id && pandadocConfigured()) {
+    try {
+      esign = await getEsignSummary(m.esign_document_id, m.email);
+    } catch {
+      esign = null;
+    }
+  }
 
   const docsWithUrls = await Promise.all(
     ((docs ?? []) as any[]).map(async (d) => {
@@ -145,7 +158,47 @@ export default async function MemberDetail({ params }: { params: { id: string } 
             })}
           </div>
           <div style={{ marginTop: 16, fontWeight: 700, fontSize: 14 }}>Agreements</div>
-          {agreementDocs.length === 0 ? (
+          {m.esign_document_id ? (
+            <div style={{ marginTop: 8 }}>
+              {/* The member's own signature — this is what unlocks their onboarding. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13 }}>Membership agreement (e-signed)</span>
+                {m.esign_status === 'completed' ? (
+                  <span className="badge badge-good" style={{ fontSize: 11 }} title={m.esign_signed_at ? new Date(m.esign_signed_at).toLocaleString() : undefined}>
+                    <i className="fa-solid fa-circle-check" /> Member signed{m.esign_signed_at ? ` · ${new Date(m.esign_signed_at).toLocaleDateString()}` : ''}
+                  </span>
+                ) : (
+                  <span className="badge badge-warn" style={{ fontSize: 11 }}>Awaiting member signature</span>
+                )}
+              </div>
+              {/* Overall execution across all signers (member + officials) — live from PandaDoc. */}
+              {esign ? (
+                <>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+                    {esign.fullyExecuted
+                      ? 'Fully executed — signed by all parties.'
+                      : `Awaiting counter-signature — ${esign.signers.filter((s) => s.completed).length} of ${esign.signers.length} signer(s) done.`}
+                  </div>
+                  {esign.signers.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                      {esign.signers.map((s, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12.5 }}>{s.name}{s.role ? ` · ${s.role}` : ''}</span>
+                          {s.completed ? (
+                            <span className="badge badge-good" style={{ fontSize: 10.5 }}><i className="fa-solid fa-check" /> Signed</span>
+                          ) : (
+                            <span className="badge badge-warn" style={{ fontSize: 10.5 }}>Pending</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>Live counter-signature status is unavailable right now.</div>
+              )}
+            </div>
+          ) : agreementDocs.length === 0 ? (
             <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>No agreements published.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
