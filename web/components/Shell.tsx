@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { NAV } from '@/lib/nav';
 import { createClient } from '@/lib/supabase/client';
+import { isStaff } from '@/lib/roles';
 
 // Sections a member can reach before their membership is approved (manual 3.7):
 // Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
@@ -49,6 +50,17 @@ export default function Shell({
           <div><div style={{ fontWeight: 800, letterSpacing: '-.3px' }}>AWIVEST</div><div className="muted" style={{ fontSize: 11 }}>Investor Portal</div></div>
         </div>
         <nav className="side-scroll">
+          {isStaff(profile?.role) && (
+            <Link
+              href="/staff"
+              className="nav-item"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', marginBottom: 6 }}
+              onClick={() => setOpen(false)}
+            >
+              <i className="fa-solid fa-user-shield" />
+              <span>Staff console</span>
+            </Link>
+          )}
           {NAV.map((group) => (
             <div key={group.group}>
               <div className="nav-group-label">{group.group}</div>
