@@ -36,6 +36,12 @@ export async function savePersonalData(formData: FormData) {
 
   if (updErr) {
     console.error('savePersonalData profiles.update failed:', updErr.message);
+    const info = `${updErr.code || ''} ${updErr.message || ''} ${(updErr as any).details || ''}`.toLowerCase();
+    if (updErr.code === '23505' || info.includes('duplicate key') || info.includes('already exists')) {
+      if (info.includes('national_id')) redirect('/onboarding?step=personal&err=dup_national_id');
+      if (info.includes('phone')) redirect('/onboarding?step=personal&err=dup_phone');
+      redirect('/onboarding?step=personal&err=dup');
+    }
     redirect('/onboarding?step=personal&err=save');
   }
 

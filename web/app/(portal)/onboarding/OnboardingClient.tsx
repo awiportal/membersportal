@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -166,32 +166,86 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
   const set = (k: string) => (e: any) => setF((s) => ({ ...s, [k]: e.target.value }));
   const setR = (rk: string, k: string) => (e: any) => setRel((s) => ({ ...s, [rk]: { ...s[rk], [k]: e.target.value } }));
 
-  const F = ({ label, k, type = 'text', required = false, placeholder = '' }: any) => (
-    <div className="field">
-      <label>{label} {required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
-      <input className="input" name={k} type={type} value={f[k as keyof typeof f]} onChange={set(k)} required={required} placeholder={placeholder} />
-    </div>
-  );
+  // Live "already in use" checks for identity fields (National ID + Phone).
+  const [dup, setDup] = useState<{ national_id: boolean; phone: boolean }>({ national_id: false, phone: false });
+  const [checking, setChecking] = useState<{ national_id: boolean; phone: boolean }>({ national_id: false, phone: false });
+  const timers = useRef<Record<string, any>>({});
+
+  async function checkUnique(field: 'national_id' | 'phone', value: string) {
+    const v = value.trim();
+    if (!v || v === String(profile?.[field] ?? '').trim()) {
+      setChecking((s) => ({ ...s, [field]: false }));
+      setDup((s) => ({ ...s, [field]: false }));
+      return;
+    }
+    try {
+      setChecking((s) => ({ ...s, [field]: true }));
+      const supabase = createClient();
+      const { data } = await supabase.rpc('identifier_in_use', { p_field: field, p_value: v });
+      setDup((s) => ({ ...s, [field]: data === true }));
+    } catch {
+      setDup((s) => ({ ...s, [field]: false }));
+    } finally {
+      setChecking((s) => ({ ...s, [field]: false }));
+    }
+  }
+
+  const onIdentity = (field: 'national_id' | 'phone') => (e: any) => {
+    const value = e.target.value;
+    setF((s) => ({ ...s, [field]: value }));
+    setDup((s) => ({ ...s, [field]: false }));
+    clearTimeout(timers.current[field]);
+    timers.current[field] = setTimeout(() => checkUnique(field, value), 500);
+  };
+  const dupAny = dup.national_id || dup.phone;
 
   return (
     <form action={savePersonalData} className="card card-pad">
       <SectionTitle icon="fa-user" title="Your details" desc="These are saved to your member record and used to pre-fill your membership forms." />
       {err === 'save' && <ErrorBanner text="We couldn't save your details just now. Please check your entries and try again — if it keeps happening, let your administrator know." />}
+      {err === 'dup_national_id' && <ErrorBanner text="That National ID / Passport number is already registered to another member. Each person may hold only one AWIVEST membership." />}
+      {err === 'dup_phone' && <ErrorBanner text="That phone number is already registered to another member. Please use a different number." />}
+      {err === 'dup' && <ErrorBanner text="Some of your details are already registered to another member. Please review the highlighted fields." />}
       <div className="grid2">
-        <F label="Full name" k="full_name" required placeholder="e.g. Jane Wanjiru" />
+        <div className="field">
+          <label>Full name <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <input className="input" name="full_name" value={f.full_name} onChange={set('full_name')} required placeholder="e.g. Jane Wanjiru" />
+        </div>
         <div className="field"><label>Email</label><input className="input" name="_email" defaultValue={email} readOnly /></div>
       </div>
       <div className="grid2">
-        <F label="National ID / Passport number" k="national_id" required />
-        <F label="KRA PIN" k="kra_pin" required />
+        <div className="field">
+          <label>National ID / Passport number <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <input className="input" name="national_id" value={f.national_id} onChange={onIdentity('national_id')} required style={dup.national_id ? { borderColor: '#ff8a8a' } : undefined} />
+          {checking.national_id && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
+          {dup.national_id && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This ID number is already in use by another member.</div>}
+        </div>
+        <div className="field">
+          <label>KRA PIN <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <input className="input" name="kra_pin" value={f.kra_pin} onChange={set('kra_pin')} required />
+        </div>
       </div>
       <div className="grid2">
-        <F label="Date of birth" k="date_of_birth" type="date" />
-        <F label="Phone" k="phone" required placeholder="+254 7XX XXX XXX" />
+        <div className="field">
+          <label>Date of birth</label>
+          <input className="input" name="date_of_birth" type="date" value={f.date_of_birth} onChange={set('date_of_birth')} />
+        </div>
+        <div className="field">
+          <label>Phone <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <input className="input" name="phone" value={f.phone} onChange={onIdentity('phone')} required placeholder="+254 7XX XXX XXX" style={dup.phone ? { borderColor: '#ff8a8a' } : undefined} />
+          {checking.phone && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
+          {dup.phone && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This phone number is already in use by another member.</div>}
+        </div>
       </div>
       <div className="grid2">
-        <F label="Postal address" k="postal_address" placeholder="e.g. 190-60102" />
-        <F label="Physical address" k="physical_address" placeholder="e.g. Nairobi, Kenya" />
+        <div className="field">
+          <label>Postal address</label>
+          <input className="input" name="postal_address" value={f.postal_address} onChange={set('postal_address')} placeholder="e.g. 190-60102" />
+        </div>
+        <div className="field">
+          <label>Physical address</label>
+          <input className="input" name="physical_address" value={f.physical_address} onChange={set('physical_address')} placeholder="e.g. Nairobi, Kenya" />
+        </div>
       </div>
 
       {RELATION_KINDS.map((rk) => (
@@ -212,7 +266,8 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
         </div>
       ))}
 
-      <SubmitButton className="btn btn-lime btn-block" style={{ marginTop: 8 }}>
+      {dupAny && <div style={{ color: '#ff8a8a', fontSize: 12.5, textAlign: 'center', marginTop: 10 }}>Please resolve the highlighted duplicate(s) before continuing.</div>}
+      <SubmitButton className="btn btn-lime btn-block" style={{ marginTop: 8 }} disabled={dupAny}>
         Save &amp; continue <i className="fa-solid fa-arrow-right" />
       </SubmitButton>
     </form>
