@@ -5,8 +5,8 @@ import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { KYC_DOC_TYPES, RELATION_KINDS, AGREEMENT_TITLE } from '@/lib/onboarding';
-import { savePersonalData, continueFromDocuments, saveAgreement, submitForApproval } from './actions';
+import { KYC_DOC_TYPES, RELATION_KINDS } from '@/lib/onboarding';
+import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval } from './actions';
 
 const ORDER = ['personal', 'documents', 'agreements', 'review'] as const;
 const STEP_META: Record<string, { label: string; icon: string }> = {
@@ -18,8 +18,10 @@ const STEP_META: Record<string, { label: string; icon: string }> = {
 
 type Rel = { relation_kind: string; name?: string; relationship?: string; phone?: string; id_number?: string };
 type Doc = { doc_type: string; file_path: string; status: string; uploaded_at?: string };
+type Agreement = { id: string; title: string; description?: string | null; required: boolean; fileUrl: string };
+type Acceptance = { agreement_id: string; signed_name: string; signed_at: string };
 
-// Submit button whose pending state comes from the actual form status, so it
+// Submit button whose pending state comes from the real form status, so it
 // always resets on completion or error and can never get stuck on "Saving…".
 function SubmitButton({
   children,
@@ -46,7 +48,8 @@ export default function OnboardingClient({
   profile,
   relations,
   docs,
-  agreementSigned,
+  agreements,
+  acceptances,
   email,
   requestedStep,
   err,
@@ -54,23 +57,19 @@ export default function OnboardingClient({
   profile: any;
   relations: Rel[];
   docs: Doc[];
-  agreementSigned: boolean;
+  agreements: Agreement[];
+  acceptances: Acceptance[];
   email: string;
   requestedStep?: string;
   err?: string;
 }) {
-  const router = useRouter();
   const status = profile?.status;
   const savedStep: string = profile?.onboarding_step || 'personal';
 
   if (status === 'active') return <ApprovedState />;
   if (savedStep === 'submitted') return <SubmittedState investorId={profile?.investor_id} />;
 
-  // Step is driven by the URL (?step=). We do NOT clamp it back to the saved
-  // step — the server actions only ever redirect here after successfully
-  // saving, so trusting the URL guarantees the wizard always moves forward.
-  // (Skipping ahead via a hand-typed URL is harmless: each advancing action
-  // validates its own data server-side, and submit re-checks the whole pack.)
+  const router = useRouter();
   const savedIdx = Math.max((ORDER as readonly string[]).indexOf(savedStep), 0);
   const reqIdx = requestedStep ? (ORDER as readonly string[]).indexOf(requestedStep) : -1;
   const stepIdx = reqIdx >= 0 ? reqIdx : Math.min(savedIdx, ORDER.length - 1);
@@ -79,6 +78,7 @@ export default function OnboardingClient({
 
   const relMap: Record<string, Rel> = {};
   relations.forEach((r) => (relMap[r.relation_kind] = r));
+  const memberName = profile?.full_name || '';
 
   const goto = (s: string) => router.push(`/onboarding?step=${s}`);
 
@@ -130,8 +130,8 @@ export default function OnboardingClient({
 
       {step === 'personal' && <PersonalStep profile={profile} relMap={relMap} email={email} err={err} />}
       {step === 'documents' && <DocumentsStep uid={profile.id} docs={docs} err={err} />}
-      {step === 'agreements' && <AgreementsStep alreadySigned={agreementSigned} />}
-      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreementSigned={agreementSigned} err={err} />}
+      {step === 'agreements' && <AgreementsStep agreements={agreements} acceptances={acceptances} memberName={memberName} err={err} />}
+      {step === 'review' && <ReviewStep profile={profile} relMap={relMap} docs={docs} agreements={agreements} acceptances={acceptances} err={err} />}
     </div>
   );
 }
@@ -146,8 +146,6 @@ function ErrorBanner({ text }: { text: string }) {
 
 /* ----------------------------- Step 1: Personal ----------------------------- */
 function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: Record<string, Rel>; email: string; err?: string }) {
-  // Controlled inputs so values are never lost (React resets uncontrolled
-  // forms after a server action; controlled state is immune to that).
   const [f, setF] = useState({
     full_name: profile?.full_name ?? '',
     national_id: profile?.national_id ?? '',
@@ -305,41 +303,84 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
 }
 
 /* --------------------------- Step 3: Agreements ---------------------------- */
-function AgreementsStep({ alreadySigned }: { alreadySigned: boolean }) {
-  const [agreed, setAgreed] = useState(alreadySigned);
+function AgreementsStep({ agreements, acceptances, memberName, err }: { agreements: Agreement[]; acceptances: Acceptance[]; memberName: string; err?: string }) {
+  const accByAgr: Record<string, Acceptance> = {};
+  acceptances.forEach((a) => (accByAgr[a.agreement_id] = a));
+  const requiredUnsigned = agreements.filter((a) => a.required && !accByAgr[a.id]);
+  const canContinue = requiredUnsigned.length === 0;
+
   return (
-    <form action={saveAgreement} className="card card-pad">
-      <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Read and accept the membership packet to continue." />
-      <div style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>{AGREEMENT_TITLE}</div>
-        <p className="muted">
-          By joining African Women Investors (AWIVEST) you agree to the Membership Agreement, the Terms &amp; Conditions,
-          and the Confidentiality Agreement governing member conduct, contributions, confidentiality of member
-          information, and the collective&apos;s investment policies. A full, legally-binding e-signature (with audit
-          trail) will be requested via our e-signing partner once your pack is reviewed.
-        </p>
-      </div>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, cursor: 'pointer', fontSize: 14 }}>
-        <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
-        <span>I have read and agree to the {AGREEMENT_TITLE}.</span>
-      </label>
+    <div className="card card-pad">
+      <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Open each document to read it, then sign by typing your full name." />
+      {err === 'agreements' && <ErrorBanner text="Please sign all required agreements before continuing." />}
+      {err === 'sign' && <ErrorBanner text="Please type your full name to sign." />}
+
+      {agreements.length === 0 ? (
+        <div className="muted" style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5 }}>
+          No agreement documents have been published yet, so there is nothing to sign right now. You can continue.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {agreements.map((a) => {
+            const acc = accByAgr[a.id];
+            return (
+              <div key={a.id} style={{ padding: 14, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 11, display: 'grid', placeItems: 'center', background: acc ? 'rgba(55,201,138,0.16)' : 'var(--surface)', color: acc ? '#7ef0bf' : 'var(--purple2)' }}>
+                    <i className={`fa-solid ${acc ? 'fa-circle-check' : 'fa-file-contract'}`} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                      {a.title} {a.required ? <span style={{ color: 'var(--lime2)' }}>*</span> : <span className="muted" style={{ fontSize: 12 }}>(optional)</span>}
+                    </div>
+                    {a.description && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{a.description}</div>}
+                  </div>
+                  <a href={a.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm"><i className="fa-solid fa-up-right-from-square" /> Read</a>
+                </div>
+
+                {acc ? (
+                  <div className="badge badge-good" style={{ marginTop: 12 }}>
+                    <i className="fa-solid fa-signature" /> Signed by {acc.signed_name} on {new Date(acc.signed_at).toLocaleDateString()}
+                  </div>
+                ) : (
+                  <form action={signAgreement} style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    <input type="hidden" name="agreement_id" value={a.id} />
+                    <div className="field" style={{ flex: '1 1 240px', margin: 0 }}>
+                      <label>Type your full name to sign</label>
+                      <input className="input" name="signed_name" defaultValue={memberName} placeholder="e.g. Jane Wanjiru" required />
+                    </div>
+                    <SubmitButton className="btn btn-lime" pendingText="Signing…" style={{ whiteSpace: 'nowrap' }}>
+                      <i className="fa-solid fa-pen-nib" /> Sign
+                    </SubmitButton>
+                  </form>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
         <Link href="/onboarding?step=documents" className="btn btn-ghost"><i className="fa-solid fa-arrow-left" /> Back</Link>
-        <SubmitButton className="btn btn-lime btn-block" disabled={!agreed} style={{ flex: 1 }}>
-          Agree &amp; continue <i className="fa-solid fa-arrow-right" />
-        </SubmitButton>
+        <form action={continueFromAgreements} style={{ flex: 1 }}>
+          <SubmitButton className="btn btn-lime btn-block" disabled={!canContinue}>
+            Save &amp; continue <i className="fa-solid fa-arrow-right" />
+          </SubmitButton>
+        </form>
       </div>
-    </form>
+      {!canContinue && <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>Sign all required agreements to continue.</div>}
+    </div>
   );
 }
 
 /* --------------------------- Step 4: Review -------------------------------- */
 function ReviewStep({
-  profile, relMap, docs, agreementSigned, err,
+  profile, relMap, docs, agreements, acceptances, err,
 }: {
-  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreementSigned: boolean; err?: string;
+  profile: any; relMap: Record<string, Rel>; docs: Doc[]; agreements: Agreement[]; acceptances: Acceptance[]; err?: string;
 }) {
   const uploaded = new Set(docs.map((d) => d.doc_type));
+  const signed = new Set(acceptances.map((a) => a.agreement_id));
   const Row = ({ k, v }: { k: string; v: any }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
       <span className="muted">{k}</span>
@@ -355,7 +396,7 @@ function ReviewStep({
   return (
     <div className="card card-pad">
       <SectionTitle icon="fa-clipboard-check" title="Review & submit" desc="Please review your information. If everything is correct, submit your pack for committee approval." />
-      {err === 'incomplete' && <ErrorBanner text="Some required details or documents are still missing. Please complete every step before submitting." />}
+      {err === 'incomplete' && <ErrorBanner text="Some required details, documents or signatures are still missing. Please complete every step before submitting." />}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Personal details</div>
@@ -380,8 +421,17 @@ function ReviewStep({
         <Row key={d.key} k={d.label} v={uploaded.has(d.key) ? 'Uploaded' : 'Missing'} />
       ))}
 
-      <div style={{ margin: '18px 0 6px', fontWeight: 700, fontSize: 14 }}>Agreements</div>
-      <Row k="Membership packet" v={agreementSigned ? 'Accepted' : 'Not accepted'} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '18px 0 6px' }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Agreements</div>
+        <Link href="/onboarding?step=agreements" className="btn btn-ghost btn-sm">Edit</Link>
+      </div>
+      {agreements.length === 0 ? (
+        <Row k="Agreements" v="None to sign" />
+      ) : (
+        agreements.map((a) => (
+          <Row key={a.id} k={a.title} v={signed.has(a.id) ? 'Signed' : a.required ? 'Not signed' : 'Optional — not signed'} />
+        ))
+      )}
 
       <form action={submitForApproval} style={{ marginTop: 20 }}>
         <SubmitButton className="btn btn-primary btn-block" pendingText="Submitting…">
