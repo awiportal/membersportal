@@ -31,7 +31,14 @@ export default function LoginForm() {
         password,
         options: { data: { full_name: fullName, phone } },
       });
-      if (error) setMsg({ t: error.message, kind: 'bad' });
+      if (error) {
+        const lm = (error.message || '').toLowerCase();
+        const friendly =
+          lm.includes('already') || lm.includes('registered') || lm.includes('exists')
+            ? 'That email address is already in use. Please sign in instead, or use a different email.'
+            : error.message;
+        setMsg({ t: friendly, kind: 'bad' });
+      }
       else if (data.session) {
         router.push('/dashboard');
         router.refresh();
