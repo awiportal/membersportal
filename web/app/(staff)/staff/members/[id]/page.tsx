@@ -40,10 +40,6 @@ export default async function MemberDetail({ params }: { params: { id: string } 
     }
   }
 
-  const { data: settingsRows } = await supabase.from('app_settings').select('key,value');
-  const settings = Object.fromEntries(((settingsRows ?? []) as any[]).map((r) => [r.key, r.value])) as Record<string, string>;
-  const oneoffConfigured = pandadocConfigured() && !!(settings['pandadoc_oneoff_template_id'] || '').trim();
-
   const docsWithUrls = await Promise.all(
     ((docs ?? []) as any[]).map(async (d) => {
       const { data } = await supabase.storage.from('kyc').createSignedUrl(d.file_path, 3600);
