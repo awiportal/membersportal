@@ -6,9 +6,6 @@ export const dynamic = 'force-dynamic';
 
 export default async function StaffAgreements() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data: rows } = await supabase
     .from('agreement_documents')
@@ -27,7 +24,7 @@ export default async function StaffAgreements() {
       <div className="sub">Publish the documents every new member must read and sign during onboarding. Changes appear to members immediately.</div>
 
       <div style={{ marginTop: 20 }}>
-        <AgreementAdder userId={user?.id ?? ''} />
+        <AgreementAdder />
       </div>
 
       <div className="card card-pad">
