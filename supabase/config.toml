@@ -1,0 +1,6 @@
+# Supabase project config — AWIVEST Investor Portal
+# Linked project ref: tocqmqooilxrynijvyvr
+project_id = "tocqmqooilxrynijvyvr"
+
+[db]
+major_version = 15
