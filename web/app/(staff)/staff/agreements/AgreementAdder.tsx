@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { addAgreement } from './actions';
 
-export default function AgreementAdder({ userId }: { userId: string }) {
+export default function AgreementAdder() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
@@ -21,23 +21,13 @@ export default function AgreementAdder({ userId }: { userId: string }) {
     if (!file) { setMsg('Please choose a file to upload.'); return; }
     setBusy(true);
     try {
-      const supabase = createClient();
-      const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from('agreements')
-        .upload(path, file, { upsert: true, contentType: file.type || undefined });
-      if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from('agreement_documents').insert({
-        title: title.trim(),
-        description: desc.trim() || null,
-        file_path: path,
-        file_name: file.name,
-        mime_type: file.type || null,
-        required,
-        created_by: userId || null,
-      });
-      if (insErr) throw insErr;
+      const fd = new FormData();
+      fd.set('title', title.trim());
+      fd.set('description', desc.trim());
+      fd.set('required', required ? '1' : '');
+      fd.set('file', file);
+      const res = await addAgreement(fd);
+      if (res?.error) { setMsg(res.error); return; }
       setTitle('');
       setDesc('');
       setRequired(true);
