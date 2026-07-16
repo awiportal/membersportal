@@ -91,6 +91,17 @@ export async function sendSilently(id: string): Promise<void> {
   });
 }
 
+/** Move a freshly-created document to 'sent' and let PandaDoc email the recipient(s) a signing link. */
+export async function sendForSigning(id: string, subject: string, message?: string): Promise<void> {
+  const doc = await waitForStatus(id, ['document.draft'], 12, 1500);
+  if (doc?.status !== 'document.draft') {
+    throw new Error(`Document is not ready to send yet (status: ${doc?.status || 'unknown'}). Please try again in a moment.`);
+  }
+  const body: Record<string, any> = { silent: false, subject };
+  if (message) body.message = message;
+  await pd(`/documents/${id}/send`, { method: 'POST', body: JSON.stringify(body) });
+}
+
 /** Create a short-lived signing link the recipient can open in a new tab. */
 export async function createSigningLink(id: string, email: string): Promise<string> {
   const session = await pd(`/documents/${id}/session`, {
