@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { KES, KESc, pct } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
@@ -32,6 +33,9 @@ export default async function DashboardPage() {
   const onTrack = gls.filter((g) => pct(g.saved_amount, g.target_amount) >= 25).length;
   const firstName = String(profile?.full_name || 'there').split(' ')[0];
 
+  const notActive = profile?.status !== 'active';
+  const submitted = profile?.onboarding_step === 'submitted';
+
   const byClass: Record<string, number> = {};
   holds.forEach((h) => {
     const k = h.asset_class || 'Other';
@@ -48,11 +52,30 @@ export default async function DashboardPage() {
           <div className="page-title">Welcome, {firstName}</div>
           <div className="sub">
             {profile?.investor_id ? `${profile.investor_id} · ` : ''}
-            {profile?.status === 'active' ? 'Your account is active.' : 'Your account is pending approval — you can still upload KYC.'}
+            {profile?.status === 'active' ? 'Your account is active.' : 'Your account is pending approval — complete your membership below.'}
           </div>
         </div>
-        {!empty && <LoadDemoData />}
+        {!empty && !notActive && <LoadDemoData />}
       </div>
+
+      {notActive && (
+        <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', border: '1px solid rgba(166,205,53,0.3)' }}>
+          <div className="grad-lime" style={{ width: 46, height: 46, borderRadius: 13, display: 'grid', placeItems: 'center', color: '#20260a', flexShrink: 0 }}>
+            <i className={`fa-solid ${submitted ? 'fa-hourglass-half' : 'fa-id-card-clip'}`} />
+          </div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontWeight: 700 }}>{submitted ? 'Membership pending approval' : 'Complete your AWIVEST membership'}</div>
+            <div className="muted" style={{ fontSize: 13 }}>
+              {submitted
+                ? 'Your pack is with the committee. Your full portal unlocks automatically once approved.'
+                : 'Fill in your details, upload your documents, and submit for approval to unlock the full portal.'}
+            </div>
+          </div>
+          <Link href="/onboarding" className="btn btn-lime">
+            {submitted ? 'View status' : 'Continue'} <i className="fa-solid fa-arrow-right" />
+          </Link>
+        </div>
+      )}
 
       {empty ? (
         <div className="card card-pad" style={{ textAlign: 'center', padding: '56px 24px' }}>
@@ -63,7 +86,7 @@ export default async function DashboardPage() {
           <p className="muted" style={{ fontSize: 14, maxWidth: 460, margin: '10px auto 22px', lineHeight: 1.6 }}>
             Your account and secure profile are ready. Load a sample portfolio to preview how your holdings, allocation and goals will look — everything is stored live in your Supabase database.
           </p>
-          <LoadDemoData />
+          {!notActive && <LoadDemoData />}
         </div>
       ) : (
         <>
