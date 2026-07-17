@@ -5,6 +5,16 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { roleLabel } from '@/lib/roles';
 
+// Shows the user's uploaded photo when present, otherwise their coloured
+// initials — same 40x40 rounded shape everywhere.
+function Avatar({ url, initials, title }: { url?: string | null; initials: string; title?: string }) {
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url} alt="" title={title} className="avatar" style={{ objectFit: 'cover', padding: 0 }} />;
+  }
+  return <div className="avatar" title={title}>{initials}</div>;
+}
+
 export default function StaffShell({
   profile,
   email,
@@ -64,7 +74,7 @@ export default function StaffShell({
         </nav>
         <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8 }}>
-            <div className="avatar">{initials}</div>
+            <Avatar url={profile?.avatar_url} initials={initials} title={name} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
               <div className="muted" style={{ fontSize: 11.5 }}>{roleLabel(profile?.role)}</div>
@@ -82,7 +92,7 @@ export default function StaffShell({
           <div style={{ fontWeight: 700 }}>Staff Console</div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="badge badge-purple hide-sm">{roleLabel(profile?.role)}</span>
-            <div className="avatar" title={name}>{initials}</div>
+            <Avatar url={profile?.avatar_url} initials={initials} title={name} />
           </div>
         </header>
         <main className="view">{children}</main>

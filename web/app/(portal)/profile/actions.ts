@@ -53,3 +53,32 @@ export async function updateProfile(input: ProfileInput): Promise<{ ok?: true; e
   revalidatePath('/dashboard');
   return { ok: true };
 }
+
+// Save (or clear) the member's profile photo URL. The actual image is uploaded
+// to Supabase Storage from the browser; here we just persist the resulting URL.
+export async function saveAvatar(url: string | null): Promise<{ ok?: true; error?: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session has expired. Please sign in again.' };
+
+  const clean = url ? String(url).trim().slice(0, 1000) : null;
+  if (clean && !/^https?:\/\//i.test(clean)) {
+    return { error: 'That photo link does not look right. Please try uploading again.' };
+  }
+
+  const { error } = await supabase.from('profiles').update({ avatar_url: clean }).eq('id', user.id);
+  if (error) {
+    console.error('saveAvatar failed:', error.message);
+    const m = (error.message || '').toLowerCase();
+    if (m.includes('avatar_url') || (m.includes('column') && m.includes('does not exist'))) {
+      return { error: 'Photo storage isn’t set up yet. Please run the v1.1 database migration, then try again.' };
+    }
+    return { error: 'We could not save your photo just now. Please try again in a moment.' };
+  }
+
+  revalidatePath('/profile');
+  revalidatePath('/dashboard');
+  return { ok: true };
+}
