@@ -47,6 +47,7 @@ export async function savePersonalData(formData: FormData) {
       national_id: clean(formData, 'national_id'),
       kra_pin: clean(formData, 'kra_pin'),
       date_of_birth: clean(formData, 'date_of_birth'),
+      date_joined: clean(formData, 'date_joined'),
       phone: clean(formData, 'phone'),
       postal_address: clean(formData, 'postal_address'),
       physical_address: clean(formData, 'physical_address'),

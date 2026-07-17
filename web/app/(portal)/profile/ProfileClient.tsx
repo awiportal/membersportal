@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { COUNTRIES, COUNTRY_BY_CODE } from '@/lib/countries';
 import { updateProfile } from './actions';
+import DateSelect from '@/components/DateSelect';
 
 function initials(name?: string) {
   const n = (name || '').trim();
@@ -75,7 +76,7 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
   const status = String(profile?.status || 'pending');
   const kyc = String(profile?.kyc_status || 'pending');
   const role = String(profile?.role || 'member');
-  const memberSince = fmtDate(profile?.joined_at || profile?.created_at);
+  const memberSince = fmtDate(profile?.date_joined || profile?.joined_at || profile?.created_at);
   const c = country ? COUNTRY_BY_CODE[country] : undefined;
 
   function save() {
@@ -202,7 +203,7 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
               <input className="input" value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="e.g. P.O. Box 4801-00100" />
             </Field>
             <Field label="Date of birth">
-              <input className="input" type="date" value={dob} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDob(e.target.value)} />
+              <DateSelect value={dob} onChange={setDob} />
             </Field>
           </div>
 

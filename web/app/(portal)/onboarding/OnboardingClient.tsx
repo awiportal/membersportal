@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { KYC_DOC_TYPES, RELATION_KINDS } from '@/lib/onboarding';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
+import DateSelect from '@/components/DateSelect';
 
 const ORDER = ['personal', 'documents', 'agreements', 'review'] as const;
 const STEP_META: Record<string, { label: string; icon: string }> = {
@@ -155,6 +156,7 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
     national_id: profile?.national_id ?? '',
     kra_pin: profile?.kra_pin ?? '',
     date_of_birth: profile?.date_of_birth ?? '',
+    date_joined: profile?.date_joined ?? '',
     phone: profile?.phone ?? '',
     postal_address: profile?.postal_address ?? '',
     physical_address: profile?.physical_address ?? '',
@@ -232,7 +234,7 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
       <div className="grid2">
         <div className="field">
           <label>Date of birth</label>
-          <input className="input" name="date_of_birth" type="date" value={f.date_of_birth} onChange={set('date_of_birth')} />
+          <DateSelect name="date_of_birth" value={f.date_of_birth} onChange={(v) => setF((s) => ({ ...s, date_of_birth: v }))} />
         </div>
         <div className="field">
           <label>Phone <span style={{ color: 'var(--lime2)' }}>*</span></label>
@@ -240,6 +242,14 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
           {checking.phone && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
           {dup.phone && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This phone number is already in use by another member.</div>}
         </div>
+      </div>
+      <div className="grid2">
+        <div className="field">
+          <label>Date of joining AWI <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <DateSelect name="date_joined" value={f.date_joined} onChange={(v) => setF((s) => ({ ...s, date_joined: v }))} fromYear={2000} />
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>The date you joined AWIVEST. This becomes your &ldquo;Member since&rdquo; date.</div>
+        </div>
+        <div className="field" />
       </div>
       <div className="grid2">
         <div className="field">
@@ -568,6 +578,7 @@ function ReviewStep({
       <Row k="ID / Passport no." v={profile?.national_id} />
       <Row k="KRA PIN" v={profile?.kra_pin} />
       <Row k="Date of birth" v={profile?.date_of_birth} />
+      <Row k="Date joined" v={profile?.date_joined} />
       <Row k="Phone" v={profile?.phone} />
       <Row k="Postal address" v={profile?.postal_address} />
       <Row k="Physical address" v={profile?.physical_address} />
