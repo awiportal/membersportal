@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { COUNTRIES, COUNTRY_BY_CODE } from '@/lib/countries';
 import { updateProfile } from './actions';
+import DateSelect from '@/components/DateSelect';
 
 function initials(name?: string) {
   const n = (name || '').trim();
@@ -11,12 +12,16 @@ function initials(name?: string) {
   return (((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase()) || 'AW';
 }
 
-function initialCountryCode(raw?: string | null): string {
-  if (!raw) return '';
-  if (COUNTRY_BY_CODE[raw]) return raw;
+function resolveCountry(raw?: string | null) {
+  if (!raw) return undefined;
+  if (COUNTRY_BY_CODE[raw]) return COUNTRY_BY_CODE[raw];
   const lower = String(raw).trim().toLowerCase();
-  const hit = COUNTRIES.find((c) => c.name.toLowerCase() === lower);
-  return hit ? hit.code : '';
+  return COUNTRIES.find((c) => c.name.toLowerCase() === lower);
+}
+
+function initialCountryName(raw?: string | null): string {
+  const hit = resolveCountry(raw);
+  return hit ? hit.name : String(raw || '');
 }
 
 function fmtDate(d?: string | null) {
@@ -71,7 +76,7 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
   const status = String(profile?.status || 'pending');
   const kyc = String(profile?.kyc_status || 'pending');
   const role = String(profile?.role || 'member');
-  const memberSince = fmtDate(profile?.joined_at || profile?.created_at);
+  const memberSince = fmtDate(profile?.date_joined || profile?.joined_at || profile?.created_at);
   const c = country ? COUNTRY_BY_CODE[country] : undefined;
 
   function save() {
@@ -169,15 +174,20 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
           </Field>
 
           <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-            <Field label="Country of residence">
-              <select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>
-                <option value="">Select a country…</option>
+            <Field label="Country of residence" hint="Just start typing — e.g. Kenya — and pick it from the list.">
+              <input
+                className="input"
+                list="awi-country-list"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Start typing, e.g. Kenya"
+                autoComplete="country-name"
+              />
+              <datalist id="awi-country-list">
                 {COUNTRIES.map((cc) => (
-                  <option key={cc.code} value={cc.code}>
-                    {cc.flag} {cc.name}
-                  </option>
+                  <option key={cc.code} value={cc.name} />
                 ))}
-              </select>
+              </datalist>
             </Field>
             <Field label="Phone" hint="Use international format, e.g. +254 712 345678">
               <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={c ? `${c.dial} …` : '+254 712 345678'} inputMode="tel" autoComplete="tel" />
@@ -193,7 +203,7 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
               <input className="input" value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="e.g. P.O. Box 4801-00100" />
             </Field>
             <Field label="Date of birth">
-              <input className="input" type="date" value={dob} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDob(e.target.value)} />
+              <DateSelect value={dob} onChange={setDob} />
             </Field>
           </div>
 
