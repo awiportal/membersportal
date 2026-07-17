@@ -127,9 +127,16 @@ html[data-theme="light"] select.input option{background-color:#ffffff;color:#241
   .menu-btn{display:inline-flex}
   .search{max-width:none}
 }
+@media (max-width:820px){
+  /* Dashboard "Portfolio value + Asset allocation" row: stack to a single
+     full-width column on tablets/phones so the chart isn't squeezed and the
+     donut + legend never get clipped. !important beats the inline grid style. */
+  .dash-grid{grid-template-columns:1fr !important}
+}
 @media (max-width:640px){
   .view{padding:16px}
   .topbar{padding:12px 16px}
   .hide-sm{display:none}
+  .card-pad{padding:16px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
