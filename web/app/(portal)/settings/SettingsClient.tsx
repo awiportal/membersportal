@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { NOTIFICATION_PREFS, CHANNEL_PREFS, LOCALES, FALLBACK_TIMEZONES, withDefaults } from '@/lib/prefs';
-import { updateNotifications, updateRegional, changePassword } from './actions';
+import { updateNotifications, updateRegional, changePassword, updateTwofa } from './actions';
 
 type Msg = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -88,12 +88,37 @@ export default function SettingsClient({
   notificationPrefs,
   locale,
   timezone,
+  twofaEmail,
 }: {
   accountEmail: string;
   notificationPrefs: Record<string, boolean>;
   locale: string;
   timezone: string;
+  twofaEmail: boolean;
 }) {
+  // ---- Two-factor (email code) --------------------------------------------
+  const [twofaOn, setTwofaOn] = useState<boolean>(twofaEmail);
+  const [twofaMsg, setTwofaMsg] = useState<Msg>(null);
+  const [twofaPending, startTwofa] = useTransition();
+  function toggleTwofa(next: boolean) {
+    setTwofaOn(next);
+    setTwofaMsg(null);
+    startTwofa(async () => {
+      const res = await updateTwofa(next);
+      if ((res as any)?.error) {
+        setTwofaOn(!next);
+        setTwofaMsg({ kind: 'err', text: (res as any).error });
+      } else {
+        setTwofaMsg({
+          kind: 'ok',
+          text: next
+            ? 'Email code sign-in is on. You’ll be asked for a code the next time you sign in.'
+            : 'Email code sign-in is off.',
+        });
+      }
+    });
+  }
+
   // ---- Appearance ----------------------------------------------------------
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   useEffect(() => {
@@ -323,12 +348,16 @@ export default function SettingsClient({
             )}
           </button>
 
-          <div className="flex items-center justify-between" style={{ padding: '14px 0 0', marginTop: 14, borderTop: '1px solid var(--border)', gap: 14 }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>Two-factor authentication</div>
-              <div className="muted" style={{ fontSize: 12 }}>Extra security with a one-time code. Coming soon.</div>
+          <div style={{ padding: '14px 0 0', marginTop: 14, borderTop: '1px solid var(--border)' }}>
+            <Banner msg={twofaMsg} />
+            <div className="flex items-center justify-between" style={{ gap: 14 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Email code at sign-in</div>
+                <div className="muted" style={{ fontSize: 12 }}>Extra security: we email you a one-time code when you sign in on a new device.</div>
+              </div>
+              <Toggle on={twofaOn} onChange={toggleTwofa} label="Email code at sign-in" />
             </div>
-            <span className="badge" style={{ background: 'var(--surface2)', color: 'var(--muted)' }}>Coming soon</span>
+            {twofaPending ? <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Saving…</div> : null}
           </div>
         </div>
       </div>

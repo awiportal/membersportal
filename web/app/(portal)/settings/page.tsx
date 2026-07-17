@@ -20,6 +20,7 @@ export default async function SettingsPage() {
       notificationPrefs={(profile?.notification_prefs as Record<string, boolean>) ?? {}}
       locale={(profile?.locale as string) ?? ''}
       timezone={(profile?.timezone as string) ?? ''}
+      twofaEmail={Boolean(profile?.twofa_email)}
     />
   );
 }

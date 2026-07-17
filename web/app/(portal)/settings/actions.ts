@@ -75,3 +75,26 @@ export async function changePassword(input: { password: string }): Promise<{ ok?
 
   return { ok: true };
 }
+
+// Turn the opt-in email-code sign-in on/off for the current member. OFF by
+// default (see v1.0 migration); turning it on adds an emailed code at sign-in.
+export async function updateTwofa(enabled: boolean): Promise<{ ok?: true; error?: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session has expired. Please sign in again.' };
+
+  const { error } = await supabase.from('profiles').update({ twofa_email: !!enabled }).eq('id', user.id);
+  if (error) {
+    console.error('updateTwofa failed:', error.message);
+    const m = (error.message || '').toLowerCase();
+    if (m.includes('twofa_email') || (m.includes('column') && m.includes('does not exist'))) {
+      return { error: 'Email code sign-in isn’t set up yet. Please run the v1.0 database migration, then try again.' };
+    }
+    return { error: 'We could not update your sign-in security just now. Please try again.' };
+  }
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
