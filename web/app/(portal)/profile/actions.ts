@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { COUNTRY_BY_CODE } from '@/lib/countries';
+import { COUNTRIES, COUNTRY_BY_CODE } from '@/lib/countries';
 
 export type ProfileInput = {
   full_name?: string;
@@ -24,7 +24,16 @@ export async function updateProfile(input: ProfileInput): Promise<{ ok?: true; e
   if (!full_name) return { error: 'Please enter your full name.' };
   if (full_name.length > 120) return { error: 'That name looks too long — please shorten it.' };
 
-  const country = input?.country && COUNTRY_BY_CODE[input.country] ? input.country : null;
+  // The Profile field is a type-to-search input, so `country` may arrive as an
+  // ISO code OR a full country name. Store the ISO code when we recognise it,
+  // otherwise keep exactly what the member typed (don't silently drop it).
+  let country: string | null = null;
+  const rawCountry = String(input?.country || '').trim();
+  if (rawCountry) {
+    country = COUNTRY_BY_CODE[rawCountry]
+      ? rawCountry
+      : COUNTRIES.find((cc) => cc.name.toLowerCase() === rawCountry.toLowerCase())?.code || rawCountry;
+  }
   const phone = String(input?.phone || '').trim() || null;
   const physical_address = String(input?.physical_address || '').trim() || null;
   const postal_address = String(input?.postal_address || '').trim() || null;
