@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { COUNTRIES, COUNTRY_BY_CODE } from '@/lib/countries';
-import { updateProfile } from './actions';
+import { createClient } from '@/lib/supabase/client';
+import { updateProfile, saveAvatar } from './actions';
 
 function initials(name?: string) {
   const n = (name || '').trim();
@@ -26,6 +28,30 @@ function fmtDate(d?: string | null) {
   } catch {
     return String(d);
   }
+}
+
+// Downscale + centre-crop the chosen photo to a small square JPEG in the
+// browser, so uploads are fast and light (kind to older phones / slower links)
+// and every avatar is a consistent size.
+async function fileToSquareJpeg(file: File, size = 512): Promise<Blob> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' } as any);
+  } catch {
+    bitmap = await createImageBitmap(file);
+  }
+  const scale = Math.max(size / bitmap.width, size / bitmap.height);
+  const w = bitmap.width * scale;
+  const h = bitmap.height * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Your browser could not process that photo.');
+  ctx.drawImage(bitmap, (size - w) / 2, (size - h) / 2, w, h);
+  return await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process that photo.'))), 'image/jpeg', 0.85)
+  );
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -67,6 +93,72 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
   const [dob, setDob] = useState<string>(profile?.date_of_birth ? String(profile.date_of_birth).slice(0, 10) : '');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [pending, start] = useTransition();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+  const [uploading, setUploading] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const router = useRouter();
+
+  async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!profile?.id) {
+      setPhotoMsg({ kind: 'err', text: 'Please finish setting up your account before adding a photo.' });
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setPhotoMsg({ kind: 'err', text: 'Please choose an image file (a photo).' });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setPhotoMsg({ kind: 'err', text: 'That photo is very large. Please choose one under 15 MB.' });
+      return;
+    }
+    setPhotoMsg(null);
+    setUploading(true);
+    try {
+      const blob = await fileToSquareJpeg(file, 512);
+      const supabase = createClient();
+      const path = `${profile.id}/avatar.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '3600' });
+      if (upErr) throw new Error(upErr.message);
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = `${pub.publicUrl}?v=${Date.now()}`;
+      const res = await saveAvatar(url);
+      if ((res as any)?.error) throw new Error((res as any).error);
+      setAvatarUrl(url);
+      setPhotoMsg({ kind: 'ok', text: 'Your photo has been updated.' });
+      router.refresh();
+    } catch (err: any) {
+      setPhotoMsg({ kind: 'err', text: err?.message || 'We could not upload your photo just now. Please try again.' });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removePhoto() {
+    if (!profile?.id) return;
+    setPhotoMsg(null);
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      try {
+        await supabase.storage.from('avatars').remove([`${profile.id}/avatar.jpg`]);
+      } catch {}
+      const res = await saveAvatar(null);
+      if ((res as any)?.error) throw new Error((res as any).error);
+      setAvatarUrl(null);
+      setPhotoMsg({ kind: 'ok', text: 'Your photo has been removed.' });
+      router.refresh();
+    } catch (err: any) {
+      setPhotoMsg({ kind: 'err', text: err?.message || 'We could not remove your photo just now. Please try again.' });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const status = String(profile?.status || 'pending');
   const kyc = String(profile?.kyc_status || 'pending');
@@ -101,13 +193,19 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
         {/* LEFT: identity + verified details */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card card-pad hover-lift" style={{ textAlign: 'center' }}>
-            <div
-              className="grad-purple"
-              style={{ width: 84, height: 84, borderRadius: '50%', margin: '0 auto 14px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 30, letterSpacing: 1 }}
-            >
-              {initials(profile?.full_name)}
-            </div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{profile?.full_name || 'AWIVEST member'}</div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt="Your profile photo"
+                style={{ width: 88, height: 88, borderRadius: 24, objectFit: 'cover', margin: '0 auto 14px', display: 'block' }}
+              />
+            ) : (
+              <div className="avatar" style={{ width: 88, height: 88, borderRadius: 24, fontSize: 30, margin: '0 auto 14px' }}>
+                {initials(profile?.full_name)}
+              </div>
+            )}
+            <div style={{ fontWeight: 800, fontSize: 19 }}>{profile?.full_name || 'AWIVEST member'}</div>
             <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
               {profile?.investor_id ? `${profile.investor_id}` : 'Investor ID pending'}
               {c ? ` · ${c.flag} ${c.name}` : ''}
@@ -122,6 +220,46 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
               <span className="badge" style={{ background: 'var(--surface2)', color: 'var(--purple2)' }}>
                 <i className="fa-solid fa-user-tie" /> {ROLE_LABEL[role] || 'Member'}
               </span>
+            </div>
+
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
+            {photoMsg ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  borderRadius: 10,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  padding: '9px 12px',
+                  textAlign: 'center',
+                  border: `1px solid ${photoMsg.kind === 'ok' ? 'rgba(166,205,53,0.4)' : 'rgba(239,90,90,0.4)'}`,
+                  color: photoMsg.kind === 'ok' ? 'var(--lime2)' : '#ef7f7f',
+                  background: photoMsg.kind === 'ok' ? 'rgba(166,205,53,0.08)' : 'rgba(239,90,90,0.08)',
+                }}
+              >
+                {photoMsg.text}
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+              <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                {uploading ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin" /> Uploading…
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-camera" /> {avatarUrl ? 'Change photo' : 'Add photo'}
+                  </>
+                )}
+              </button>
+              {avatarUrl && !uploading ? (
+                <button className="btn btn-ghost" onClick={removePhoto}>
+                  <i className="fa-solid fa-trash-can" /> Remove
+                </button>
+              ) : null}
+            </div>
+            <div className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+              A clear, front-facing head-and-shoulders photo works best. Any size is fine — we’ll size it for you.
             </div>
           </div>
 

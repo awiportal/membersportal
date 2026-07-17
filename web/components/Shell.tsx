@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { NAV } from '@/lib/nav';
@@ -11,6 +11,16 @@ import ThemeToggle from './ThemeToggle';
 // Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
 const ALLOWED_WHEN_PENDING = new Set(['dashboard', 'kyc', 'profile', 'notifications', 'settings']);
 
+// Shows the member's uploaded photo when they have one, otherwise their
+// coloured initials. Keeps the same 40x40 rounded shape in every position.
+function Avatar({ url, initials, title }: { url?: string | null; initials: string; title?: string }) {
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url} alt="" title={title} className="avatar" style={{ objectFit: 'cover', padding: 0 }} />;
+  }
+  return <div className="avatar" title={title}>{initials}</div>;
+}
+
 export default function Shell({
   profile,
   email,
@@ -21,6 +31,8 @@ export default function Shell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const isActive = profile?.status === 'active';
@@ -28,6 +40,24 @@ export default function Shell({
   if ((pathname || '').startsWith('/onboarding')) active = 'kyc';
   const name = profile?.full_name || email || 'Member';
   const initials = name.split(' ').map((s: string) => s[0]).slice(0, 2).join('').toUpperCase();
+  const statusStr = profile?.status ? String(profile.status) : '';
+  const roleLine = statusStr ? `${statusStr[0].toUpperCase()}${statusStr.slice(1)} member` : 'Member';
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
 
   async function signOut() {
     const supabase = createClient();
@@ -99,7 +129,7 @@ export default function Shell({
         </nav>
         <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8 }}>
-            <div className="avatar">{initials}</div>
+            <Avatar url={profile?.avatar_url} initials={initials} title={name} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
               <div className="muted" style={{ fontSize: 11.5 }}>{profile?.investor_id || 'Pending ID'}</div>
@@ -119,7 +149,48 @@ export default function Shell({
             <span className={`badge ${isActive ? 'badge-good' : 'badge-warn'} hide-sm`}>{profile?.status ? String(profile.status)[0].toUpperCase() + String(profile.status).slice(1) : 'Member'}</span>
             <ThemeToggle />
             <button className="icon-btn" aria-label="Notifications"><i className="fa-solid fa-bell" /></button>
-            <div className="avatar" title={name}>{initials}</div>
+            <div ref={userMenuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setUserMenuOpen((v) => !v)}
+                aria-label="Account menu"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'transparent', border: 0, cursor: 'pointer', padding: 3, borderRadius: 12 }}
+              >
+                <Avatar url={profile?.avatar_url} initials={initials} title={name} />
+                <div className="hide-sm" style={{ textAlign: 'left', minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{name}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{roleLine}</div>
+                </div>
+                <i className="fa-solid fa-chevron-down muted hide-sm" style={{ fontSize: 11, transition: 'transform .18s', transform: userMenuOpen ? 'rotate(180deg)' : 'none' }} />
+              </button>
+              {userMenuOpen ? (
+                <div
+                  role="menu"
+                  className="card"
+                  style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 232, zIndex: 80, padding: 9, boxShadow: '0 20px 48px -16px rgba(0,0,0,0.55)' }}
+                >
+                  <Link href="/profile" role="menuitem" className="nav-item" onClick={() => setUserMenuOpen(false)}>
+                    <i className="fa-solid fa-user" /><span>My profile</span>
+                  </Link>
+                  <Link href="/financial-profile" role="menuitem" className="nav-item" onClick={() => setUserMenuOpen(false)}>
+                    <i className="fa-solid fa-heart-pulse" /><span>Financial profile</span>
+                  </Link>
+                  <Link href="/settings" role="menuitem" className="nav-item" onClick={() => setUserMenuOpen(false)}>
+                    <i className="fa-solid fa-gear" /><span>Settings</span>
+                  </Link>
+                  <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px' }} />
+                  <button
+                    role="menuitem"
+                    className="nav-item"
+                    onClick={() => { setUserMenuOpen(false); signOut(); }}
+                    style={{ width: '100%', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: '#ef5a5a' }}
+                  >
+                    <i className="fa-solid fa-arrow-right-from-bracket" /><span>Sign out</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
         <main className="view">{children}</main>
