@@ -110,7 +110,7 @@ export default function LoginForm() {
         // Email confirmation is on: collect the 6-digit code on this screen
         // instead of asking the member to click a link in their inbox.
         setAwaitingCode(true);
-        setMsg({ t: 'We’ve emailed you a 6-digit code. Enter it below to finish creating your account.', kind: 'good' });
+        setMsg({ t: 'We’ve emailed you a code. Enter it below to finish creating your account.', kind: 'good' });
       }
     }
     setLoading(false);
@@ -120,9 +120,9 @@ export default function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
-    const token = otp.replace(/\D/g, '').slice(0, 6);
-    if (token.length < 6) {
-      setMsg({ t: 'Please enter the 6-digit code from your email.', kind: 'bad' });
+    const token = otp.replace(/\D/g, '').slice(0, 10);
+    if (token.length < 4) {
+      setMsg({ t: 'Please enter the code from your email.', kind: 'bad' });
       setLoading(false);
       return;
     }
@@ -145,7 +145,7 @@ export default function LoginForm() {
     setMsg(null);
     const { error } = await supabase.auth.resend({ type: 'signup', email });
     if (error) setMsg({ t: 'We could not resend the code just now. Please wait a moment and try again.', kind: 'bad' });
-    else setMsg({ t: 'A fresh 6-digit code is on its way to your email.', kind: 'good' });
+    else setMsg({ t: 'A fresh code is on its way to your email.', kind: 'good' });
     setLoading(false);
   }
 
@@ -191,16 +191,16 @@ export default function LoginForm() {
             <>
               <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Confirm your email</div>
               <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
-                We’ve sent a 6-digit code to <strong>{maskedEmail}</strong>. Enter it below to finish creating your account.
+                We’ve sent a code to <strong>{maskedEmail}</strong>. Enter it below to finish creating your account.
               </p>
               <form onSubmit={verifyCode}>
-                <div className="field"><label>6-digit code</label>
+                <div className="field"><label>Verification code</label>
                   <div className="input-group"><i className="fa-solid fa-key" />
                     <input
                       className="input"
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="123456"
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="Enter the code from your email"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       style={{ letterSpacing: 6, fontSize: 18 }}
