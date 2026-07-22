@@ -19,6 +19,32 @@ export type RelationKey = (typeof RELATION_KINDS)[number]['key'];
 export const ONBOARDING_ORDER = ['personal', 'documents', 'agreements', 'review', 'submitted'] as const;
 export type OnboardingStep = (typeof ONBOARDING_ORDER)[number];
 
+// Account types (set at registration). Drives which membership fields and
+// documents a member is asked for.
+export type MemberType = 'individual' | 'group' | 'corporate' | 'other';
+
+export function memberTypeLabel(t: string | null | undefined): string {
+  switch (t) {
+    case 'group': return 'Group (Chama)';
+    case 'corporate': return 'Corporate (Institution)';
+    case 'other': return 'Other';
+    default: return 'Individual';
+  }
+}
+
+// The KYC documents that MUST be uploaded before a member can submit, per type.
+// Individuals: passport photo + ID/passport (KRA/tax is optional). Groups,
+// corporates and "other" get their document sets in Stage C — until then they
+// are not blocked on any specific upload.
+export function requiredDocsFor(memberType: string | null | undefined): KycDocKey[] {
+  switch (memberType) {
+    case 'individual':
+      return ['passport_photo', 'national_id'];
+    default:
+      return [];
+  }
+}
+
 // The single membership packet the member consents to (manual 3.5).
 export const AGREEMENT_TITLE =
   'AWI Membership Agreement, Terms & Conditions and Confidentiality Agreement';

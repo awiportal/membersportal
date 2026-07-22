@@ -10,6 +10,7 @@ import {
   createSigningLink,
   isCompletedBy,
 } from '@/lib/pandadoc';
+import { requiredDocsFor } from '@/lib/onboarding';
 
 const RELATIONS = ['next_of_kin', 'beneficiary', 'nominee'] as const;
 
@@ -45,11 +46,18 @@ export async function savePersonalData(formData: FormData) {
     .update({
       full_name: clean(formData, 'full_name'),
       national_id: clean(formData, 'national_id'),
-      kra_pin: clean(formData, 'kra_pin'),
+      kra_pin: clean(formData, 'kra_pin'),                 // optional Tax ID / KRA PIN
+      registration_number: clean(formData, 'registration_number'),
+      contact_person: clean(formData, 'contact_person'),
+      contact_role: clean(formData, 'contact_role'),
       date_of_birth: clean(formData, 'date_of_birth'),
       phone: clean(formData, 'phone'),
-      postal_address: clean(formData, 'postal_address'),
-      physical_address: clean(formData, 'physical_address'),
+      country: clean(formData, 'country'),
+      address_line1: clean(formData, 'address_line1'),
+      address_line2: clean(formData, 'address_line2'),
+      city: clean(formData, 'city'),
+      state_region: clean(formData, 'state_region'),
+      postal_code: clean(formData, 'postal_code'),
       onboarding_step: 'documents',
     })
     .eq('id', uid);
@@ -94,13 +102,13 @@ export async function continueFromDocuments() {
   if (!user) redirect('/login');
   const uid = user.id;
 
-  const { data: docs } = await supabase
-    .from('kyc_documents')
-    .select('doc_type')
-    .eq('member_id', uid);
+  const [{ data: docs }, { data: prof }] = await Promise.all([
+    supabase.from('kyc_documents').select('doc_type').eq('member_id', uid),
+    supabase.from('profiles').select('member_type').eq('id', uid).single(),
+  ]);
 
   const have = new Set((docs ?? []).map((d: any) => d.doc_type));
-  const required = ['passport_photo', 'national_id', 'kra_pin'];
+  const required = requiredDocsFor(prof?.member_type);
   if (!required.every((r) => have.has(r))) {
     redirect('/onboarding?step=documents&err=docs');
   }
@@ -282,15 +290,17 @@ export async function submitForApproval() {
   if (!user) redirect('/login');
   const uid = user.id;
 
-  // Server-side completeness guard.
+  // Server-side completeness guard (type-aware).
   const { data: p } = await supabase
     .from('profiles')
-    .select('full_name,national_id,kra_pin,phone,esign_status')
+    .select('full_name,national_id,phone,member_type,registration_number,contact_person,esign_status')
     .eq('id', uid)
     .single();
   const { data: kd } = await supabase.from('kyc_documents').select('doc_type').eq('member_id', uid);
   const have = new Set((kd ?? []).map((d: any) => d.doc_type));
-  const docsOk = ['passport_photo', 'national_id', 'kra_pin'].every((r) => have.has(r));
+  const mt = p?.member_type || 'individual';
+  const isOrg = mt === 'group' || mt === 'corporate';
+  const docsOk = requiredDocsFor(mt).every((r) => have.has(r));
 
   const settings = await readSettings();
   let agreementsOk: boolean;
@@ -309,7 +319,13 @@ export async function submitForApproval() {
     agreementsOk = (agrDocs ?? []).filter((d: any) => d.required).every((d: any) => signedSet.has(d.id));
   }
 
-  if (!p?.full_name || !p?.national_id || !p?.kra_pin || !p?.phone || !docsOk || !agreementsOk) {
+  // Required fields depend on the account type. KRA / Tax ID is never required.
+  let fieldsOk = !!p?.full_name && !!p?.phone;
+  if (mt === 'individual') fieldsOk = fieldsOk && !!p?.national_id;
+  if (isOrg) fieldsOk = fieldsOk && !!p?.contact_person;
+  if (mt === 'corporate') fieldsOk = fieldsOk && !!p?.registration_number;
+
+  if (!fieldsOk || !docsOk || !agreementsOk) {
     redirect('/onboarding?step=review&err=incomplete');
   }
 

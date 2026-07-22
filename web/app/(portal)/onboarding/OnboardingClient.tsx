@@ -5,7 +5,8 @@ import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { KYC_DOC_TYPES, RELATION_KINDS } from '@/lib/onboarding';
+import { KYC_DOC_TYPES, RELATION_KINDS, memberTypeLabel } from '@/lib/onboarding';
+import { COUNTRIES } from '@/lib/countries';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
 
 const ORDER = ['personal', 'documents', 'agreements', 'review'] as const;
@@ -149,15 +150,73 @@ function ErrorBanner({ text }: { text: string }) {
 }
 
 /* ----------------------------- Step 1: Personal ----------------------------- */
+const DOB_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DOB_THIS_YEAR = new Date().getFullYear();
+const DOB_YEARS = Array.from({ length: 100 }, (_, i) => String(DOB_THIS_YEAR - i));
+
+function dobParts(iso: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? { y: m[1], mo: m[2], d: String(Number(m[3])) } : { y: '', mo: '', d: '' };
+}
+
+// Simple Day / Month / Year picker — kinder than a native date box for our
+// members (many are 40+). Writes an ISO yyyy-mm-dd string into a hidden input
+// so the server action stays unchanged.
+function DateOfBirthPicker({ initial }: { initial: string }) {
+  const p0 = dobParts(initial);
+  const [d, setD] = useState(p0.d);
+  const [mo, setMo] = useState(p0.mo);
+  const [y, setY] = useState(p0.y);
+  const iso = d && mo && y ? `${y}-${mo}-${String(d).padStart(2, '0')}` : '';
+  return (
+    <div className="field">
+      <label>Date of birth</label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <select className="input" value={d} onChange={(e) => setD(e.target.value)} aria-label="Day">
+          <option value="">Day</option>
+          {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((n) => (<option key={n} value={n}>{n}</option>))}
+        </select>
+        <select className="input" value={mo} onChange={(e) => setMo(e.target.value)} aria-label="Month">
+          <option value="">Month</option>
+          {DOB_MONTHS.map((name, i) => (<option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>))}
+        </select>
+        <select className="input" value={y} onChange={(e) => setY(e.target.value)} aria-label="Year">
+          <option value="">Year</option>
+          {DOB_YEARS.map((yr) => (<option key={yr} value={yr}>{yr}</option>))}
+        </select>
+      </div>
+      <input type="hidden" name="date_of_birth" value={iso} />
+    </div>
+  );
+}
+
 function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: Record<string, Rel>; email: string; err?: string }) {
+  const memberType: string = profile?.member_type || 'individual';
+  const isIndividual = memberType === 'individual';
+  const isGroup = memberType === 'group';
+  const isCorporate = memberType === 'corporate';
+  const isOrg = isGroup || isCorporate;
+  const isOther = memberType === 'other';
+  const showRelations = isIndividual || isOther;
+
+  const nameLabel = isGroup ? 'Group name' : isCorporate ? 'Company / Institution name' : isOther ? 'Name' : 'Full name';
+  const namePlaceholder = isGroup ? 'e.g. Umoja Women Investment Group' : isCorporate ? 'e.g. Sunrise Capital Ltd' : isOther ? 'Name' : 'e.g. Jane Wanjiru';
+  const regLabel = isGroup ? 'Group registration / constitution number' : 'Company / Incorporation number';
+
   const [f, setF] = useState({
     full_name: profile?.full_name ?? '',
     national_id: profile?.national_id ?? '',
     kra_pin: profile?.kra_pin ?? '',
-    date_of_birth: profile?.date_of_birth ?? '',
+    registration_number: profile?.registration_number ?? '',
+    contact_person: profile?.contact_person ?? '',
+    contact_role: profile?.contact_role ?? '',
     phone: profile?.phone ?? '',
-    postal_address: profile?.postal_address ?? '',
-    physical_address: profile?.physical_address ?? '',
+    country: profile?.country ?? 'Kenya',
+    address_line1: profile?.address_line1 ?? '',
+    address_line2: profile?.address_line2 ?? '',
+    city: profile?.city ?? '',
+    state_region: profile?.state_region ?? '',
+    postal_code: profile?.postal_code ?? '',
   });
   const [rel, setRel] = useState<Record<string, any>>(() => {
     const b: Record<string, any> = {};
@@ -203,67 +262,129 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
   };
   const dupAny = dup.national_id || dup.phone;
 
+  const phoneField = (
+    <div className="field">
+      <label>Phone <span style={{ color: 'var(--lime2)' }}>*</span></label>
+      <input className="input" name="phone" value={f.phone} onChange={onIdentity('phone')} required placeholder="+254 7XX XXX XXX" style={dup.phone ? { borderColor: '#ff8a8a' } : undefined} />
+      {checking.phone && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
+      {dup.phone && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This phone number is already in use by another member.</div>}
+    </div>
+  );
+  const taxField = (
+    <div className="field">
+      <label>Tax ID / KRA PIN <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+      <input className="input" name="kra_pin" value={f.kra_pin} onChange={set('kra_pin')} placeholder="If you have one" />
+    </div>
+  );
+
   return (
     <form action={savePersonalData} className="card card-pad">
-      <SectionTitle icon="fa-user" title="Your details" desc="These are saved to your member record and used to pre-fill your membership forms." />
+      <SectionTitle icon="fa-user" title="Your details" desc={`Completing your ${memberTypeLabel(memberType)} membership — saved to your member record and used to pre-fill your forms.`} />
       {err === 'save' && <ErrorBanner text="We couldn't save your details just now. Please check your entries and try again — if it keeps happening, let your administrator know." />}
       {err === 'dup_national_id' && <ErrorBanner text="That National ID / Passport number is already registered to another member. Each person may hold only one AWIVEST membership." />}
       {err === 'dup_phone' && <ErrorBanner text="That phone number is already registered to another member. Please use a different number." />}
       {err === 'dup' && <ErrorBanner text="Some of your details are already registered to another member. Please review the highlighted fields." />}
+
       <div className="grid2">
         <div className="field">
-          <label>Full name <span style={{ color: 'var(--lime2)' }}>*</span></label>
-          <input className="input" name="full_name" value={f.full_name} onChange={set('full_name')} required placeholder="e.g. Jane Wanjiru" />
+          <label>{nameLabel} <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <input className="input" name="full_name" value={f.full_name} onChange={set('full_name')} required placeholder={namePlaceholder} />
         </div>
         <div className="field"><label>Email</label><input className="input" name="_email" defaultValue={email} readOnly /></div>
       </div>
+
+      {isIndividual && (
+        <>
+          <div className="grid2">
+            <div className="field">
+              <label>National ID / Passport number <span style={{ color: 'var(--lime2)' }}>*</span></label>
+              <input className="input" name="national_id" value={f.national_id} onChange={onIdentity('national_id')} required style={dup.national_id ? { borderColor: '#ff8a8a' } : undefined} />
+              {checking.national_id && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
+              {dup.national_id && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This ID number is already in use by another member.</div>}
+            </div>
+            <DateOfBirthPicker initial={profile?.date_of_birth ?? ''} />
+          </div>
+          <div className="grid2">
+            {taxField}
+            {phoneField}
+          </div>
+        </>
+      )}
+
+      {isOrg && (
+        <>
+          <div className="grid2">
+            <div className="field">
+              <label>{regLabel} {isCorporate ? <span style={{ color: 'var(--lime2)' }}>*</span> : <span className="muted" style={{ fontWeight: 400 }}>(if registered)</span>}</label>
+              <input className="input" name="registration_number" value={f.registration_number} onChange={set('registration_number')} required={isCorporate} />
+            </div>
+            {taxField}
+          </div>
+          <div className="grid2">
+            <div className="field">
+              <label>Contact person <span style={{ color: 'var(--lime2)' }}>*</span></label>
+              <input className="input" name="contact_person" value={f.contact_person} onChange={set('contact_person')} required placeholder="Who we should speak to" />
+            </div>
+            <div className="field">
+              <label>Their role <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+              <input className="input" name="contact_role" value={f.contact_role} onChange={set('contact_role')} placeholder="e.g. Treasurer, Director" />
+            </div>
+          </div>
+          <div className="grid2">
+            {phoneField}
+            <div className="field" />
+          </div>
+        </>
+      )}
+
+      {isOther && (
+        <>
+          <div className="grid2">
+            <div className="field">
+              <label>ID / Registration number <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+              <input className="input" name="national_id" value={f.national_id} onChange={onIdentity('national_id')} style={dup.national_id ? { borderColor: '#ff8a8a' } : undefined} />
+              {dup.national_id && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This number is already in use by another member.</div>}
+            </div>
+            {taxField}
+          </div>
+          <div className="grid2">
+            {phoneField}
+            <div className="field" />
+          </div>
+        </>
+      )}
+
+      <SectionTitle icon="fa-location-dot" title="Address" desc="Works for any country — fill in what applies to you." />
       <div className="grid2">
-        <div className="field">
-          <label>National ID / Passport number <span style={{ color: 'var(--lime2)' }}>*</span></label>
-          <input className="input" name="national_id" value={f.national_id} onChange={onIdentity('national_id')} required style={dup.national_id ? { borderColor: '#ff8a8a' } : undefined} />
-          {checking.national_id && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
-          {dup.national_id && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This ID number is already in use by another member.</div>}
-        </div>
-        <div className="field">
-          <label>KRA PIN <span style={{ color: 'var(--lime2)' }}>*</span></label>
-          <input className="input" name="kra_pin" value={f.kra_pin} onChange={set('kra_pin')} required />
-        </div>
+        <div className="field"><label>Address line 1</label><input className="input" name="address_line1" value={f.address_line1} onChange={set('address_line1')} placeholder="Street, building, estate" /></div>
+        <div className="field"><label>Address line 2 <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label><input className="input" name="address_line2" value={f.address_line2} onChange={set('address_line2')} /></div>
       </div>
       <div className="grid2">
-        <div className="field">
-          <label>Date of birth</label>
-          <input className="input" name="date_of_birth" type="date" value={f.date_of_birth} onChange={set('date_of_birth')} />
-        </div>
-        <div className="field">
-          <label>Phone <span style={{ color: 'var(--lime2)' }}>*</span></label>
-          <input className="input" name="phone" value={f.phone} onChange={onIdentity('phone')} required placeholder="+254 7XX XXX XXX" style={dup.phone ? { borderColor: '#ff8a8a' } : undefined} />
-          {checking.phone && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Checking…</div>}
-          {dup.phone && <div style={{ color: '#ff8a8a', fontSize: 12, marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" /> This phone number is already in use by another member.</div>}
-        </div>
+        <div className="field"><label>City / Town</label><input className="input" name="city" value={f.city} onChange={set('city')} placeholder="e.g. Nairobi" /></div>
+        <div className="field"><label>State / Province / Region <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label><input className="input" name="state_region" value={f.state_region} onChange={set('state_region')} /></div>
       </div>
       <div className="grid2">
+        <div className="field"><label>Postal / ZIP code <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label><input className="input" name="postal_code" value={f.postal_code} onChange={set('postal_code')} placeholder="e.g. 00100" /></div>
         <div className="field">
-          <label>Postal address</label>
-          <input className="input" name="postal_address" value={f.postal_address} onChange={set('postal_address')} placeholder="e.g. 190-60102" />
-        </div>
-        <div className="field">
-          <label>Physical address</label>
-          <input className="input" name="physical_address" value={f.physical_address} onChange={set('physical_address')} placeholder="e.g. Nairobi, Kenya" />
+          <label>Country <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <select className="input" name="country" value={f.country} onChange={set('country')} required>
+            {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
+          </select>
         </div>
       </div>
 
-      {RELATION_KINDS.map((rk) => (
+      {showRelations && RELATION_KINDS.map((rk) => (
         <div key={rk.key} style={{ marginTop: 8 }}>
-          <SectionTitle icon="fa-people-roof" title={rk.label} desc={rk.required ? 'Required' : 'Optional'} />
+          <SectionTitle icon="fa-people-roof" title={rk.label} desc={isIndividual && rk.required ? 'Required' : 'Optional'} />
           <div className="grid2">
-            <div className="field"><label>Name {rk.required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
-              <input className="input" name={`${rk.key}_name`} value={rel[rk.key].name} onChange={setR(rk.key, 'name')} required={rk.required} /></div>
+            <div className="field"><label>Name {isIndividual && rk.required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
+              <input className="input" name={`${rk.key}_name`} value={rel[rk.key].name} onChange={setR(rk.key, 'name')} required={isIndividual && rk.required} /></div>
             <div className="field"><label>Relationship</label>
               <input className="input" name={`${rk.key}_relationship`} value={rel[rk.key].relationship} onChange={setR(rk.key, 'relationship')} placeholder="e.g. Sister" /></div>
           </div>
           <div className="grid2">
-            <div className="field"><label>Phone {rk.required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
-              <input className="input" name={`${rk.key}_phone`} value={rel[rk.key].phone} onChange={setR(rk.key, 'phone')} required={rk.required} /></div>
+            <div className="field"><label>Phone {isIndividual && rk.required && <span style={{ color: 'var(--lime2)' }}>*</span>}</label>
+              <input className="input" name={`${rk.key}_phone`} value={rel[rk.key].phone} onChange={setR(rk.key, 'phone')} required={isIndividual && rk.required} /></div>
             <div className="field"><label>ID number</label>
               <input className="input" name={`${rk.key}_id_number`} value={rel[rk.key].id_number} onChange={setR(rk.key, 'id_number')} /></div>
           </div>
