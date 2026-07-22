@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { KYC_DOC_TYPES, RELATION_KINDS, memberTypeLabel } from '@/lib/onboarding';
+import { RELATION_KINDS, memberTypeLabel, docsFor } from '@/lib/onboarding';
 import { COUNTRIES } from '@/lib/countries';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
 
@@ -132,7 +132,7 @@ export default function OnboardingClient({
       </div>
 
       {step === 'personal' && <PersonalStep profile={profile} relMap={relMap} email={email} err={err} />}
-      {step === 'documents' && <DocumentsStep uid={profile.id} docs={docs} err={err} />}
+      {step === 'documents' && <DocumentsStep uid={profile.id} docs={docs} err={err} memberType={profile?.member_type || 'individual'} />}
       {step === 'agreements' && (esignEnabled
         ? <EsignStep profile={profile} err={err} />
         : <AgreementsStep agreements={agreements} acceptances={acceptances} memberName={memberName} err={err} />)}
@@ -400,12 +400,14 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
 }
 
 /* ---------------------------- Step 2: Documents ---------------------------- */
-function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: string }) {
+function DocumentsStep({ uid, docs, err, memberType }: { uid: string; docs: Doc[]; err?: string; memberType: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const docTypes = docsFor(memberType);
+  const requiredKeys = docTypes.filter((d) => d.required).map((d) => d.key);
   const uploaded = new Set(docs.map((d) => d.doc_type));
-  const allUploaded = KYC_DOC_TYPES.every((d) => uploaded.has(d.key));
+  const allUploaded = requiredKeys.every((k) => uploaded.has(k));
 
   async function handleFile(docKey: string, file: File) {
     setMsg(null);
@@ -431,12 +433,12 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
 
   return (
     <div className="card card-pad">
-      <SectionTitle icon="fa-file-arrow-up" title="Upload your documents" desc="One at a time. Allowed: PDF, JPG, PNG. Max 25MB each." />
-      {err === 'docs' && <ErrorBanner text="Please upload all three documents before continuing." />}
+      <SectionTitle icon="fa-file-arrow-up" title="Upload your documents" desc="Items marked with * are required. Allowed: PDF, JPG, PNG. Max 25MB each." />
+      {err === 'docs' && <ErrorBanner text="Please upload all required documents before continuing." />}
       {msg && <ErrorBanner text={msg} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {KYC_DOC_TYPES.map((d) => {
+        {docTypes.map((d) => {
           const isUp = uploaded.has(d.key);
           const isBusy = busy === d.key;
           return (
@@ -445,7 +447,7 @@ function DocumentsStep({ uid, docs, err }: { uid: string; docs: Doc[]; err?: str
                 <i className={`fa-solid ${isUp ? 'fa-circle-check' : 'fa-file'}`} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{d.label}</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{d.label} {d.required ? <span style={{ color: 'var(--lime2)' }}>*</span> : <span className="muted" style={{ fontWeight: 400 }}>(optional)</span>}</div>
                 <div className={isUp ? 'badge badge-good' : 'muted'} style={{ fontSize: 12, marginTop: 4, display: 'inline-flex' }}>
                   {isUp ? 'Uploaded' : 'Not uploaded'}
                 </div>
@@ -664,6 +666,9 @@ function ReviewStep({
 }) {
   const uploaded = new Set(docs.map((d) => d.doc_type));
   const signed = new Set(acceptances.map((a) => a.agreement_id));
+  const memberType: string = profile?.member_type || 'individual';
+  const isOrg = memberType === 'group' || memberType === 'corporate';
+  const addr = [profile?.address_line1, profile?.address_line2, profile?.city, profile?.state_region, profile?.postal_code, profile?.country].filter(Boolean).join(', ');
   const Row = ({ k, v }: { k: string; v: any }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
       <span className="muted">{k}</span>
@@ -685,23 +690,36 @@ function ReviewStep({
         <div style={{ fontWeight: 700, fontSize: 14 }}>Personal details</div>
         <Link href="/onboarding?step=personal" className="btn btn-ghost btn-sm">Edit</Link>
       </div>
-      <Row k="Full name" v={profile?.full_name} />
-      <Row k="ID / Passport no." v={profile?.national_id} />
-      <Row k="KRA PIN" v={profile?.kra_pin} />
-      <Row k="Date of birth" v={profile?.date_of_birth} />
+      <Row k="Account type" v={memberTypeLabel(memberType)} />
+      <Row k={isOrg ? 'Name' : 'Full name'} v={profile?.full_name} />
+      {isOrg ? (
+        <>
+          <Row k="Registration no." v={profile?.registration_number} />
+          <Row k="Contact person" v={profile?.contact_person ? `${profile.contact_person}${profile?.contact_role ? ` (${profile.contact_role})` : ''}` : '—'} />
+        </>
+      ) : (
+        <>
+          <Row k="ID / Passport no." v={profile?.national_id} />
+          <Row k="Date of birth" v={profile?.date_of_birth} />
+        </>
+      )}
+      <Row k="Tax ID / KRA PIN" v={profile?.kra_pin} />
       <Row k="Phone" v={profile?.phone} />
-      <Row k="Postal address" v={profile?.postal_address} />
-      <Row k="Physical address" v={profile?.physical_address} />
-      <Row k="Next of kin" v={rel('next_of_kin')} />
-      <Row k="Beneficiary" v={rel('beneficiary')} />
-      <Row k="Nominee" v={rel('nominee')} />
+      <Row k="Address" v={addr} />
+      {!isOrg && (
+        <>
+          <Row k="Next of kin" v={rel('next_of_kin')} />
+          <Row k="Beneficiary" v={rel('beneficiary')} />
+          <Row k="Nominee" v={rel('nominee')} />
+        </>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '18px 0 6px' }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Documents</div>
         <Link href="/onboarding?step=documents" className="btn btn-ghost btn-sm">Edit</Link>
       </div>
-      {KYC_DOC_TYPES.map((d) => (
-        <Row key={d.key} k={d.label} v={uploaded.has(d.key) ? 'Uploaded' : 'Missing'} />
+      {docsFor(memberType).map((d) => (
+        <Row key={d.key} k={d.required ? d.label : `${d.label} (optional)`} v={uploaded.has(d.key) ? 'Uploaded' : d.required ? 'Missing' : '—'} />
       ))}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '18px 0 6px' }}>
