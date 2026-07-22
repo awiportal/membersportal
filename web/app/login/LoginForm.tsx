@@ -11,6 +11,8 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [awaitingCode, setAwaitingCode] = useState(false);
   const [msg, setMsg] = useState<{ t: string; kind: 'bad' | 'good' } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -38,17 +40,61 @@ export default function LoginForm() {
             ? 'That email address is already in use. Please sign in instead, or use a different email.'
             : error.message;
         setMsg({ t: friendly, kind: 'bad' });
-      }
-      else if (data.session) {
+      } else if (data.session) {
+        // Email confirmation is switched off — straight into the portal.
         router.push('/dashboard');
         router.refresh();
       } else {
-        setMsg({ t: 'Account created. Check your email to confirm, then sign in.', kind: 'good' });
-        setMode('login');
+        // Email confirmation is on: collect the 6-digit code on this screen
+        // instead of asking the member to click a link in their inbox.
+        setAwaitingCode(true);
+        setMsg({ t: 'We’ve emailed you a 6-digit code. Enter it below to finish creating your account.', kind: 'good' });
       }
     }
     setLoading(false);
   }
+
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMsg(null);
+    const token = otp.replace(/\D/g, '').slice(0, 6);
+    if (token.length < 6) {
+      setMsg({ t: 'Please enter the 6-digit code from your email.', kind: 'bad' });
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+    if (error) {
+      setMsg({ t: 'That code was not correct or has expired. Check the latest email, or tap “Resend code”.', kind: 'bad' });
+    } else if (data.session) {
+      router.push('/dashboard');
+      router.refresh();
+    } else {
+      setMsg({ t: 'Email confirmed. Please sign in.', kind: 'good' });
+      setAwaitingCode(false);
+      setMode('login');
+    }
+    setLoading(false);
+  }
+
+  async function resendCode() {
+    setLoading(true);
+    setMsg(null);
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    if (error) setMsg({ t: 'We could not resend the code just now. Please wait a moment and try again.', kind: 'bad' });
+    else setMsg({ t: 'A fresh 6-digit code is on its way to your email.', kind: 'good' });
+    setLoading(false);
+  }
+
+  function startOver() {
+    setAwaitingCode(false);
+    setOtp('');
+    setMsg(null);
+    setMode('register');
+  }
+
+  const maskedEmail = email.replace(/^(.).*(@.*)$/, (_m, a, b) => `${a}•••${b}`);
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1fr' }} className="lg:grid-cols-2">
@@ -79,43 +125,87 @@ export default function LoginForm() {
             <div style={{ fontWeight: 800 }}>AWIVEST Investor Portal</div>
           </div>
 
-          <div className="tabs" style={{ marginBottom: 22 }}>
-            <button className={`tab ${mode === 'login' ? 'active' : ''}`} onClick={() => setMode('login')} type="button">Login</button>
-            <button className={`tab ${mode === 'register' ? 'active' : ''}`} onClick={() => setMode('register')} type="button">Register</button>
-          </div>
-
-          <form onSubmit={submit}>
-            {mode === 'register' && (
-              <>
-                <div className="field"><label>Full name</label>
-                  <div className="input-group"><i className="fa-solid fa-id-card" /><input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Wanjiru" required /></div>
+          {awaitingCode ? (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Confirm your email</div>
+              <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
+                We’ve sent a 6-digit code to <strong>{maskedEmail}</strong>. Enter it below to finish creating your account.
+              </p>
+              <form onSubmit={verifyCode}>
+                <div className="field"><label>6-digit code</label>
+                  <div className="input-group"><i className="fa-solid fa-key" />
+                    <input
+                      className="input"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="123456"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      style={{ letterSpacing: 6, fontSize: 18 }}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="field"><label>Phone</label>
-                  <div className="input-group"><i className="fa-solid fa-phone" /><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+254 7XX XXX XXX" /></div>
-                </div>
-              </>
-            )}
-            <div className="field"><label>Email</label>
-              <div className="input-group"><i className="fa-solid fa-envelope" /><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" required autoComplete="email" /></div>
-            </div>
-            <div className="field"><label>Password</label>
-              <div className="input-group"><i className="fa-solid fa-lock" /><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="8+ characters" required minLength={8} /></div>
-            </div>
 
-            {msg && (
-              <div className={`badge badge-${msg.kind}`} style={{ marginBottom: 14, width: '100%', justifyContent: 'flex-start' }}>
-                <i className={`fa-solid ${msg.kind === 'bad' ? 'fa-circle-exclamation' : 'fa-circle-check'}`} /> {msg.t}
+                {msg && (
+                  <div className={`badge badge-${msg.kind}`} style={{ marginBottom: 14, width: '100%', justifyContent: 'flex-start' }}>
+                    <i className={`fa-solid ${msg.kind === 'bad' ? 'fa-circle-exclamation' : 'fa-circle-check'}`} /> {msg.t}
+                  </div>
+                )}
+
+                <button className="btn btn-lime btn-block" type="submit" disabled={loading}>
+                  {loading ? 'Please wait…' : 'Verify & create account'}
+                </button>
+              </form>
+              <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={resendCode} disabled={loading} type="button">
+                Resend code
+              </button>
+              <p className="muted" style={{ textAlign: 'center', marginTop: 14, fontSize: 12.5 }}>
+                Wrong email?{' '}
+                <button onClick={startOver} type="button" style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--lime2)', fontWeight: 600, font: 'inherit', padding: 0 }}>Start over</button>
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="tabs" style={{ marginBottom: 22 }}>
+                <button className={`tab ${mode === 'login' ? 'active' : ''}`} onClick={() => setMode('login')} type="button">Login</button>
+                <button className={`tab ${mode === 'register' ? 'active' : ''}`} onClick={() => setMode('register')} type="button">Register</button>
               </div>
-            )}
 
-            <button className={`btn ${mode === 'login' ? 'btn-primary' : 'btn-lime'} btn-block`} type="submit" disabled={loading}>
-              {loading ? 'Please wait…' : mode === 'login' ? 'Sign in to portal' : 'Create account'}
-            </button>
-          </form>
+              <form onSubmit={submit}>
+                {mode === 'register' && (
+                  <>
+                    <div className="field"><label>Full name</label>
+                      <div className="input-group"><i className="fa-solid fa-id-card" /><input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Wanjiru" required /></div>
+                    </div>
+                    <div className="field"><label>Phone</label>
+                      <div className="input-group"><i className="fa-solid fa-phone" /><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+254 7XX XXX XXX" /></div>
+                    </div>
+                  </>
+                )}
+                <div className="field"><label>Email</label>
+                  <div className="input-group"><i className="fa-solid fa-envelope" /><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" required autoComplete="email" /></div>
+                </div>
+                <div className="field"><label>Password</label>
+                  <div className="input-group"><i className="fa-solid fa-lock" /><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="8+ characters" required minLength={8} /></div>
+                </div>
 
-          <p className="muted" style={{ textAlign: 'center', marginTop: 16, fontSize: 12.5 }}>
-            Protected by encryption. New members receive an Investor ID on sign-up.
-          </p>
+                {msg && (
+                  <div className={`badge badge-${msg.kind}`} style={{ marginBottom: 14, width: '100%', justifyContent: 'flex-start' }}>
+                    <i className={`fa-solid ${msg.kind === 'bad' ? 'fa-circle-exclamation' : 'fa-circle-check'}`} /> {msg.t}
+                  </div>
+                )}
+
+                <button className={`btn ${mode === 'login' ? 'btn-primary' : 'btn-lime'} btn-block`} type="submit" disabled={loading}>
+                  {loading ? 'Please wait…' : mode === 'login' ? 'Sign in to portal' : 'Create account'}
+                </button>
+              </form>
+
+              <p className="muted" style={{ textAlign: 'center', marginTop: 16, fontSize: 12.5 }}>
+                Protected by encryption. New members receive an Investor ID on sign-up.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
