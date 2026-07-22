@@ -2,19 +2,60 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { COUNTRIES } from '@/lib/countries';
+
+type MemberType = 'individual' | 'group' | 'corporate' | 'other';
+
+// Dial-code options for the international phone selector. Built from the shared
+// country list; de-labelled to "{flag} {dial}" and ordered by numeric dial code.
+const DIAL_OPTIONS = COUNTRIES
+  .filter((c) => c.dial)
+  .map((c) => ({ key: c.code, flag: c.flag, dial: c.dial }))
+  .sort((a, b) => Number(a.dial.replace(/\D/g, '')) - Number(b.dial.replace(/\D/g, '')));
 
 export default function LoginForm() {
   const supabase = createClient();
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  // Shared
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+
+  // Registration
+  const [memberType, setMemberType] = useState<MemberType>('individual');
   const [fullName, setFullName] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactRole, setContactRole] = useState('');
+  const [country, setCountry] = useState('Kenya');
+  const [dialCode, setDialCode] = useState('+254');
   const [phone, setPhone] = useState('');
+
+  // Email-code confirmation
   const [otp, setOtp] = useState('');
   const [awaitingCode, setAwaitingCode] = useState(false);
+
   const [msg, setMsg] = useState<{ t: string; kind: 'bad' | 'good' } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const isOrg = memberType === 'group' || memberType === 'corporate';
+  const nameLabel =
+    memberType === 'group' ? 'Group name'
+      : memberType === 'corporate' ? 'Company / Institution name'
+        : memberType === 'other' ? 'Name'
+          : 'Full name';
+  const namePlaceholder =
+    memberType === 'group' ? 'e.g. Umoja Women Investment Group'
+      : memberType === 'corporate' ? 'e.g. Sunrise Capital Ltd'
+        : memberType === 'other' ? 'Name'
+          : 'e.g. Jane Wanjiru';
+
+  function onCountryChange(name: string) {
+    setCountry(name);
+    const c = COUNTRIES.find((x) => x.name === name);
+    if (c && c.dial) setDialCode(c.dial);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +72,17 @@ export default function LoginForm() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, phone } },
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone ? `${dialCode} ${phone}`.trim() : '',
+            dial_code: dialCode,
+            country,
+            member_type: memberType,
+            contact_person: isOrg ? contactPerson : '',
+            contact_role: isOrg ? contactRole : '',
+          },
+        },
       });
       if (error) {
         const lm = (error.message || '').toLowerCase();
@@ -175,19 +226,78 @@ export default function LoginForm() {
               <form onSubmit={submit}>
                 {mode === 'register' && (
                   <>
-                    <div className="field"><label>Full name</label>
-                      <div className="input-group"><i className="fa-solid fa-id-card" /><input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Wanjiru" required /></div>
+                    <div className="field"><label>Account type</label>
+                      <div className="input-group"><i className="fa-solid fa-user-group" />
+                        <select className="input" value={memberType} onChange={(e) => setMemberType(e.target.value as MemberType)} required>
+                          <option value="individual">Individual</option>
+                          <option value="group">Group (Chama)</option>
+                          <option value="corporate">Corporate (Institution)</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
                     </div>
+
+                    <div className="field"><label>{nameLabel}</label>
+                      <div className="input-group"><i className="fa-solid fa-id-card" /><input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={namePlaceholder} required /></div>
+                    </div>
+
+                    {isOrg && (
+                      <>
+                        <div className="field"><label>Contact person</label>
+                          <div className="input-group"><i className="fa-solid fa-user" /><input className="input" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Who we should speak to" required /></div>
+                        </div>
+                        <div className="field"><label>Their role <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+                          <div className="input-group"><i className="fa-solid fa-briefcase" /><input className="input" value={contactRole} onChange={(e) => setContactRole(e.target.value)} placeholder="e.g. Treasurer, Director" /></div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="field"><label>Country</label>
+                      <div className="input-group"><i className="fa-solid fa-globe" />
+                        <select className="input" value={country} onChange={(e) => onCountryChange(e.target.value)} required>
+                          {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
+                        </select>
+                      </div>
+                    </div>
+
                     <div className="field"><label>Phone</label>
-                      <div className="input-group"><i className="fa-solid fa-phone" /><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+254 7XX XXX XXX" /></div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <select className="input" value={dialCode} onChange={(e) => setDialCode(e.target.value)} style={{ maxWidth: 132, flex: '0 0 auto' }} aria-label="Country dialing code">
+                          {DIAL_OPTIONS.map((d) => (<option key={d.key} value={d.dial}>{d.flag} {d.dial}</option>))}
+                        </select>
+                        <div className="input-group" style={{ flex: 1 }}><i className="fa-solid fa-phone" /><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="7XX XXX XXX" inputMode="tel" /></div>
+                      </div>
                     </div>
                   </>
                 )}
+
                 <div className="field"><label>Email</label>
                   <div className="input-group"><i className="fa-solid fa-envelope" /><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" required autoComplete="email" /></div>
                 </div>
+
                 <div className="field"><label>Password</label>
-                  <div className="input-group"><i className="fa-solid fa-lock" /><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="8+ characters" required minLength={8} /></div>
+                  <div className="input-group"><i className="fa-solid fa-lock" />
+                    <input
+                      className="input"
+                      type={showPw ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="8+ characters"
+                      required
+                      minLength={8}
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      style={{ paddingRight: 44 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((v) => !v)}
+                      aria-label={showPw ? 'Hide password' : 'Show password'}
+                      title={showPw ? 'Hide password' : 'Show password'}
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--muted2)', padding: 4, lineHeight: 0 }}
+                    >
+                      <i className={`fa-solid ${showPw ? 'fa-eye-slash' : 'fa-eye'}`} />
+                    </button>
+                  </div>
                 </div>
 
                 {msg && (
