@@ -85,11 +85,22 @@ export default function LoginForm() {
         },
       });
       if (error) {
-        const lm = (error.message || '').toLowerCase();
-        const friendly =
-          lm.includes('already') || lm.includes('registered') || lm.includes('exists')
-            ? 'That email address is already in use. Please sign in instead, or use a different email.'
-            : error.message;
+        const raw = (error.message || (error as any)?.error_description || '').toString();
+        const lm = raw.toLowerCase();
+        let friendly: string;
+        if (lm.includes('already') || lm.includes('registered') || (lm.includes('user') && lm.includes('exists'))) {
+          friendly = 'That email address is already in use. Please sign in instead, or use a different email.';
+        } else if (
+          lm.includes('database error') || lm.includes('saving new user') ||
+          lm.includes('duplicate') || lm.includes('unique') || raw.trim() === ''
+        ) {
+          // Most common cause: the phone number (or National ID) is already
+          // registered to another member — the database allows each only once.
+          friendly =
+            'We could not create this account. This usually means the phone number is already registered to another member. Please use a different phone number (and a fresh email if you have signed up before).';
+        } else {
+          friendly = raw || 'We could not create your account just now. Please check your details and try again.';
+        }
         setMsg({ t: friendly, kind: 'bad' });
       } else if (data.session) {
         // Email confirmation is switched off — straight into the portal.
