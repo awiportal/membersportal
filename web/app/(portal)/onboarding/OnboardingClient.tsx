@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { RELATION_KINDS, memberTypeLabel, docsFor } from '@/lib/onboarding';
+import { RELATION_KINDS, memberTypeLabel, docsFor, GENDER_OPTIONS } from '@/lib/onboarding';
 import { COUNTRIES } from '@/lib/countries';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
 
@@ -162,7 +162,7 @@ function dobParts(iso: string) {
 // Simple Day / Month / Year picker — kinder than a native date box for our
 // members (many are 40+). Writes an ISO yyyy-mm-dd string into a hidden input
 // so the server action stays unchanged.
-function DateOfBirthPicker({ initial }: { initial: string }) {
+function DateOfBirthPicker({ initial, name = 'date_of_birth', label = 'Date of birth' }: { initial: string; name?: string; label?: string }) {
   const p0 = dobParts(initial);
   const [d, setD] = useState(p0.d);
   const [mo, setMo] = useState(p0.mo);
@@ -170,7 +170,7 @@ function DateOfBirthPicker({ initial }: { initial: string }) {
   const iso = d && mo && y ? `${y}-${mo}-${String(d).padStart(2, '0')}` : '';
   return (
     <div className="field">
-      <label>Date of birth</label>
+      <label>{label}</label>
       <div style={{ display: 'flex', gap: 8 }}>
         <select className="input" value={d} onChange={(e) => setD(e.target.value)} aria-label="Day">
           <option value="">Day</option>
@@ -185,7 +185,7 @@ function DateOfBirthPicker({ initial }: { initial: string }) {
           {DOB_YEARS.map((yr) => (<option key={yr} value={yr}>{yr}</option>))}
         </select>
       </div>
-      <input type="hidden" name="date_of_birth" value={iso} />
+      <input type="hidden" name={name} value={iso} />
     </div>
   );
 }
@@ -202,6 +202,9 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
   const nameLabel = isGroup ? 'Group name' : isCorporate ? 'Company / Institution name' : isOther ? 'Name' : 'Full name';
   const namePlaceholder = isGroup ? 'e.g. Umoja Women Investment Group' : isCorporate ? 'e.g. Sunrise Capital Ltd' : isOther ? 'Name' : 'e.g. Jane Wanjiru';
   const regLabel = isGroup ? 'Group registration / constitution number' : 'Company / Incorporation number';
+  const orgDateLabel = isGroup ? 'Date of formation' : 'Date of incorporation';
+  const orgCountryLabel = isGroup ? 'Country of registration' : 'Country of incorporation';
+  const natureLabel = isGroup ? 'Purpose of the group / nature of investing' : 'Nature of business';
 
   const [f, setF] = useState({
     full_name: profile?.full_name ?? '',
@@ -210,6 +213,18 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
     registration_number: profile?.registration_number ?? '',
     contact_person: profile?.contact_person ?? '',
     contact_role: profile?.contact_role ?? '',
+    contact_email: profile?.contact_email ?? '',
+    nationality: profile?.nationality ?? '',
+    gender: profile?.gender ?? '',
+    occupation: profile?.occupation ?? '',
+    org_reg_country: profile?.org_reg_country ?? '',
+    org_nature: profile?.org_nature ?? '',
+    member_count: profile?.member_count == null ? '' : String(profile.member_count),
+    official_chairperson: profile?.official_chairperson ?? '',
+    official_secretary: profile?.official_secretary ?? '',
+    official_treasurer: profile?.official_treasurer ?? '',
+    beneficial_owner_name: profile?.beneficial_owner_name ?? '',
+    beneficial_owner_role: profile?.beneficial_owner_role ?? '',
     phone: profile?.phone ?? '',
     country: profile?.country ?? 'Kenya',
     address_line1: profile?.address_line1 ?? '',
@@ -308,6 +323,29 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
             {taxField}
             {phoneField}
           </div>
+          <div className="grid2">
+            <div className="field">
+              <label>Nationality / Citizenship <span style={{ color: 'var(--lime2)' }}>*</span></label>
+              <select className="input" name="nationality" value={f.nationality} onChange={set('nationality')} required>
+                <option value="">Select</option>
+                {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Gender <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+              <select className="input" name="gender" value={f.gender} onChange={set('gender')}>
+                <option value="">Select</option>
+                {GENDER_OPTIONS.map((g) => (<option key={g} value={g}>{g}</option>))}
+              </select>
+            </div>
+          </div>
+          <div className="grid2">
+            <div className="field">
+              <label>Occupation <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+              <input className="input" name="occupation" value={f.occupation} onChange={set('occupation')} placeholder="e.g. Teacher, Business owner" />
+            </div>
+            <div className="field" />
+          </div>
         </>
       )}
 
@@ -321,6 +359,30 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
             {taxField}
           </div>
           <div className="grid2">
+            <DateOfBirthPicker initial={profile?.org_reg_date ?? ''} name="org_reg_date" label={orgDateLabel} />
+            <div className="field">
+              <label>{orgCountryLabel} <span style={{ color: 'var(--lime2)' }}>*</span></label>
+              <select className="input" name="org_reg_country" value={f.org_reg_country} onChange={set('org_reg_country')} required>
+                <option value="">Select</option>
+                {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
+              </select>
+            </div>
+          </div>
+          <div className="field">
+            <label>{natureLabel} <span style={{ color: 'var(--lime2)' }}>*</span></label>
+            <input className="input" name="org_nature" value={f.org_nature} onChange={set('org_nature')} required placeholder={isGroup ? 'e.g. Women-led savings & investment club' : 'e.g. Real estate investment'} />
+          </div>
+          {isGroup && (
+            <div className="grid2">
+              <div className="field">
+                <label>Number of members <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                <input className="input" type="number" min={1} name="member_count" value={f.member_count} onChange={set('member_count')} required placeholder="e.g. 25" />
+              </div>
+              <div className="field" />
+            </div>
+          )}
+          <SectionTitle icon="fa-user-tie" title="Authorised contact person" desc="Who AWIVEST should deal with on the account." />
+          <div className="grid2">
             <div className="field">
               <label>Contact person <span style={{ color: 'var(--lime2)' }}>*</span></label>
               <input className="input" name="contact_person" value={f.contact_person} onChange={set('contact_person')} required placeholder="Who we should speak to" />
@@ -331,9 +393,49 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
             </div>
           </div>
           <div className="grid2">
+            <div className="field">
+              <label>Contact email <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+              <input className="input" type="email" name="contact_email" value={f.contact_email} onChange={set('contact_email')} placeholder="name@example.com" />
+            </div>
             {phoneField}
-            <div className="field" />
           </div>
+          {isGroup && (
+            <>
+              <SectionTitle icon="fa-people-group" title="Group officials" desc="The three signatories every registered group has." />
+              <div className="grid2">
+                <div className="field">
+                  <label>Chairperson <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                  <input className="input" name="official_chairperson" value={f.official_chairperson} onChange={set('official_chairperson')} required />
+                </div>
+                <div className="field">
+                  <label>Secretary <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                  <input className="input" name="official_secretary" value={f.official_secretary} onChange={set('official_secretary')} required />
+                </div>
+              </div>
+              <div className="grid2">
+                <div className="field">
+                  <label>Treasurer <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                  <input className="input" name="official_treasurer" value={f.official_treasurer} onChange={set('official_treasurer')} required />
+                </div>
+                <div className="field" />
+              </div>
+            </>
+          )}
+          {isCorporate && (
+            <>
+              <SectionTitle icon="fa-user-shield" title="Principal director / beneficial owner" desc="The person who ultimately owns or controls the institution (international KYC requirement)." />
+              <div className="grid2">
+                <div className="field">
+                  <label>Full name <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                  <input className="input" name="beneficial_owner_name" value={f.beneficial_owner_name} onChange={set('beneficial_owner_name')} required />
+                </div>
+                <div className="field">
+                  <label>Role / title <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+                  <input className="input" name="beneficial_owner_role" value={f.beneficial_owner_role} onChange={set('beneficial_owner_role')} placeholder="e.g. Managing Director" />
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -668,6 +770,9 @@ function ReviewStep({
   const signed = new Set(acceptances.map((a) => a.agreement_id));
   const memberType: string = profile?.member_type || 'individual';
   const isOrg = memberType === 'group' || memberType === 'corporate';
+  const isGroup = memberType === 'group';
+  const isCorporate = memberType === 'corporate';
+  const isIndividual = memberType === 'individual';
   const addr = [profile?.address_line1, profile?.address_line2, profile?.city, profile?.state_region, profile?.postal_code, profile?.country].filter(Boolean).join(', ');
   const Row = ({ k, v }: { k: string; v: any }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
@@ -695,12 +800,24 @@ function ReviewStep({
       {isOrg ? (
         <>
           <Row k="Registration no." v={profile?.registration_number} />
+          <Row k={isGroup ? 'Date of formation' : 'Date of incorporation'} v={profile?.org_reg_date} />
+          <Row k={isGroup ? 'Country of registration' : 'Country of incorporation'} v={profile?.org_reg_country} />
+          <Row k={isGroup ? 'Purpose / nature' : 'Nature of business'} v={profile?.org_nature} />
+          {isGroup && <Row k="Number of members" v={profile?.member_count} />}
+          {isGroup && <Row k="Chairperson" v={profile?.official_chairperson} />}
+          {isGroup && <Row k="Secretary" v={profile?.official_secretary} />}
+          {isGroup && <Row k="Treasurer" v={profile?.official_treasurer} />}
+          {isCorporate && <Row k="Beneficial owner" v={profile?.beneficial_owner_name ? `${profile.beneficial_owner_name}${profile?.beneficial_owner_role ? ` (${profile.beneficial_owner_role})` : ''}` : '—'} />}
           <Row k="Contact person" v={profile?.contact_person ? `${profile.contact_person}${profile?.contact_role ? ` (${profile.contact_role})` : ''}` : '—'} />
+          <Row k="Contact email" v={profile?.contact_email} />
         </>
       ) : (
         <>
           <Row k="ID / Passport no." v={profile?.national_id} />
-          <Row k="Date of birth" v={profile?.date_of_birth} />
+          {isIndividual && <Row k="Date of birth" v={profile?.date_of_birth} />}
+          {isIndividual && <Row k="Nationality" v={profile?.nationality} />}
+          {isIndividual && <Row k="Gender" v={profile?.gender} />}
+          {isIndividual && <Row k="Occupation" v={profile?.occupation} />}
         </>
       )}
       <Row k="Tax ID / KRA PIN" v={profile?.kra_pin} />
