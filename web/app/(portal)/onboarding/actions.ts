@@ -19,6 +19,13 @@ function clean(formData: FormData, key: string): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }
 
+function cleanInt(formData: FormData, key: string): number | null {
+  const v = formData.get(key);
+  if (typeof v !== 'string' || v.trim() === '') return null;
+  const n = parseInt(v.trim(), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 // Read admin-configured settings (RLS allows any signed-in user to read).
 async function readSettings(): Promise<Record<string, string>> {
   const supabase = createClient();
@@ -50,6 +57,19 @@ export async function savePersonalData(formData: FormData) {
       registration_number: clean(formData, 'registration_number'),
       contact_person: clean(formData, 'contact_person'),
       contact_role: clean(formData, 'contact_role'),
+      contact_email: clean(formData, 'contact_email'),
+      nationality: clean(formData, 'nationality'),
+      gender: clean(formData, 'gender'),
+      occupation: clean(formData, 'occupation'),
+      org_reg_date: clean(formData, 'org_reg_date'),
+      org_reg_country: clean(formData, 'org_reg_country'),
+      org_nature: clean(formData, 'org_nature'),
+      member_count: cleanInt(formData, 'member_count'),
+      official_chairperson: clean(formData, 'official_chairperson'),
+      official_secretary: clean(formData, 'official_secretary'),
+      official_treasurer: clean(formData, 'official_treasurer'),
+      beneficial_owner_name: clean(formData, 'beneficial_owner_name'),
+      beneficial_owner_role: clean(formData, 'beneficial_owner_role'),
       date_of_birth: clean(formData, 'date_of_birth'),
       phone: clean(formData, 'phone'),
       country: clean(formData, 'country'),
@@ -293,7 +313,7 @@ export async function submitForApproval() {
   // Server-side completeness guard (type-aware).
   const { data: p } = await supabase
     .from('profiles')
-    .select('full_name,national_id,phone,member_type,registration_number,contact_person,esign_status')
+    .select('full_name,national_id,phone,member_type,registration_number,contact_person,esign_status,nationality,org_reg_country,org_nature,member_count,official_chairperson,official_secretary,official_treasurer,beneficial_owner_name')
     .eq('id', uid)
     .single();
   const { data: kd } = await supabase.from('kyc_documents').select('doc_type').eq('member_id', uid);
@@ -321,9 +341,10 @@ export async function submitForApproval() {
 
   // Required fields depend on the account type. KRA / Tax ID is never required.
   let fieldsOk = !!p?.full_name && !!p?.phone;
-  if (mt === 'individual') fieldsOk = fieldsOk && !!p?.national_id;
-  if (isOrg) fieldsOk = fieldsOk && !!p?.contact_person;
-  if (mt === 'corporate') fieldsOk = fieldsOk && !!p?.registration_number;
+  if (mt === 'individual') fieldsOk = fieldsOk && !!p?.national_id && !!p?.nationality;
+  if (isOrg) fieldsOk = fieldsOk && !!p?.contact_person && !!p?.org_reg_country && !!p?.org_nature;
+  if (mt === 'group') fieldsOk = fieldsOk && !!p?.official_chairperson && !!p?.official_secretary && !!p?.official_treasurer && !!p?.member_count;
+  if (mt === 'corporate') fieldsOk = fieldsOk && !!p?.registration_number && !!p?.beneficial_owner_name;
 
   if (!fieldsOk || !docsOk || !agreementsOk) {
     redirect('/onboarding?step=review&err=incomplete');

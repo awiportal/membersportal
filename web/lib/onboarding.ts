@@ -63,6 +63,9 @@ export type OnboardingStep = (typeof ONBOARDING_ORDER)[number];
 // documents a member is asked for.
 export type MemberType = 'individual' | 'group' | 'corporate' | 'other';
 
+// Gender options for the individual membership form (optional field).
+export const GENDER_OPTIONS = ['Female', 'Male', 'Prefer not to say'] as const;
+
 export function memberTypeLabel(t: string | null | undefined): string {
   switch (t) {
     case 'group': return 'Group (Chama)';
