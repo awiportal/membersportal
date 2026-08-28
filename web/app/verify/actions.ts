@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { issueTwoFactorToken, TWOFA_TTL_SECONDS } from '@/lib/twofa';
 
 // Email the member a one-time sign-in code. Uses Supabase's email OTP, which
 // reuses the project's existing auth email set-up.
@@ -41,12 +42,14 @@ export async function verifyCode(token: string): Promise<{ ok?: true; error?: st
     return { error: 'That code was not correct or has expired. Please try again, or tap “Resend code”.' };
   }
 
-  cookies().set('awi_2fa_ok', user.id, {
+  // Signed, expiring token bound to this user — cannot be forged from the
+  // (known) user id alone, unlike the previous raw-uid cookie value.
+  cookies().set('awi_2fa_ok', issueTwoFactorToken(user.id), {
     httpOnly: true,
     sameSite: 'lax',
     secure: true,
     path: '/',
-    maxAge: 60 * 60 * 12, // 12 hours
+    maxAge: TWOFA_TTL_SECONDS, // 12 hours
   });
   return { ok: true };
 }

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { verifyTwoFactorToken } from '@/lib/twofa';
 import Shell from '@/components/Shell';
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,7 @@ export default async function PortalLayout({ children }: { children: React.React
   // migration adds the column.
   if (profile && 'twofa_email' in profile && profile.twofa_email) {
     const verified = cookies().get('awi_2fa_ok')?.value;
-    if (verified !== user.id) redirect('/verify');
+    if (!verifyTwoFactorToken(verified, user.id)) redirect('/verify');
   }
 
   return (

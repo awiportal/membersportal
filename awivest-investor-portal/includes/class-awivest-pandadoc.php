@@ -457,8 +457,14 @@ class AWIVEST_PandaDoc {
 	}
 
 	public function handle_webhook( $request ) {
-		$secret = get_option( 'awivest_pandadoc_webhook_secret', '' );
-		if ( $secret && $request->get_param( 'secret' ) !== $secret ) {
+		// Fail closed: the webhook MUST be protected by a shared secret. Without
+		// one, anyone could POST a forged 'document.completed' event and mark an
+		// investor's agreement as signed. Set the same secret here (AWIVEST >
+		// Settings) and in PandaDoc's webhook configuration. Staff can still use the
+		// manual 'Refresh' action on the Agreements page while this is unset.
+		$secret   = (string) get_option( 'awivest_pandadoc_webhook_secret', '' );
+		$provided = (string) $request->get_param( 'secret' );
+		if ( '' === $secret || ! hash_equals( $secret, $provided ) ) {
 			return new WP_REST_Response( array( 'ok' => false ), 403 );
 		}
 
