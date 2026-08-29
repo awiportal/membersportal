@@ -182,9 +182,12 @@ export default function LoginForm() {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div className="card card-pad" style={{ width: '100%', maxWidth: 420, padding: 30 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-            <div className="grad-lime" style={{ width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#20260a', fontWeight: 900 }}>A</div>
-            <div style={{ fontWeight: 800 }}>AWIVEST Investor Portal</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="brand-logo brand-logo--dark" src="/logo-white.png" alt="African Women Investors" style={{ height: 58, width: 'auto', maxWidth: '100%' }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="brand-logo brand-logo--light" src="/logo-black.png" alt="African Women Investors" style={{ height: 58, width: 'auto', maxWidth: '100%' }} />
+            <div className="muted" style={{ fontWeight: 700, fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase' }}>Investor Portal</div>
           </div>
 
           {awaitingCode ? (
