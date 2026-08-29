@@ -56,6 +56,9 @@ export default function StaffShell({
           <Link href="/staff/documents" className={`nav-item ${pathname.startsWith('/staff/documents') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-folder-open" /><span>Documents</span>
           </Link>
+          <Link href="/staff/kyc" className={`nav-item ${pathname.startsWith('/staff/kyc') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-id-card-clip" /><span>KYC review</span>
+          </Link>
           <Link href="/staff/settings" className={`nav-item ${pathname.startsWith('/staff/settings') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-gear" /><span>Settings</span>
           </Link>
