@@ -53,12 +53,17 @@ export default function StaffShell({
           <Link href="/staff/agreements" className={`nav-item ${pathname.startsWith('/staff/agreements') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-file-contract" /><span>Agreements</span>
           </Link>
+          <Link href="/staff/documents" className={`nav-item ${pathname.startsWith('/staff/documents') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-folder-open" /><span>Documents</span>
+          </Link>
+          <Link href="/staff/kyc" className={`nav-item ${pathname.startsWith('/staff/kyc') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-id-card-clip" /><span>KYC review</span>
+          </Link>
           <Link href="/staff/settings" className={`nav-item ${pathname.startsWith('/staff/settings') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-gear" /><span>Settings</span>
           </Link>
           <div className="nav-group-label">Coming soon</div>
           {[
-            ['Documents & statements', 'fa-folder-open'],
             ['Welfare', 'fa-hand-holding-heart'],
             ['Opportunities', 'fa-lightbulb'],
             ['Reports', 'fa-chart-column'],
