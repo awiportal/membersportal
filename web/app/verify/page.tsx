@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { verifyTwoFactorToken } from '@/lib/twofa';
 import VerifyClient from './VerifyClient';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export default async function VerifyPage() {
 
   // Nothing to verify if the member hasn't opted in, or this device already did.
   if (!profile?.twofa_email) redirect('/dashboard');
-  if (cookies().get('awi_2fa_ok')?.value === user.id) redirect('/dashboard');
+  if (verifyTwoFactorToken(cookies().get('awi_2fa_ok')?.value, user.id)) redirect('/dashboard');
 
   return <VerifyClient email={user.email ?? ''} />;
 }

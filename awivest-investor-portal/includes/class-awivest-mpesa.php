@@ -44,7 +44,22 @@ class AWIVEST_Mpesa {
 	}
 
 	private function callback_url() {
-		return rest_url( 'awivest/v1/mpesa-callback' );
+		return add_query_arg( 'awivest_token', self::callback_token(), rest_url( 'awivest/v1/mpesa-callback' ) );
+	}
+
+	/**
+	 * Shared secret echoed back by Safaricom on the STK callback. Auto-generated
+	 * once and stored, so the check is on by default with no configuration. This
+	 * stops an attacker from POSTing a forged "success" to the public callback
+	 * endpoint (which would otherwise mark a pending contribution as paid).
+	 */
+	private static function callback_token() {
+		$tok = (string) get_option( 'awivest_mpesa_callback_token', '' );
+		if ( '' === $tok ) {
+			$tok = wp_generate_password( 32, false, false );
+			update_option( 'awivest_mpesa_callback_token', $tok, false );
+		}
+		return $tok;
 	}
 
 	/**
@@ -242,6 +257,16 @@ class AWIVEST_Mpesa {
 	}
 
 	public function handle_callback( $request ) {
+		// Authenticate the callback: Safaricom echoes our CallBackURL (with its
+		// secret token) verbatim, so a forged POST to this public endpoint without
+		// the token is rejected. Filterable in case a gateway strips query strings.
+		if ( apply_filters( 'awivest_mpesa_verify_callback_token', true ) ) {
+			$token = (string) $request->get_param( 'awivest_token' );
+			if ( ! hash_equals( self::callback_token(), $token ) ) {
+				return new WP_REST_Response( array( 'ResultCode' => 1, 'ResultDesc' => 'Rejected' ), 403 );
+			}
+		}
+
 		$payload = $request->get_json_params();
 		$stk     = isset( $payload['Body']['stkCallback'] ) ? $payload['Body']['stkCallback'] : null;
 		if ( ! $stk ) {
