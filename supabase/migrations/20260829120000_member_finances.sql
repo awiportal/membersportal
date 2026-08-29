@@ -129,14 +129,14 @@ on conflict (member_no) do update set
   updated_at            = now();
 
 -- ---------------------------------------------------------------------------
--- EXITING MEMBERS (refund in process): two members are winding down and their
--- refunds are being processed. Confirm the two AWI numbers, then flag them:
---
---   update public.member_finances
---     set status = 'exiting', refund_status = 'in_process'
---     where member_no in ('AWI-0XX','AWI-0YY');
---
--- Left unset here so no member's money is mislabelled before confirmation.
+-- EXITING MEMBERS (refund in process): confirmed 29 Aug 2026.
+--   AWI-007  Lydia Kasera
+--   AWI-022  Nelly Opiyo
+-- Both are winding down and their refunds are being processed. They remain in
+-- the fund with balances intact until the refunds settle.
 -- ---------------------------------------------------------------------------
+update public.member_finances
+  set status = 'exiting', refund_status = 'in_process', updated_at = now()
+  where member_no in ('AWI-007','AWI-022');
 
 -- END v1.2
