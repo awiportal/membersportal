@@ -86,9 +86,19 @@ a{color:inherit;text-decoration:none}
    color-scheme tells the browser to draw the controls for a dark UI, and the
    explicit option colours keep the dropdown list readable everywhere. */
 .input{color-scheme:dark}
+/* Draw the closed <select> ourselves so the chosen value is always legible,
+   independent of the browser/OS native control colours (some render the
+   selected value invisibly, e.g. the year and nationality pickers). A custom
+   chevron keeps it clearly a tappable dropdown. */
+select.input{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-color:var(--surface2);color:var(--text);background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23b9aec6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:12px 8px;padding-right:38px}
 select.input option{background-color:#261b25;color:#f6f3f8}
 html[data-theme="light"] .input{color-scheme:light}
 html[data-theme="light"] select.input option{background-color:#ffffff;color:#241026}
+/* Brand logo swaps with the theme so the wordmark stays legible on any background. */
+.brand-logo{display:block}
+.brand-logo--light{display:none}
+html[data-theme="light"] .brand-logo--dark{display:none}
+html[data-theme="light"] .brand-logo--light{display:block}
 .input-group{position:relative}
 .input-group i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted2)}
 .input-group .input{padding-left:42px}
