@@ -193,7 +193,19 @@ html[data-theme="light"] select.input option{background-color:#fff;color:#241026
    ========================================================================= */
 
 /* ----------------------------- DATA ----------------------------- */
+// Per-member dashboard card baseline (kept from cleaned workbook v3).
 var FUND = { opening: 106396145, contrib: 7027118, current: 113423263, members: 48, exits: 2 };
+// Real collective figures from the AWI Compiled Statement (2018 - 30 Jul 2026, KES).
+// Aggregates only — per-member names are anonymized in this public build.
+var STMT = { total: 119939314, totalExclExits: 105865370, contributions: 83202428, totalInterest: 37157396, active: 46, exits: 2, withdrawals: 14073944, asAt: "Jul 2026" };
+var DIST = [
+  { l: "Contributions (principal)", v: 83202428, c: "#a6cd35" },
+  { l: "Interest 2018-2023 (pooled)", v: 3027292, c: "#7e2674" },
+  { l: "Britam interest", v: 10950883, c: "#a6398f" },
+  { l: "Jubilee MMF interest", v: 17883723, c: "#5aa9f0" },
+  { l: "Jubilee FIF interest", v: 5013993, c: "#37c98a" },
+  { l: "Other interest", v: 281505, c: "#f2b23b" }
+];
 
 var FIRST = ["Wanjiru","Amina","Njeri","Achieng","Fatuma","Zawadi","Nyambura","Chebet","Wairimu","Halima",
 "Muthoni","Aisha","Wangari","Adhiambo","Kavata","Naliaka","Makena","Nekesa","Wambui","Auma",
@@ -238,6 +250,8 @@ var MEMBERS = [];
 })();
 
 var SAMPLE_MEMBER = MEMBERS[13]; // Adhiambo ... the demo investor
+// Two members have exited the scheme (refunds in process) — mirrors the compiled statement.
+[6,21].forEach(function(i){ if(MEMBERS[i]){ MEMBERS[i].status="exited"; MEMBERS[i].exiting=true; MEMBERS[i].refund=Math.round(MEMBERS[i].current||0); MEMBERS[i].exitDate="2026-06-30"; } });
 
 var DOCUMENTS = [
   {name:"AWI Membership Agreement 2026.pdf", type:"Agreement", scope:"All members", date:"2026-08-12", size:"312 KB"},
@@ -296,7 +310,7 @@ function kes(n){ return "KES "+Number(n).toLocaleString("en-KE"); }
 function money(n){ return Number(n).toLocaleString("en-KE"); }
 function initials(name){ return name.split(" ").map(function(s){return s[0];}).slice(0,2).join("").toUpperCase(); }
 function statusBadge(s){
-  var m={active:"badge-good",pending:"badge-warn",inactive:"badge-bad",archived:"badge-purple",verified:"badge-good",in_review:"badge-info",rejected:"badge-bad"};
+  var m={active:"badge-good",pending:"badge-warn",inactive:"badge-bad",archived:"badge-purple",verified:"badge-good",in_review:"badge-info",rejected:"badge-bad",exited:"badge-purple"};
   var lbl=s.charAt(0).toUpperCase()+s.slice(1).replace("_"," ");
   return '<span class="badge '+(m[s]||"badge-info")+'">'+lbl+'</span>';
 }
@@ -457,8 +471,8 @@ VIEWS.statements = function(){
 };
 
 VIEWS.opportunities = function(){
-  var cards=OPPS.map(function(o){var rc=o.risk==="Low"?"badge-good":o.risk==="Medium"?"badge-warn":"badge-bad";return '<div class="card card-pad hover-lift"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-weight:700;max-width:70%">'+o.t+'</div><span class="badge '+rc+'">'+o.risk+' risk</span></div><div class="muted" style="font-size:12.5px;margin-top:4px">by '+o.by+'</div><div style="display:flex;gap:18px;margin:14px 0"><div><div class="muted" style="font-size:11px">Indicative return</div><div style="font-weight:700;font-size:14px">'+o.ret+'</div></div><div><div class="muted" style="font-size:11px">Minimum</div><div style="font-weight:700;font-size:14px">'+o.min+'</div></div></div><button class="btn btn-lime btn-sm btn-block" onclick="app.toast(\'Interest registered (prototype)\')">Express interest</button></div>';}).join("");
-  return '<div class="page-title">Opportunities</div><div class="sub">Open investment opportunities you can express interest in. '+soonTag().replace("tag","badge badge-purple")+'</div><div class="three-col section-gap">'+cards+'</div>';
+  var cards=OPPS.map(function(o,i){var rc=o.risk==="Low"?"badge-good":o.risk==="Medium"?"badge-warn":"badge-bad";return '<div class="card card-pad hover-lift"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-weight:700;max-width:70%">'+o.t+'</div><span class="badge '+rc+'">'+o.risk+' risk</span></div><div class="muted" style="font-size:12.5px;margin-top:4px">by '+o.by+'</div><div style="display:flex;gap:18px;margin:14px 0"><div><div class="muted" style="font-size:11px">Indicative return</div><div style="font-weight:700;font-size:14px">'+o.ret+'</div></div><div><div class="muted" style="font-size:11px">Minimum</div><div style="font-weight:700;font-size:14px">'+o.min+'</div></div></div>'+(o.interest?'<div class="muted" style="font-size:11.5px;margin-bottom:8px"><i class="fa-solid fa-users"></i> '+o.interest+' member(s) interested</div>':'')+'<button class="btn btn-lime btn-sm btn-block" onclick="app.expressInterest('+i+')">Express interest</button></div>';}).join("");
+  return '<div class="page-title">Opportunities</div><div class="sub">Open investment opportunities you can express interest in. '+liveTag().replace("tag","badge badge-good")+' New opportunities are published by the office.</div><div class="three-col section-gap">'+cards+'</div>';
 };
 VIEWS.forms = function(args){
   if(args && args[0]){
@@ -566,7 +580,7 @@ VIEWS.onboarding = function(){
     (st<4?'<div class="stepper">'+stepper+'</div>':'')+ body +'</div>';
 };
 VIEWS.staff = function(){
-  var all=MEMBERS;
+  var all=MEMBERS.filter(function(m){return m.status!=="removed";});
   var queue=all.filter(function(m){return m.status==="pending"&&m.onboarding==="submitted";});
   var active=all.filter(function(m){return m.status==="active";}).length;
   var pending=all.filter(function(m){return m.status==="pending";}).length;
@@ -586,7 +600,8 @@ VIEWS["staff-member"] = function(args){
   var docRows=docs.map(function(d,i){return '<div class="list-row"><span class="ic" style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface);color:var(--lime2)"><i class="fa-solid fa-file"></i></span><div style="flex:1;min-width:160px;font-weight:600;font-size:13.5px">'+d+'</div><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Opening secure signed link…\')"><i class="fa-solid fa-eye"></i> View</button><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Document approved\')" style="color:var(--good)"><i class="fa-solid fa-check"></i></button><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Document rejected — note sent\')" style="color:var(--bad)"><i class="fa-solid fa-xmark"></i></button></div>';}).join("");
   return '<a class="btn btn-ghost btn-sm" href="#/staff"><i class="fa-solid fa-arrow-left"></i> Back to members</a>'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-top:14px"><div><div class="page-title">'+m.name+'</div><div class="sub">'+m.id+' · '+typeLabel(m.type)+' · '+statusBadge(m.status)+' · KYC '+statusBadge(m.kyc)+'</div></div>'+
-    (m.status==="pending"?'<div style="display:flex;gap:9px"><button class="btn btn-ghost" onclick="app.reject('+m.idx+')"><i class="fa-solid fa-xmark"></i> Reject</button><button class="btn btn-lime" onclick="app.approve('+m.idx+')"><i class="fa-solid fa-check"></i> Approve member</button></div>':'<button class="btn btn-ghost" onclick="app.toast(\'Member set inactive\')">Set inactive</button>')+'</div>'+
+    (m.status==="pending"?'<div style="display:flex;gap:9px"><button class="btn btn-ghost" onclick="app.reject('+m.idx+')"><i class="fa-solid fa-xmark"></i> Reject</button><button class="btn btn-lime" onclick="app.approve('+m.idx+')"><i class="fa-solid fa-check"></i> Approve member</button></div>':(m.status==="exited"?'<div style="display:flex;gap:9px"><button class="btn btn-ghost" onclick="app.reinstate('+m.idx+')"><i class="fa-solid fa-rotate-left"></i> Reinstate</button><button class="btn btn-ghost" style="color:var(--bad)" onclick="app.removeMember('+m.idx+')"><i class="fa-solid fa-user-slash"></i> Remove</button></div>':'<div style="display:flex;gap:9px"><button class="btn btn-ghost" onclick="app.exitMember('+m.idx+')"><i class="fa-solid fa-door-open"></i> Mark as exited</button><button class="btn btn-ghost" style="color:var(--bad)" onclick="app.removeMember('+m.idx+')"><i class="fa-solid fa-user-slash"></i> Remove</button></div>'))+'</div>'+
+    (m.status==="exited"?'<div class="card card-pad section-gap" style="border-color:var(--purple)"><div style="font-weight:700;margin-bottom:4px">Exited member — refund in process</div><div class="muted" style="font-size:13px">Marked as exited on '+(m.exitDate||"—")+'. Refund of '+kes(m.refund||0)+' is being processed. The record is retained in the audit trail and excluded from active totals.</div></div>':'')+
     '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Personal details</div><div style="display:flex;flex-direction:column;gap:9px;font-size:13.5px"><div class="list-row" style="justify-content:space-between"><span class="muted">Email</span><span>'+m.email+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Phone</span><span>'+m.phone+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Account type</span><span class="chip">'+typeLabel(m.type)+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Agreement</span><span class="badge badge-good">Signed (PandaDoc)</span></div></div></div>'+
     '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">KYC documents</div><div style="display:flex;flex-direction:column;gap:9px">'+docRows+'</div></div></div>'+
     '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:8px">Committee note</div><textarea class="input" rows="2" placeholder="Add a note to the member (sent on approve/reject)…"></textarea></div>';
@@ -614,13 +629,18 @@ VIEWS["staff-documents"] = function(){
 };
 
 VIEWS["staff-reports"] = function(){
-  var kpis=[{l:"Total investors",v:FUND.members,i:"fa-users"},{l:"Active members",v:44,i:"fa-user-check"},{l:"KYC pending",v:4,i:"fa-id-card-clip"},{l:"Fund under management",v:kes(FUND.current),i:"fa-vault",a:true}];
-  var kpiHtml=kpis.map(function(k){return '<div class="card kpi hover-lift"><div style="display:flex;justify-content:space-between"><span class="lbl">'+k.l+'</span><span class="ic '+(k.a?"grad-lime":"")+'" style="'+(k.a?"color:#20260a":"background:var(--surface2);color:var(--lime2)")+'"><i class="fa-solid '+k.i+'"></i></span></div><div class="val num">'+k.v+'</div></div>';}).join("");
-  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="page-title">Reports</div><div class="sub">Collective totals across the register. '+soonTag().replace("tag","badge badge-purple")+' live charts connect next phase.</div></div><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Exporting awivest-report-20260906.csv\')"><i class="fa-solid fa-file-csv"></i> Export CSV</button></div>'+
+  var active=MEMBERS.filter(function(m){return m.status==="active";}).length;
+  var pend=MEMBERS.filter(function(m){return m.status==="pending";}).length;
+  var exited=MEMBERS.filter(function(m){return m.status==="exited";}).length||STMT.exits;
+  var kpis=[{l:"Fund under management",v:kes(STMT.total),i:"fa-vault",a:true},{l:"Balance excl. exits",v:kes(STMT.totalExclExits),i:"fa-scale-balanced"},{l:"Total contributions",v:kes(STMT.contributions),i:"fa-hand-holding-dollar"},{l:"Interest earned",v:kes(STMT.totalInterest),i:"fa-chart-line"}];
+  var kpiHtml=kpis.map(function(k){return '<div class="card kpi hover-lift"><div style="display:flex;justify-content:space-between"><span class="lbl">'+k.l+'</span><span class="ic '+(k.a?"grad-lime":"")+'" style="'+(k.a?"color:#20260a":"background:var(--surface2);color:var(--lime2)")+'"><i class="fa-solid '+k.i+'"></i></span></div><div class="val num" style="font-size:18px">'+k.v+'</div></div>';}).join("");
+  var distRows=DIST.map(function(d){var pct=(d.v/STMT.total*100).toFixed(1);return '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+d.c+';margin-right:8px"></span>'+d.l+'</td><td class="num">'+kes(d.v)+'</td><td class="num muted">'+pct+'%</td></tr>';}).join("");
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="page-title">Reports &amp; fund distribution</div><div class="sub">Compiled statement 2018 - '+STMT.asAt+' (KES). '+liveTag().replace("tag","badge badge-good")+' '+active+' active · '+pend+' pending · '+exited+' exited.</div></div><button class="btn btn-ghost btn-sm" onclick="app.exportReport()"><i class="fa-solid fa-file-csv"></i> Export CSV</button></div>'+
     '<div class="kpi-grid section-gap">'+kpiHtml+'</div>'+
-    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:6px">Fund growth (KES millions)</div>'+areaChart([98,100,102,104,106.4,108,110,111,112,113.4])+'<div class="muted" style="font-size:12px;margin-top:6px">Opening 106.4M (31 Dec 2025) → 113.4M current. +7.0M contributions in 2026.</div></div>'+
-    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Members by account type</div>'+donut([{l:"Individual",v:41,c:"#a6cd35"},{l:"Group (Chama)",v:4,c:"#7e2674"},{l:"Corporate",v:3,c:"#a6398f"}])+'</div></div>'+
-    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:8px">Reconciliation</div><div class="muted" style="font-size:13px">Opening '+kes(FUND.opening)+' + 2026 contributions '+kes(FUND.contrib)+' + interest KES 0 = current '+kes(FUND.current)+'. Every member reconciles exactly; '+FUND.exits+' exits flagged for refund.</div></div>';
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:6px">Fund growth (KES millions)</div>'+areaChart([46,58,67,79,92,101,110,116,119.9])+'<div class="muted" style="font-size:12px;margin-top:6px">Contributions '+kes(STMT.contributions)+' + interest '+kes(STMT.totalInterest)+' = total '+kes(STMT.total)+'.</div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Money distribution</div>'+donut(DIST)+'</div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:10px">Distribution breakdown</div><table class="tbl"><thead><tr><th>Component</th><th class="num">Amount (KES)</th><th class="num">Share</th></tr></thead><tbody>'+distRows+'<tr style="font-weight:700;border-top:2px solid var(--border)"><td>Total fund</td><td class="num">'+kes(STMT.total)+'</td><td class="num">100%</td></tr></tbody></table></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:8px">Member exits (refunds)</div><div class="muted" style="font-size:13px">'+exited+' members have exited the scheme; total withdrawals '+kes(STMT.withdrawals)+'. Balance excluding exits is '+kes(STMT.totalExclExits)+'. Exited members drop out of active reporting but stay in the audit trail.</div></div>';
 };
 
 VIEWS["staff-roles"] = function(){
@@ -637,6 +657,18 @@ VIEWS["staff-settings"] = function(){
     '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px"><i class="fa-solid fa-signature"></i> PandaDoc</div><div class="field"><label>API key</label><input class="input" type="password" value="pd_live_••••••••••••"/></div><div class="field"><label>Onboarding packet template ID</label><input class="input" value="tmpl_AWI_membership_2026"/></div><div class="field"><label>Webhook secret</label><input class="input" type="password" value="••••••••"/></div><button class="btn btn-lime" onclick="app.toast(\'PandaDoc connection tested — OK\')">Save & test</button></div>'+
     '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px"><i class="fa-solid fa-mobile-screen-button"></i> M-Pesa (Daraja)</div><div class="field"><label>Consumer key</label><input class="input" type="password" value="••••••••••"/></div><div class="field"><label>Shortcode / Paybill</label><input class="input" value="4001234"/></div><div class="field"><label>Callback URL secret</label><input class="input" type="password" value="••••••"/></div><button class="btn btn-ghost" onclick="app.toast(\'M-Pesa credentials saved\')">Save</button></div></div>'+
     '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:12px">General</div><div class="three-col"><div class="field"><label>Notification email</label><input class="input" value="office@awivest.com"/></div><div class="field"><label>Max upload size (MB)</label><input class="input" value="128"/></div><div class="field"><label>Sender name</label><input class="input" value="AWIVEST"/></div></div><button class="btn btn-lime" onclick="app.toast(\'Settings saved\')">Save settings</button></div>';
+};
+VIEWS["staff-opportunities"] = function(){
+  var rows=OPPS.map(function(o,i){var rc=o.risk==="Low"?"badge-good":o.risk==="Medium"?"badge-warn":"badge-bad";return '<tr><td style="font-weight:600">'+o.t+'</td><td class="muted">'+o.by+'</td><td>'+o.ret+'</td><td class="num">'+o.min+'</td><td><span class="badge '+rc+'">'+o.risk+'</span></td><td class="num muted">'+(o.interest||0)+'</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="app.removeOpp('+i+')"><i class="fa-solid fa-trash"></i></button></td></tr>';}).join("");
+  var totalInterest=OPPS.reduce(function(a,o){return a+(o.interest||0);},0);
+  return '<div class="page-title">Opportunities</div><div class="sub">Publish investment opportunities to every member. Members can express interest from their portal. '+liveTag().replace("tag","badge badge-good")+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Add an opportunity</div>'+
+      '<div class="field"><label>Title</label><input id="op_t" class="input" placeholder="e.g. AWIVEST Land Banking - Kajiado"/></div>'+
+      '<div class="field"><label>Provider / partner</label><input id="op_by" class="input" placeholder="e.g. Britam, Jubilee, AWIVEST"/></div>'+
+      '<div class="three-col"><div class="field"><label>Indicative return</label><input id="op_ret" class="input" placeholder="~11.8% p.a."/></div><div class="field"><label>Minimum</label><input id="op_min" class="input" placeholder="KES 5,000"/></div><div class="field"><label>Risk</label><select id="op_risk" class="input"><option>Low</option><option>Medium</option><option>High</option></select></div></div>'+
+      '<button class="btn btn-lime btn-block section-gap" onclick="app.addOpp()"><i class="fa-solid fa-plus"></i> Publish opportunity</button></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:8px">How members see it</div><div class="muted" style="font-size:13px;margin-bottom:12px">Each opportunity appears as a card on the member Opportunities page with an Express-interest button. Interest counts update here in real time.</div><div class="list-row" style="justify-content:space-between"><span class="muted">Published opportunities</span><span class="num" style="font-weight:700">'+OPPS.length+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Total expressions of interest</span><span class="num" style="font-weight:700">'+totalInterest+'</span></div><a class="btn btn-ghost btn-sm section-gap" href="#/opportunities" onclick="setTimeout(function(){app.toast(\'Tip: switch to a member role to test Express interest\')},50)"><i class="fa-solid fa-eye"></i> Preview member view</a></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:10px">Published opportunities</div><table class="tbl"><thead><tr><th>Title</th><th>Provider</th><th>Return</th><th>Minimum</th><th>Risk</th><th class="num">Interest</th><th></th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="muted">No opportunities yet - add one above.</td></tr>')+'</tbody></table></div>';
 };
 //@@VIEWS@@
 
@@ -677,7 +709,8 @@ var STAFF_NAV = [
     {id:"staff-agreements",label:"Agreements",icon:"fa-file-contract",live:true},
     {id:"staff-documents",label:"Documents",icon:"fa-folder-open",live:true},
     {id:"staff-kyc",label:"KYC review",icon:"fa-id-card-clip",live:true},
-    {id:"staff-reports",label:"Reports",icon:"fa-chart-column"}
+    {id:"staff-opportunities",label:"Opportunities",icon:"fa-lightbulb",live:true},
+    {id:"staff-reports",label:"Reports & distribution",icon:"fa-chart-column",live:true}
   ]},
   {group:"Administration", items:[
     {id:"staff-roles",label:"Role management",icon:"fa-user-shield",admin:true},
@@ -738,7 +771,7 @@ function shell(kind,active,body){
 }
 
 /* ----------------------------- ROUTER ----------------------------- */
-var STAFF_ROUTES = {"staff":1,"staff-agreements":1,"staff-documents":1,"staff-kyc":1,"staff-reports":1,"staff-roles":1,"staff-settings":1,"staff-member":1};
+var STAFF_ROUTES = {"staff":1,"staff-agreements":1,"staff-documents":1,"staff-kyc":1,"staff-opportunities":1,"staff-reports":1,"staff-roles":1,"staff-settings":1,"staff-member":1};
 function render(){
   var app=document.getElementById("app");
   if(!S.role){ app.innerHTML=VIEWS.login(); return; }
@@ -801,6 +834,17 @@ app.initSig=function(){
   c.addEventListener("touchstart",down,{passive:false}); c.addEventListener("touchmove",move,{passive:false}); c.addEventListener("touchend",up);
 };
 app.clearSig=function(){ var c=document.getElementById("sig"); if(c){ c.getContext("2d").clearRect(0,0,c.width,c.height); } };
+
+/* ---- opportunities: admin CRUD + member interest ---- */
+app.addOpp=function(){ function v(id){ var e=document.getElementById(id); return e?String(e.value||"").trim():""; } var t=v("op_t"); if(!t){ app.toast("Please enter a title for the opportunity"); return; } OPPS.push({ t:t, by:v("op_by")||"AWIVEST", ret:v("op_ret")||"TBC", min:v("op_min")||"KES 5,000", risk:v("op_risk")||"Low", interest:0 }); app.toast("Opportunity published to all members"); render(); };
+app.removeOpp=function(i){ if(OPPS[i]){ var n=OPPS[i].t; OPPS.splice(i,1); app.toast("Removed opportunity: "+n); render(); } };
+app.expressInterest=function(i){ if(OPPS[i]){ OPPS[i].interest=(OPPS[i].interest||0)+1; app.toast("Interest registered for "+OPPS[i].t); render(); } };
+/* ---- member exit / reinstate / removal (refund flow) ---- */
+app.exitMember=function(idx){ var m=MEMBERS[idx]; if(!m) return; m.status="exited"; m.exiting=true; m.exitDate=new Date().toISOString().slice(0,10); m.refund=Math.round(m.current||0); app.toast(m.name+" marked as exited - refund of "+kes(m.refund)+" queued"); render(); };
+app.reinstate=function(idx){ var m=MEMBERS[idx]; if(!m) return; m.status="active"; m.exiting=false; app.toast(m.name+" reinstated as an active member"); render(); };
+app.removeMember=function(idx){ var m=MEMBERS[idx]; if(!m) return; if(S.confirmRemove!==idx){ S.confirmRemove=idx; app.toast("Tap Remove again to permanently remove "+m.name); return; } m.status="removed"; m.removed=true; S.confirmRemove=null; app.toast(m.name+" removed from the register (audit trail retained)"); location.hash="#/staff"; render(); };
+/* ---- reports: download the fund distribution as CSV ---- */
+app.exportReport=function(){ var rows=[["Component","Amount_KES","Share_%"]]; DIST.forEach(function(d){ rows.push([d.l, Math.round(d.v), (d.v/STMT.total*100).toFixed(1)]); }); rows.push(["Total fund", STMT.total, "100"]); rows.push(["Balance excl exits", STMT.totalExclExits, ""]); rows.push(["Withdrawals (exits)", STMT.withdrawals, ""]); var csv=rows.map(function(r){ return r.map(function(x){ return '"'+String(x).replace(/"/g,'""')+'"'; }).join(","); }).join("\n"); try{ var blob=new Blob([csv],{type:"text/csv"}); var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="awivest-fund-distribution-"+String(STMT.asAt).replace(/\s/g,"")+".csv"; document.body.appendChild(a); a.click(); a.remove(); app.toast("Downloaded fund distribution CSV"); }catch(e){ app.toast("Export prepared (prototype)"); } };
 
 window.app=app;
 
