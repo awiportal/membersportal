@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AWIVEST Investor Portal — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<style>
+:root{
+  --purple:#7e2674; --purple2:#a6398f; --lime:#a6cd35; --lime2:#c3e05f;
+  --bg:#160a15; --bg2:#0e060d;
+  --surface:rgba(255,255,255,0.045); --surface2:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.10); --border2:rgba(255,255,255,0.16);
+  --text:#f6f3f8; --muted:#b9aec6; --muted2:#8f83a3;
+  --good:#37c98a; --warn:#f2b23b; --bad:#f0616d; --info:#5aa9f0;
+  --sidebar:rgba(20,9,19,0.72); --topbar:rgba(22,10,21,0.72);
+  --shadow:0 20px 45px -20px rgba(0,0,0,0.65);
+  --ring:0 0 0 3px rgba(166,205,53,0.35);
+}
+html[data-theme="light"]{
+  --bg:#f3eef6; --bg2:#e7dfed;
+  --surface:rgba(255,255,255,0.85); --surface2:#ffffff;
+  --border:rgba(42,10,39,0.10); --border2:rgba(42,10,39,0.18);
+  --text:#241026; --muted:#5f5468; --muted2:#7d7288;
+  --sidebar:rgba(255,255,255,0.85); --topbar:rgba(255,255,255,0.80);
+  --shadow:0 18px 40px -22px rgba(60,15,57,0.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:Inter,system-ui,sans-serif; color:var(--text);
+  background:
+    radial-gradient(1100px 700px at 12% -8%, rgba(126,38,116,0.45), transparent 55%),
+    radial-gradient(900px 640px at 108% 12%, rgba(166,205,53,0.14), transparent 50%),
+    linear-gradient(160deg, var(--bg), var(--bg2));
+  background-attachment:fixed; min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(166,205,53,0.35)}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.30);border-radius:20px;border:3px solid transparent;background-clip:content-box}
+html[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(42,10,39,0.40);border:3px solid transparent;background-clip:content-box}
+:focus-visible{outline:none;box-shadow:var(--ring);border-radius:12px}
+
+.glass,.card{background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
+.card-pad{padding:20px}
+.hover-lift{transition:transform .25s cubic-bezier(.2,.8,.2,1),border-color .25s}
+.hover-lift:hover{transform:translateY(-3px);border-color:var(--border2)}
+.muted{color:var(--muted)} .muted2{color:var(--muted2)}
+.grad-text{background:linear-gradient(92deg,var(--lime2),var(--lime));-webkit-background-clip:text;background-clip:text;color:transparent}
+.num{font-variant-numeric:tabular-nums}
+
+.btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:14px;padding:11px 18px;border-radius:13px;border:1px solid transparent;cursor:pointer;transition:.2s;white-space:nowrap;line-height:1;font-family:inherit}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn-primary{background:linear-gradient(135deg,var(--purple2),var(--purple));color:#fff;box-shadow:0 10px 24px -10px rgba(126,38,116,0.9)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-lime{background:linear-gradient(135deg,var(--lime2),var(--lime));color:#20260a;box-shadow:0 10px 24px -12px rgba(166,205,53,0.9)}
+.btn-lime:hover{filter:brightness(1.05)}
+.btn-ghost{background:var(--surface2);color:var(--text);border-color:var(--border)}
+.btn-ghost:hover{border-color:var(--border2)}
+.btn-sm{padding:8px 13px;font-size:13px;border-radius:11px}
+.btn-block{width:100%;justify-content:center}
+
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--border)}
+.badge-good{background:rgba(55,201,138,0.15);color:#7ef0bf;border-color:rgba(55,201,138,0.3)}
+.badge-warn{background:rgba(242,178,59,0.15);color:#f6cd7e;border-color:rgba(242,178,59,0.3)}
+.badge-bad{background:rgba(240,97,109,0.15);color:#ff9aa2;border-color:rgba(240,97,109,0.3)}
+.badge-info{background:rgba(90,169,240,0.15);color:#a8d0fb;border-color:rgba(90,169,240,0.3)}
+.badge-lime{background:rgba(166,205,53,0.16);color:var(--lime2);border-color:rgba(166,205,53,0.34)}
+.badge-purple{background:rgba(166,57,143,0.18);color:#efb8e4;border-color:rgba(166,57,143,0.38)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+.kpi{padding:18px 20px;border-radius:18px}
+.kpi .lbl{font-size:12.5px;color:var(--muted);font-weight:500}
+.kpi .val{font-size:25px;font-weight:800;letter-spacing:-.5px;margin-top:6px}
+.kpi .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:16px}
+.grad-purple{background:linear-gradient(135deg,var(--purple2),var(--purple))}
+.grad-lime{background:linear-gradient(135deg,var(--lime2),var(--lime))}
+
+.bar{height:9px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--lime2),var(--lime))}
+
+.field{display:block;margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
+.input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:12px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:.18s}
+.input:focus{border-color:rgba(166,205,53,0.55);box-shadow:0 0 0 3px rgba(166,205,53,0.18)}
+.input::placeholder{color:var(--muted2)}
+select.input{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-color:var(--surface2);background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23b9aec6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:12px 8px;padding-right:38px}
+select.input option{background-color:#261b25;color:#f6f3f8}
+html[data-theme="light"] select.input option{background-color:#fff;color:#241026}
+
+.tabs{display:inline-flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:4px}
+.tab{padding:9px 16px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;transition:.18s;border:0;background:transparent;font-family:inherit}
+.tab.active{background:linear-gradient(135deg,var(--purple2),var(--purple));color:#fff}
+
+.page-title{font-size:23px;font-weight:800;letter-spacing:-.5px}
+.sub{color:var(--muted);font-size:14px;margin-top:3px}
+.section-gap{margin-top:22px}
+
+.shell{display:grid;grid-template-columns:264px 1fr;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;background:var(--sidebar);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:60}
+.side-scroll{overflow-y:auto;flex:1;padding:6px 14px 18px}
+.nav-group-label{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:16px 12px 7px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--muted);font-weight:500;font-size:14px;cursor:pointer;transition:.18s;position:relative;border:1px solid transparent}
+.nav-item i{width:20px;text-align:center;font-size:15px}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:linear-gradient(135deg,rgba(166,205,53,0.18),rgba(126,38,116,0.14));color:var(--text);border-color:rgba(166,205,53,0.28)}
+.nav-item .tag{margin-left:auto;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(166,205,53,0.18);color:var(--lime2)}
+.nav-item .tag.soon{background:rgba(166,57,143,0.18);color:#efb8e4}
+.content{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:50;background:var(--topbar);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:14px 26px;display:flex;align-items:center;gap:16px}
+.view{padding:26px;max-width:1440px;width:100%;margin:0 auto}
+.search{flex:1;max-width:440px;display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:10px 14px;color:var(--muted)}
+.search input{background:transparent;border:0;outline:none;color:var(--text);width:100%;font-size:14px;font-family:inherit}
+.icon-btn{width:42px;height:42px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);transition:.2s}
+.icon-btn:hover{border-color:var(--border2)}
+.avatar{width:40px;height:40px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--purple2),var(--purple));font-size:14px}
+.brandtile{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:18px}
+.menu-btn{display:none}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:55}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl thead tr{text-align:left;color:var(--muted);font-size:12px}
+.tbl th{padding:8px 10px;font-weight:600}
+.tbl td{padding:11px 10px;border-top:1px solid var(--border)}
+.tbl tbody tr:hover{background:var(--surface2)}
+
+/* grids */
+.kpi-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.two-col{display:grid;gap:18px;grid-template-columns:1.6fr 1fr}
+.three-col{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.dash-grid{display:grid;gap:18px;grid-template-columns:1.7fr 1fr}
+.list-row{display:flex;align-items:center;gap:14px;padding:12px;border-radius:13px;background:var(--surface2);border:1px solid var(--border);flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+/* login */
+.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+.auth-card{width:min(560px,100%);padding:34px}
+.role-grid{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+.role-card{display:flex;gap:13px;align-items:flex-start;padding:15px;border-radius:16px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;transition:.18s;text-align:left}
+.role-card:hover{border-color:var(--lime);transform:translateY(-2px)}
+.role-card .ri{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:16px;flex:0 0 auto}
+.role-card h4{margin:0 0 3px;font-size:14.5px}
+.role-card p{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+
+/* stepper */
+.stepper{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 22px}
+.step{flex:1;min-width:120px;padding:12px 14px;border-radius:14px;background:var(--surface2);border:1px solid var(--border);font-size:13px}
+.step .sn{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;background:var(--surface);color:var(--muted);margin-bottom:8px}
+.step.active{border-color:rgba(166,205,53,0.5)}
+.step.active .sn{background:linear-gradient(135deg,var(--lime2),var(--lime));color:#20260a}
+.step.done .sn{background:var(--good);color:#04351f}
+.step.done{opacity:.9}
+
+/* upload */
+.drop{border:1.5px dashed var(--border2);border-radius:16px;padding:22px;text-align:center;background:var(--surface2);transition:.18s;cursor:pointer}
+.drop:hover{border-color:var(--lime)}
+
+/* signature */
+.sigpad{width:100%;height:170px;border-radius:14px;background:#fff;border:1px solid var(--border);touch-action:none;cursor:crosshair}
+
+/* modal */
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:120;display:grid;place-items:center;padding:20px}
+.modal{width:min(560px,100%);max-height:88vh;overflow:auto;padding:26px}
+
+.hide{display:none!important}
+@media (max-width:1024px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:0;top:0;width:280px;transform:translateX(-102%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+  .sidebar.open{transform:none}
+  .menu-btn{display:inline-flex}
+  .search{max-width:none}
+  .two-col,.dash-grid{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .view{padding:16px}.topbar{padding:12px 16px}.hide-sm{display:none}.card-pad{padding:16px}
+  .role-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* =========================================================================
+   AWIVEST Investor Portal — High-fidelity clickable prototype
+   Faithful to the live Next.js + Supabase app (design tokens, roles, IA).
+   Prototype only: data is illustrative and lives in the browser.
+   ========================================================================= */
+
+/* ----------------------------- DATA ----------------------------- */
+var FUND = { opening: 106396145, contrib: 7027118, current: 113423263, members: 48, exits: 2 };
+
+var FIRST = ["Wanjiru","Amina","Njeri","Achieng","Fatuma","Zawadi","Nyambura","Chebet","Wairimu","Halima",
+"Muthoni","Aisha","Wangari","Adhiambo","Kavata","Naliaka","Makena","Nekesa","Wambui","Auma",
+"Njoki","Chepkoech","Sanaa","Dorcas","Grace","Mercy","Faith","Esther","Purity","Lydia",
+"Beatrice","Caroline","Damaris","Eunice","Florence","Gladys","Hellen","Irene","Joyce","Kagure",
+"Lucy","Margaret","Nancy","Olive","Priscilla","Rose","Sarah","Teresia"];
+var LAST = ["Kamau","Otieno","Mwangi","Odhiambo","Wafula","Kiptoo","Njoroge","Mutua","Hassan","Cheruiyot",
+"Barasa","Gathoni","Owino","Kimani","Chepng'etich","Were","Muriuki","Onyango","Karanja","Wekesa",
+"Maina","Ochieng","Njuguna","Abdi","Kirui","Wanjala","Gitau","Omollo","Ndungu","Kiprono",
+"Mbugua","Aluoch","Waweru","Kemboi","Githinji","Anyango","Macharia","Chelangat","Njau","Opiyo",
+"Kariuki","Atieno","Rono","Wangui","Simiyu","Nyawira","Koech","Muthama"];
+var TYPES = ["individual","individual","individual","group","individual","corporate","individual","individual","individual","group"];
+function memberType(i){ if(i===5||i===23||i===41) return "corporate"; if(i===3||i===17||i===29||i===44) return "group"; return "individual"; }
+function typeLabel(t){ return t==="group"?"Group (Chama)":t==="corporate"?"Corporate":t==="other"?"Other":"Individual"; }
+
+// deterministic pseudo-random
+function seeded(i){ var x=Math.sin(i*99.13)*10000; return x-Math.floor(x); }
+
+var MEMBERS = [];
+(function(){
+  for(var i=0;i<48;i++){
+    var id="AWI-"+String(i+1).padStart(3,"0");
+    var name=FIRST[i]+" "+LAST[i];
+    var t=memberType(i);
+    var opening=Math.round((900000+seeded(i)*4200000)/1000)*1000;
+    var contrib=Math.round((40000+seeded(i+7)*260000)/1000)*1000;
+    var status="active";
+    if(i>=44) status="pending";     // last 4 are applicants
+    var onboarding = (i>=46)?"submitted":(i>=44?"documents":"complete");
+    var kyc = status==="active"?"verified":(i===45||i===47?"pending":"in_review");
+    var exiting = (i===8||i===31);
+    MEMBERS.push({idx:i,id:id,name:name,email:(FIRST[i]+"."+LAST[i].replace(/[^a-z]/gi,"")).toLowerCase()+"@example.co.ke",
+      type:t,status:status,onboarding:onboarding,kyc:kyc,opening:opening,contrib:contrib,current:opening+contrib,
+      exiting:exiting, role:"member", joined:"20"+(22+ (i%4))+"-0"+((i%9)+1)+"-1"+(i%9),
+      phone:"+2547"+String(10000000+Math.floor(seeded(i+3)*8999999))});
+  }
+  // Give a few staff roles
+  MEMBERS[13].role="member";                // sample logged-in investor
+  MEMBERS[0].role="superadmin"; MEMBERS[0].name="Agnes Odinga"; MEMBERS[0].id="AWI-001";
+  MEMBERS[1].role="admin";
+  MEMBERS[2].role="secretary";
+})();
+
+var SAMPLE_MEMBER = MEMBERS[13]; // Adhiambo ... the demo investor
+
+var DOCUMENTS = [
+  {name:"AWI Membership Agreement 2026.pdf", type:"Agreement", scope:"All members", date:"2026-08-12", size:"312 KB"},
+  {name:"Q2 2026 Fund Statement.pdf", type:"Statement", scope:"All members", date:"2026-07-30", size:"188 KB"},
+  {name:"AWIVEST Constitution (v3).pdf", type:"Policy", scope:"All members", date:"2026-06-02", size:"420 KB"},
+  {name:"Britam Partnership Brief.pdf", type:"Confidential", scope:"All members", date:"2026-05-18", size:"1.1 MB"},
+  {name:"Your KYC Acknowledgement.pdf", type:"Personal", scope:"Addressed to you", date:"2026-08-20", size:"96 KB"}
+];
+
+var FORMS = [
+  {id:"investor-reg", title:"Investor Registration Form", status:"Submitted", sign:true},
+  {id:"kyc", title:"KYC / CDD Form", status:"Approved", sign:true},
+  {id:"beneficiary", title:"Beneficiary Nomination Form", status:"Draft", sign:true},
+  {id:"risk", title:"Risk Assessment Questionnaire", status:"Not started", sign:false},
+  {id:"compliance", title:"Compliance & Source of Funds", status:"Not started", sign:true}
+];
+
+var NOTIFS = [
+  {icon:"fa-circle-check", tone:"good", t:"Membership approved", d:"Welcome to AWIVEST. Your Investor ID is "+SAMPLE_MEMBER.id+".", when:"2 days ago"},
+  {icon:"fa-file-contract", tone:"info", t:"Agreement countersigned", d:"Your membership agreement was completed via PandaDoc.", when:"2 days ago"},
+  {icon:"fa-coins", tone:"lime", t:"Contribution received", d:"KES 25,000 received via M-Pesa. Ref QF83K2LMx.", when:"5 days ago"},
+  {icon:"fa-bell", tone:"warn", t:"Statements available", d:"Your Q2 2026 fund statement is ready to download.", when:"1 week ago"}
+];
+
+var OPPS = [
+  {t:"Money Market Fund top-up", by:"Britam", ret:"~11.8% p.a.", min:"KES 5,000", risk:"Low"},
+  {t:"AWIVEST Land Banking — Kajiado", by:"AWIVEST", ret:"Target 2.1x / 4 yrs", min:"KES 50,000", risk:"Medium"},
+  {t:"NSE Blue-chip basket", by:"Jubilee Asset Mgmt", ret:"Market-linked", min:"KES 10,000", risk:"High"}
+];
+
+var DIVIDENDS = [
+  {period:"FY2025 dividend", amount:42500, status:"Paid", date:"2026-03-15"},
+  {period:"H1 2026 interim", amount:18750, status:"Declared", date:"2026-08-01"}
+];
+
+var GOALS = [
+  {name:"Emergency fund", cat:"Emergency Fund", target:600000, saved:415000, date:"2026-12-31", priority:"Very high"},
+  {name:"Land purchase — Nakuru", cat:"Property", target:2500000, saved:780000, date:"2028-06-30", priority:"High"},
+  {name:"Children education", cat:"Children Education", target:1800000, saved:520000, date:"2031-01-31", priority:"Medium"}
+];
+
+/* ----------------------------- STATE ----------------------------- */
+var S = { role:null, user:null, route:"dashboard", sidebarOpen:false, kycUploaded:{}, sigDone:false };
+
+var ROLE_META = {
+  member:{label:"Investor", tone:"badge-lime", console:"member"},
+  secretary:{label:"Secretary", tone:"badge-purple", console:"staff"},
+  admin:{label:"Admin", tone:"badge-purple", console:"staff"},
+  superadmin:{label:"Chairlady", tone:"badge-purple", console:"staff"}
+};
+function isStaff(r){ return r==="secretary"||r==="admin"||r==="superadmin"; }
+function isAdmin(r){ return r==="admin"||r==="superadmin"; }
+
+/* ----------------------------- HELPERS ----------------------------- */
+function kes(n){ return "KES "+Number(n).toLocaleString("en-KE"); }
+function money(n){ return Number(n).toLocaleString("en-KE"); }
+function initials(name){ return name.split(" ").map(function(s){return s[0];}).slice(0,2).join("").toUpperCase(); }
+function statusBadge(s){
+  var m={active:"badge-good",pending:"badge-warn",inactive:"badge-bad",archived:"badge-purple",verified:"badge-good",in_review:"badge-info",rejected:"badge-bad"};
+  var lbl=s.charAt(0).toUpperCase()+s.slice(1).replace("_"," ");
+  return '<span class="badge '+(m[s]||"badge-info")+'">'+lbl+'</span>';
+}
+function liveTag(){ return '<span class="tag">Live</span>'; }
+function soonTag(){ return '<span class="tag soon">Preview</span>'; }
+
+// simple SVG area chart
+function areaChart(vals,w,h){
+  w=w||520;h=h||180;var max=Math.max.apply(null,vals),min=Math.min.apply(null,vals);
+  var pad=8,rng=(max-min)||1;
+  var pts=vals.map(function(v,i){var x=pad+i*((w-2*pad)/(vals.length-1));var y=h-pad-((v-min)/rng)*(h-2*pad);return x.toFixed(1)+","+y.toFixed(1);});
+  var line=pts.join(" ");
+  var area="M"+pad+","+(h-pad)+" L"+pts.join(" L")+" L"+(w-pad)+","+(h-pad)+" Z";
+  return '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:auto;display:block">'+
+    '<defs><linearGradient id="ag" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="rgba(166,205,53,0.45)"/><stop offset="1" stop-color="rgba(166,205,53,0)"/></linearGradient></defs>'+
+    '<path d="'+area+'" fill="url(#ag)"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="#a6cd35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '</svg>';
+}
+// donut
+function donut(segs){
+  var total=segs.reduce(function(a,s){return a+s.v;},0),acc=0,r=54,c=2*Math.PI*r,parts="";
+  segs.forEach(function(s){var frac=s.v/total;var dash=frac*c;parts+='<circle cx="70" cy="70" r="'+r+'" fill="none" stroke="'+s.c+'" stroke-width="20" stroke-dasharray="'+dash+' '+(c-dash)+'" stroke-dashoffset="'+(-acc*c)+'" transform="rotate(-90 70 70)"/>';acc+=frac;});
+  var legend=segs.map(function(s){return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:5px 0"><span class="dot" style="background:'+s.c+'"></span><span class="muted">'+s.l+'</span><span style="margin-left:auto;font-weight:700">'+Math.round(s.v/total*100)+'%</span></div>';}).join("");
+  return '<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><svg width="140" height="140" viewBox="0 0 140 140">'+parts+'</svg><div style="flex:1;min-width:150px">'+legend+'</div></div>';
+}
+
+/* ----------------------------- VIEWS REGISTRY ----------------------------- */
+var VIEWS = {};   // member + staff views injected below
+VIEWS.login = function(){
+  var roles=[
+    {r:"member",ic:"fa-user",g:"grad-lime",cl:"#20260a",h:"Investor (Member)",p:"See and manage only your own account, documents, and fund balance."},
+    {r:"secretary",ic:"fa-user-check",g:"grad-purple",cl:"#fff",h:"Secretary",p:"Review applicants, approve membership, and manage agreements."},
+    {r:"admin",ic:"fa-user-gear",g:"grad-purple",cl:"#fff",h:"Admin",p:"Everything the Secretary can do, plus manage roles."},
+    {r:"superadmin",ic:"fa-crown",g:"grad-purple",cl:"#fff",h:"Chairlady (Superadmin)",p:"The top authority. Full oversight of the whole system."}
+  ];
+  var cards=roles.map(function(x){
+    return '<button class="role-card" onclick="app.login(\''+x.r+'\')"><div class="ri '+x.g+'" style="color:'+x.cl+'"><i class="fa-solid '+x.ic+'"></i></div><div><h4>'+x.h+'</h4><p>'+x.p+'</p></div></button>';
+  }).join("");
+  return '<div class="auth-wrap"><div class="card auth-card">'+
+    '<div style="display:flex;align-items:center;gap:13px;margin-bottom:6px"><div class="brandtile grad-lime" style="color:#20260a;width:46px;height:46px;font-size:20px">A</div><div><div style="font-weight:900;font-size:20px;letter-spacing:-.4px">AWIVEST</div><div class="muted" style="font-size:12px">Investor Portal · African Women Investors</div></div></div>'+
+    '<h2 style="margin:16px 0 4px;font-size:19px">Welcome back</h2>'+
+    '<p class="muted" style="margin:0 0 8px;font-size:13.5px">Prototype demo — choose a role to sign in and explore the portal exactly as that user would see it.</p>'+
+    '<div class="field" style="margin-top:14px"><label>Email or Investor ID</label><div class="search" style="max-width:none"><i class="fa-solid fa-envelope"></i><input value="member@awivest.com" /></div></div>'+
+    '<div class="field"><label>Password</label><div class="search" style="max-width:none"><i class="fa-solid fa-lock"></i><input type="password" value="demo1234" /></div></div>'+
+    '<div class="nav-group-label" style="padding-left:2px">Sign in as</div>'+
+    '<div class="role-grid">'+cards+'</div>'+
+    '<div style="display:flex;align-items:center;gap:10px;margin:18px 0"><div style="flex:1;height:1px;background:var(--border)"></div><span class="muted" style="font-size:12px">or</span><div style="flex:1;height:1px;background:var(--border)"></div></div>'+
+    '<button class="btn btn-ghost btn-block" onclick="S.role=\'member\';S.user=MEMBERS[46];S.user.status=\'pending\';location.hash=\'#/onboarding\';render()"><i class="fa-solid fa-user-plus"></i> Preview new-member onboarding</button>'+
+    '<p class="muted" style="font-size:11.5px;text-align:center;margin-top:14px">Secure login with 2FA, email or Investor ID, and password reset — powered by Supabase Auth.</p>'+
+    '</div></div>';
+};
+
+VIEWS.dashboard = function(){
+  var u=S.user;
+  var trend=[92,94,96,99,101,103,105,107,109,110,112,113.4];
+  var alloc=[{l:"Money Market (Britam/Jubilee)",v:38,c:"#a6cd35"},{l:"Property / Land banking",v:25,c:"#7e2674"},{l:"NSE Equities",v:22,c:"#a6398f"},{l:"Fixed income / Bonds",v:15,c:"#5aa9f0"}];
+  var goalPct=Math.round(u.current/ (u.current*1.4) *100);
+  var kpis=[
+    {l:"Current balance",v:kes(u.current),i:"fa-wallet",accent:true},
+    {l:"2026 contributions",v:kes(u.contrib),i:"fa-money-bill-trend-up"},
+    {l:"Interest credited",v:"KES 0",i:"fa-percent",note:"Britam/Jubilee — pending statements"},
+    {l:"Annual goal",v:goalPct+"%",i:"fa-bullseye"}
+  ];
+  var kpiHtml=kpis.map(function(k){return '<div class="card kpi hover-lift"><div style="display:flex;justify-content:space-between"><span class="lbl">'+k.l+'</span><span class="ic '+(k.accent?"grad-lime":"")+'" style="'+(k.accent?"color:#20260a":"background:var(--surface2);color:var(--lime2)")+'"><i class="fa-solid '+k.i+'"></i></span></div><div class="val num">'+k.v+'</div>'+(k.note?'<div class="muted" style="font-size:11px;margin-top:4px">'+k.note+'</div>':'')+'</div>';}).join("");
+  var acts=NOTIFS.slice(0,4).map(function(n){return '<div class="list-row" style="gap:12px"><span class="ic" style="width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--surface);color:var(--lime2)"><i class="fa-solid '+n.icon+'"></i></span><div style="flex:1;min-width:160px"><div style="font-weight:600;font-size:13.5px">'+n.t+'</div><div class="muted" style="font-size:12px">'+n.d+'</div></div><span class="muted" style="font-size:11.5px">'+n.when+'</span></div>';}).join("");
+  return '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'+
+    '<div><div class="page-title">Welcome back, '+u.name.split(" ")[0]+' <span class="grad-text">·</span></div><div class="sub">Investor ID '+u.id+' · '+typeLabel(u.type)+' member · '+statusBadge(u.status)+'</div></div>'+
+    '<div style="display:flex;gap:9px"><button class="btn btn-ghost btn-sm" onclick="app.go(\'statements\')"><i class="fa-solid fa-file-arrow-down"></i> Statement</button><button class="btn btn-lime btn-sm" onclick="app.go(\'payments\')"><i class="fa-solid fa-plus"></i> Contribute</button></div></div>'+
+    // fund card
+    '<div class="card card-pad section-gap grad-hero" style="background:linear-gradient(135deg,rgba(126,38,116,0.35),rgba(166,205,53,0.10));border-color:rgba(166,205,53,0.28)">'+
+      '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px"><div><div class="muted" style="font-size:12.5px;font-weight:600">YOUR AWIVEST FUND</div><div class="num" style="font-size:34px;font-weight:900;letter-spacing:-1px;margin-top:4px">'+kes(u.current)+'</div><div class="muted" style="font-size:12.5px;margin-top:2px">Current balance · reconciled to the collective books</div>'+(u.exiting?'<span class="badge badge-warn" style="margin-top:8px">Exiting — refund in process</span>':'')+'</div>'+
+      '<div style="display:flex;gap:26px;flex-wrap:wrap"><div><div class="muted" style="font-size:11.5px">Opening (31 Dec 2025)</div><div class="num" style="font-weight:800;font-size:17px;margin-top:3px">'+kes(u.opening)+'</div></div><div><div class="muted" style="font-size:11.5px">2026 contributions</div><div class="num" style="font-weight:800;font-size:17px;margin-top:3px;color:var(--lime2)">+'+money(u.contrib)+'</div></div><div><div class="muted" style="font-size:11.5px">Interest (2026)</div><div class="num" style="font-weight:800;font-size:17px;margin-top:3px">KES 0</div></div></div></div>'+
+    '</div>'+
+    '<div class="kpi-grid section-gap">'+kpiHtml+'</div>'+
+    '<div class="dash-grid section-gap">'+
+      '<div class="card card-pad"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700">Portfolio value <span class="muted" style="font-weight:500;font-size:12px">(KES millions)</span></div>'+soonTag().replace("tag","badge badge-purple")+'</div>'+areaChart(trend)+'<div class="muted" style="font-size:11.5px;margin-top:6px">Illustrative trend — live holdings feed connects in the next phase. Fund card figures above are authoritative.</div></div>'+
+      '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Asset allocation</div>'+donut(alloc)+'</div>'+
+    '</div>'+
+    '<div class="card card-pad section-gap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-weight:700">Recent activity</div><a class="btn btn-ghost btn-sm" href="#/notifications">View all</a></div><div style="display:flex;flex-direction:column;gap:10px">'+acts+'</div></div>';
+};
+
+VIEWS.portfolio = function(){
+  var holdings=[
+    {n:"AWIVEST Pooled Fund (core)",cat:"Collective",val:0.55,amt:Math.round(S.user.current*0.55)},
+    {n:"Britam Money Market Fund",cat:"Money Market",val:0.20,amt:Math.round(S.user.current*0.20)},
+    {n:"Land banking — Kajiado / Nakuru",cat:"Property",val:0.15,amt:Math.round(S.user.current*0.15)},
+    {n:"NSE blue-chip basket",cat:"Equities",val:0.10,amt:Math.round(S.user.current*0.10)}
+  ];
+  var rows=holdings.map(function(h){return '<tr><td><div style="font-weight:600">'+h.n+'</div><div class="muted" style="font-size:11.5px">'+h.cat+'</div></td><td class="num">'+kes(h.amt)+'</td><td class="num">'+Math.round(h.val*100)+'%</td><td><div class="bar" style="width:120px"><span style="width:'+(h.val*100)+'%"></span></div></td></tr>';}).join("");
+  return '<div class="page-title">Investment Portfolio</div><div class="sub">Your holdings breakdown across the collective and partner instruments. '+soonTag().replace("tag","badge badge-purple")+' live holdings feed connects next phase.</div>'+
+    '<div class="card card-pad section-gap"><table class="tbl"><thead><tr><th>Instrument</th><th>Value</th><th>Weight</th><th></th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td style="padding-top:12px;font-weight:700;border-top:1px solid var(--border)">Total</td><td class="num" style="font-weight:800;border-top:1px solid var(--border)">'+kes(S.user.current)+'</td><td colspan="2" style="border-top:1px solid var(--border)"></td></tr></tfoot></table></div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Allocation</div>'+donut([{l:"Collective",v:55,c:"#a6cd35"},{l:"Money Market",v:20,c:"#7e2674"},{l:"Property",v:15,c:"#a6398f"},{l:"Equities",v:10,c:"#5aa9f0"}])+'</div><div class="card card-pad"><div style="font-weight:700;margin-bottom:10px">Performance snapshot</div>'+areaChart([100,101,103,104,106,108,110,113])+'<div class="muted" style="font-size:12px;margin-top:8px">Indexed to 100 at opening. Illustrative.</div></div></div>';
+};
+VIEWS["financial-profile"] = function(){
+  var score=72, band="Good";
+  var subs=[{l:"Savings rate",v:78},{l:"Emergency fund",v:65},{l:"Debt management",v:82},{l:"Diversification",v:60},{l:"Retirement readiness",v:58},{l:"Insurance cover",v:70}];
+  var subHtml=subs.map(function(s){return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span class="muted">'+s.l+'</span><span style="font-weight:700">'+s.v+'</span></div><div class="bar"><span style="width:'+s.v+'%"></span></div></div>';}).join("");
+  var recs=["Grow your emergency fund to 6 months of expenses.","Diversify beyond the collective into a money market fund.","Start a retirement top-up while your horizon is long.","Review your life and medical cover for the family."];
+  var recHtml=recs.map(function(r){return '<div class="list-row" style="padding:11px"><span class="dot" style="background:var(--lime)"></span><span style="font-size:13.5px">'+r+'</span></div>';}).join("");
+  var ring='<svg width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="60" fill="none" stroke="var(--surface2)" stroke-width="14"/><circle cx="75" cy="75" r="60" fill="none" stroke="#a6cd35" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+(score/100*377)+' 377" transform="rotate(-90 75 75)"/><text x="75" y="70" text-anchor="middle" font-size="34" font-weight="800" fill="var(--text)">'+score+'</text><text x="75" y="94" text-anchor="middle" font-size="12" fill="var(--muted)">/ 100</text></svg>';
+  return '<div class="page-title">Financial Profile <span class="grad-text">MSI</span></div><div class="sub">Your financial wellness score, risk profile and tailored guidance. '+soonTag().replace("tag","badge badge-purple")+' the full guided wizard ships next phase — this is a designed preview.</div>'+
+    '<div class="tabs section-gap"><button class="tab active">My Profile</button><button class="tab" onclick="app.go(\'goals\')">My Goals</button></div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:8px">Financial Wellness Score</div><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">'+ring+'<div><span class="badge badge-good">'+band+'</span><div class="muted" style="font-size:13px;margin-top:10px;max-width:220px">Built from savings, emergency fund, debt, diversification, retirement and insurance sub-scores.</div></div></div><div class="section-gap">'+subHtml+'</div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:10px">Your investor profile</div><div style="display:flex;flex-direction:column;gap:10px"><div class="list-row" style="justify-content:space-between"><span class="muted">Risk profile</span><span class="badge badge-lime">Balanced</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Commitment (MCIS)</span><span class="badge badge-purple">Builder</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Life-stage segment</span><span class="chip">Family Builder</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Financial standing</span><span class="chip">Growing Saver</span></div></div></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:10px">Recommended next steps</div>'+recHtml+'<div class="muted" style="font-size:11.5px;margin-top:10px">Illustrative guidance, not financial advice.</div></div>';
+};
+
+VIEWS.planning = function(){
+  function calc(id,title,icon,fields,btn){
+    var f=fields.map(function(x){return '<div class="field"><label>'+x[0]+'</label><input class="input" id="'+id+'_'+x[1]+'" value="'+x[2]+'"/></div>';}).join("");
+    return '<div class="card card-pad"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="ic" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface2);color:var(--lime2)"><i class="fa-solid '+icon+'"></i></span><div style="font-weight:700">'+title+'</div></div>'+f+'<button class="btn btn-lime btn-block" onclick="app.calc(\''+id+'\')">'+btn+'</button><div id="'+id+'_out" class="muted" style="font-size:13px;margin-top:12px"></div></div>';
+  }
+  return '<div class="page-title">Planning Centre</div><div class="sub">Four self-contained calculators. Defaults follow your Balanced risk profile. '+soonTag().replace("tag","badge badge-purple")+'</div>'+
+    '<div class="three-col section-gap">'+
+      calc("ret","Retirement","fa-umbrella-beach",[["Current savings (KES)","cur","500000"],["Monthly contribution","mo","20000"],["Years to retirement","yr","20"],["Expected return % p.a.","r","11"]],"Project my pot")+
+      calc("grow","Investment Growth","fa-seedling",[["Starting amount (KES)","cur","100000"],["Monthly contribution","mo","10000"],["Years","yr","10"],["Expected return % p.a.","r","11"]],"Grow it")+
+      calc("sip","Goal / SIP","fa-bullseye",[["Target amount (KES)","tgt","2000000"],["Years to goal","yr","5"],["Expected return % p.a.","r","11"]],"Monthly needed")+
+      calc("inf","Inflation Impact","fa-fire",[["Amount today (KES)","cur","1000000"],["Years","yr","10"],["Inflation % p.a.","r","6.5"]],"Future value")+
+    '</div>';
+};
+
+VIEWS.goals = function(){
+  var cards=GOALS.map(function(g,i){
+    var pct=Math.min(100,Math.round(g.saved/g.target*100));
+    return '<div class="card card-pad hover-lift"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700">'+g.name+'</div><div class="muted" style="font-size:12px">'+g.cat+' · target '+g.date+'</div></div><span class="badge badge-lime">'+g.priority+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin:14px 0 6px"><span class="muted">'+kes(g.saved)+' saved</span><span style="font-weight:700">'+pct+'%</span></div><div class="bar"><span style="width:'+pct+'%"></span></div>'+
+      '<div class="muted" style="font-size:12px;margin-top:10px">Target '+kes(g.target)+' · needs ~'+kes(Math.round((g.target-g.saved)/36))+'/mo to stay on track</div></div>';
+  }).join("");
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="page-title">Goal Tracker</div><div class="sub">Set goals, track progress, and see the monthly contribution needed.</div></div><button class="btn btn-lime btn-sm" onclick="app.toast(\'Add-goal form (prototype)\')"><i class="fa-solid fa-plus"></i> Add goal</button></div>'+
+    '<div class="three-col section-gap">'+cards+'</div>';
+};
+VIEWS.payments = function(){
+  var hist=[{d:"2026-08-20",m:"M-Pesa",r:"QF83K2LMx",a:25000,s:"Confirmed"},{d:"2026-07-18",m:"M-Pesa",r:"QE71H9PLd",a:25000,s:"Confirmed"},{d:"2026-06-15",m:"Bank",r:"RTGS-4471",a:50000,s:"Confirmed"},{d:"2026-05-16",m:"M-Pesa",r:"QC55J2KMa",a:25000,s:"Confirmed"}];
+  var rows=hist.map(function(h){return '<tr><td>'+h.d+'</td><td>'+h.m+'</td><td class="num muted">'+h.r+'</td><td class="num">'+kes(h.a)+'</td><td><span class="badge badge-good">'+h.s+'</span></td></tr>';}).join("");
+  return '<div class="page-title">Payments</div><div class="sub">Contribute via M-Pesa STK push, card or bank, and track your contribution history. '+soonTag().replace("tag","badge badge-purple")+' live M-Pesa (Daraja) connects once credentials are set.</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Make a contribution</div>'+
+      '<div class="field"><label>Amount (KES)</label><input class="input" id="pay_amt" value="25000"/></div>'+
+      '<div class="field"><label>M-Pesa phone number</label><input class="input" id="pay_phone" value="'+S.user.phone+'"/></div>'+
+      '<button class="btn btn-lime btn-block" onclick="app.stkPush()"><i class="fa-solid fa-mobile-screen-button"></i> Send M-Pesa STK push</button>'+
+      '<div class="muted" style="font-size:12px;margin-top:10px">You will receive a prompt on your phone to enter your M-Pesa PIN.</div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">This year</div><div class="kpi" style="padding:0"><div class="lbl">2026 contributions</div><div class="val num">'+kes(S.user.contrib)+'</div></div><div class="bar section-gap"><span style="width:64%"></span></div><div class="muted" style="font-size:12px;margin-top:8px">64% toward your '+kes(Math.round(S.user.contrib*1.6))+' annual pledge.</div></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:12px">Contribution history</div><table class="tbl"><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+};
+
+VIEWS.dividends = function(){
+  var rows=DIVIDENDS.map(function(d){return '<tr><td style="font-weight:600">'+d.period+'</td><td class="num">'+kes(d.amount)+'</td><td>'+statusBadge(d.status.toLowerCase()==="paid"?"active":"pending").replace("Active","Paid").replace("Pending","Declared")+'</td><td class="muted">'+d.date+'</td></tr>';}).join("");
+  var total=DIVIDENDS.reduce(function(a,d){return a+d.amount;},0);
+  return '<div class="page-title">Dividends</div><div class="sub">Dividends and interim payouts recorded for you. '+soonTag().replace("tag","badge badge-purple")+'</div>'+
+    '<div class="kpi-grid section-gap"><div class="card kpi"><div class="lbl">Total paid to date</div><div class="val num">'+kes(42500)+'</div></div><div class="card kpi"><div class="lbl">Declared (pending)</div><div class="val num">'+kes(18750)+'</div></div><div class="card kpi"><div class="lbl">All-time recorded</div><div class="val num">'+kes(total)+'</div></div></div>'+
+    '<div class="card card-pad section-gap"><table class="tbl"><thead><tr><th>Period</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+};
+
+VIEWS.statements = function(){
+  var items=[{n:"Q2 2026 Fund Statement",d:"2026-07-30",s:"188 KB"},{n:"Q1 2026 Fund Statement",d:"2026-04-30",s:"181 KB"},{n:"FY2025 Annual Statement",d:"2026-01-20",s:"402 KB"}];
+  var rows=items.map(function(x){return '<div class="list-row"><span class="ic" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface);color:var(--lime2)"><i class="fa-solid fa-file-invoice-dollar"></i></span><div style="flex:1;min-width:160px"><div style="font-weight:600">'+x.n+'</div><div class="muted" style="font-size:12px">Published '+x.d+' · '+x.s+'</div></div><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Opening secure download…\')"><i class="fa-solid fa-download"></i> Download</button></div>';}).join("");
+  return '<div class="page-title">Statements</div><div class="sub">Download statements and reports published to you. '+soonTag().replace("tag","badge badge-purple")+'</div><div class="card card-pad section-gap" style="display:flex;flex-direction:column;gap:10px">'+rows+'</div>';
+};
+
+VIEWS.opportunities = function(){
+  var cards=OPPS.map(function(o){var rc=o.risk==="Low"?"badge-good":o.risk==="Medium"?"badge-warn":"badge-bad";return '<div class="card card-pad hover-lift"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-weight:700;max-width:70%">'+o.t+'</div><span class="badge '+rc+'">'+o.risk+' risk</span></div><div class="muted" style="font-size:12.5px;margin-top:4px">by '+o.by+'</div><div style="display:flex;gap:18px;margin:14px 0"><div><div class="muted" style="font-size:11px">Indicative return</div><div style="font-weight:700;font-size:14px">'+o.ret+'</div></div><div><div class="muted" style="font-size:11px">Minimum</div><div style="font-weight:700;font-size:14px">'+o.min+'</div></div></div><button class="btn btn-lime btn-sm btn-block" onclick="app.toast(\'Interest registered (prototype)\')">Express interest</button></div>';}).join("");
+  return '<div class="page-title">Opportunities</div><div class="sub">Open investment opportunities you can express interest in. '+soonTag().replace("tag","badge badge-purple")+'</div><div class="three-col section-gap">'+cards+'</div>';
+};
+VIEWS.forms = function(args){
+  if(args && args[0]){
+    // open a single form with signature
+    var f=FORMS.filter(function(x){return x.id===args[0];})[0]||FORMS[0];
+    return '<a class="btn btn-ghost btn-sm" href="#/forms"><i class="fa-solid fa-arrow-left"></i> All forms</a>'+
+      '<div class="page-title section-gap">'+f.title+'</div><div class="sub">Fill the form, save progress, then sign and submit.</div>'+
+      '<div class="card card-pad section-gap"><div class="field"><label>Full name</label><input class="input" value="'+S.user.name+'"/></div>'+
+      '<div class="field"><label>Investor ID</label><input class="input" value="'+S.user.id+'"/></div>'+
+      '<div class="field"><label>Source of funds</label><select class="input"><option>Employment</option><option>Business</option><option>Investments</option><option>Other</option></select></div>'+
+      '<div class="field"><label>Declaration</label><textarea class="input" rows="3">I confirm the information provided is true and accurate.</textarea></div>'+
+      (f.sign? '<div class="field"><label>Signature — draw below, or type your name</label><canvas id="sig" class="sigpad"></canvas><div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="app.clearSig()"><i class="fa-solid fa-eraser"></i> Clear</button><input class="input" style="flex:1" id="sig_typed" placeholder="or type your full name"/><label class="btn btn-ghost btn-sm" style="cursor:pointer"><i class="fa-solid fa-image"></i> Upload<input type="file" class="hide" onchange="app.toast(\'Signature image attached\')"/></label></div></div>':'')+
+      '<div style="display:flex;gap:9px;margin-top:8px"><button class="btn btn-ghost" onclick="app.toast(\'Progress saved\')"><i class="fa-solid fa-floppy-disk"></i> Save progress</button><button class="btn btn-lime" onclick="app.toast(\'Form submitted for review\');location.hash=\'#/forms\'"><i class="fa-solid fa-paper-plane"></i> Submit form</button></div></div>';
+  }
+  var rows=FORMS.map(function(f){
+    var sc=f.status==="Approved"?"badge-good":f.status==="Submitted"?"badge-info":f.status==="Draft"?"badge-warn":"chip";
+    var btn=(f.status==="Approved"||f.status==="Submitted")?'<a class="btn btn-ghost btn-sm" href="#/forms/'+f.id+'">View</a>':'<a class="btn btn-lime btn-sm" href="#/forms/'+f.id+'">'+(f.status==="Draft"?"Continue":"Start")+'</a>';
+    return '<div class="list-row"><span class="ic" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface);color:var(--lime2)"><i class="fa-solid fa-file-signature"></i></span><div style="flex:1;min-width:180px"><div style="font-weight:600">'+f.title+'</div><div class="muted" style="font-size:11.5px">'+(f.sign?"Requires signature":"No signature")+'</div></div><span class="badge '+sc+'">'+f.status+'</span>'+btn+'</div>';
+  }).join("");
+  return '<div class="page-title">Online Forms</div><div class="sub">Open a form, fill it online, save progress, and e-sign before submitting. '+soonTag().replace("tag","badge badge-purple")+'</div><div class="card card-pad section-gap" style="display:flex;flex-direction:column;gap:10px">'+rows+'</div>';
+};
+
+VIEWS.kyc = function(){
+  var docs={individual:[["Passport-size photo",true],["National ID / Passport copy",true],["Proof of address",false],["KRA PIN / tax certificate",false]],
+    group:[["Group constitution / registration",true],["Officials' IDs (chair, secretary, treasurer)",true],["Group resolution / minutes",true],["Member list",false],["Tax / PIN certificate",false]],
+    corporate:[["Certificate of Incorporation",true],["Company registration (CR12)",true],["Directors' / signatories' IDs",true],["Board resolution",true],["Proof of registered address",false],["Tax certificate",false]],
+    other:[["ID / registration document",false],["Supporting document",false]]}[S.user.type]||[];
+  var rows=docs.map(function(d,i){
+    var up=S.kycUploaded["k"+i];
+    return '<div class="list-row"><span class="ic" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface);color:'+(up?"var(--good)":"var(--muted2)")+'"><i class="fa-solid '+(up?"fa-circle-check":"fa-file-arrow-up")+'"></i></span><div style="flex:1;min-width:180px"><div style="font-weight:600">'+d[0]+' '+(d[1]?'<span class="badge badge-warn" style="padding:2px 8px">Required</span>':'<span class="chip" style="padding:2px 8px">Optional</span>')+'</div><div class="muted" style="font-size:11.5px">'+(up?"Uploaded · pending review":"Not uploaded")+'</div></div>'+
+      '<div style="width:120px"><div class="bar" id="kbar'+i+'"><span style="width:'+(up?100:0)+'%"></span></div></div>'+
+      '<label class="btn '+(up?"btn-ghost":"btn-lime")+' btn-sm" style="cursor:pointer">'+(up?"Replace":"Upload")+'<input type="file" class="hide" accept="image/*,application/pdf" onchange="app.uploadSim('+i+')"/></label></div>';
+  }).join("");
+  return '<div class="page-title">KYC Verification</div><div class="sub">Overall status: '+statusBadge(S.user.kyc)+' · Account type: '+typeLabel(S.user.type)+'. You only see the checklist for your own account type.</div>'+
+    '<div class="drop section-gap" onclick="app.toast(\'Drag & drop or click a row below to upload\')"><i class="fa-solid fa-cloud-arrow-up" style="font-size:26px;color:var(--lime2)"></i><div style="font-weight:700;margin-top:8px">Drag & drop your documents here</div><div class="muted" style="font-size:12px">PDF, JPG, PNG, DOCX · up to 128 MB each · stored in a private, encrypted bucket</div></div>'+
+    '<div class="card card-pad section-gap" style="display:flex;flex-direction:column;gap:10px">'+rows+'</div>';
+};
+
+VIEWS.documents = function(){
+  var rows=DOCUMENTS.map(function(d){var tc=d.type==="Confidential"?"badge-bad":d.type==="Personal"?"badge-info":"chip";return '<tr><td><div style="font-weight:600">'+d.name+'</div><div class="muted" style="font-size:11.5px">'+d.scope+'</div></td><td><span class="badge '+tc+'">'+d.type+'</span></td><td class="muted">'+d.date+'</td><td class="muted num">'+d.size+'</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Opening secure signed link (120s)…\')"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button></td></tr>';}).join("");
+  return '<div class="page-title">Document Centre</div><div class="sub">Confidential documents shared with you. Files open only via short-lived, signed links — never public. '+liveTag().replace("tag","badge badge-good").replace("Live","Live")+'</div>'+
+    '<div class="search section-gap" style="max-width:420px"><i class="fa-solid fa-magnifying-glass"></i><input id="docsearch" placeholder="Search documents…" onkeyup="app.filterTable(\'docsearch\',\'doctbl\')"/></div>'+
+    '<div class="card card-pad section-gap"><table class="tbl" id="doctbl"><thead><tr><th>Document</th><th>Type</th><th>Published</th><th>Size</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+};
+
+VIEWS.agreements = function(){
+  return '<div class="page-title">Agreements</div><div class="sub">Your membership agreement, e-signed once through PandaDoc — legally binding, with an audit trail. '+liveTag().replace("tag","badge badge-good")+'</div>'+
+    '<div class="card card-pad section-gap"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div style="display:flex;gap:12px;align-items:center"><span class="ic" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface2);color:var(--lime2)"><i class="fa-solid fa-file-contract"></i></span><div><div style="font-weight:700">AWI Membership Agreement, T&Cs & Confidentiality</div><div class="muted" style="font-size:12px">Completed via PandaDoc · 12 Aug 2026</div></div></div><span class="badge badge-good"><i class="fa-solid fa-circle-check"></i> Signed & countersigned</span></div>'+
+      '<div style="display:flex;gap:9px;margin-top:16px"><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Opening signed PDF…\')"><i class="fa-solid fa-download"></i> Download signed copy</button><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Audit trail: signed 12 Aug 2026, IP logged\')"><i class="fa-solid fa-clock-rotate-left"></i> View audit trail</button></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:6px">One-off agreement</div><div class="muted" style="font-size:13px;margin-bottom:12px">If the office sends you an additional agreement to sign, it will appear here with an "Open & e-sign now" button.</div><button class="btn btn-lime btn-sm" onclick="app.esign()"><i class="fa-solid fa-signature"></i> Demo: prepare & e-sign a document</button></div>';
+};
+
+VIEWS.welfare = function(){
+  return '<div class="page-title">Welfare</div><div class="sub">Enroll in the welfare scheme, file claims, and view your welfare statement. '+soonTag().replace("tag","badge badge-purple")+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:8px">Your enrollment</div><span class="badge badge-good">Enrolled</span><div class="muted" style="font-size:13px;margin-top:10px">Member since Mar 2024 · contributions up to date.</div><button class="btn btn-ghost btn-sm section-gap" onclick="app.toast(\'Welfare statement (prototype)\')"><i class="fa-solid fa-file-lines"></i> View statement</button></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:8px">File a claim</div><div class="field"><label>Claim type</label><select class="input"><option>Bereavement</option><option>Medical</option><option>Education</option><option>Other</option></select></div><div class="field"><label>Supporting document (optional)</label><div class="drop" style="padding:14px" onclick="app.toast(\'Attach file (prototype)\')"><i class="fa-solid fa-paperclip"></i> Attach</div></div><button class="btn btn-lime btn-block" onclick="app.toast(\'Claim submitted\')">Submit claim</button></div></div>';
+};
+VIEWS.profile = function(){
+  var u=S.user;
+  return '<div class="page-title">Profile</div><div class="sub">Your membership details and profile photo. '+liveTag().replace("tag","badge badge-good")+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="display:flex;gap:14px;align-items:center"><div class="avatar grad-lime" style="width:64px;height:64px;color:#20260a;font-size:22px;border-radius:18px">'+initials(u.name)+'</div><div><div style="font-weight:800;font-size:17px">'+u.name+'</div><div class="muted" style="font-size:12.5px">'+u.id+' · '+typeLabel(u.type)+'</div><button class="btn btn-ghost btn-sm section-gap" onclick="app.toast(\'Photo upload (prototype)\')"><i class="fa-solid fa-camera"></i> Change photo</button></div></div>'+
+      '<div class="section-gap"><div class="field"><label>Full name</label><input class="input" value="'+u.name+'"/></div><div class="field"><label>Email</label><input class="input" value="'+u.email+'"/></div><div class="field"><label>Phone</label><input class="input" value="'+u.phone+'"/></div><button class="btn btn-lime" onclick="app.toast(\'Profile saved\')">Save changes</button></div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Membership</div><div style="display:flex;flex-direction:column;gap:10px"><div class="list-row" style="justify-content:space-between"><span class="muted">Status</span>'+statusBadge(u.status)+'</div><div class="list-row" style="justify-content:space-between"><span class="muted">Investor ID</span><span class="num" style="font-weight:700">'+u.id+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Account type</span><span class="chip">'+typeLabel(u.type)+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">KYC</span>'+statusBadge(u.kyc)+'</div><div class="list-row" style="justify-content:space-between"><span class="muted">Member since</span><span>'+u.joined+'</span></div></div>'+
+      '<div class="nav-group-label">People on your account</div><div class="muted" style="font-size:12.5px">Next of kin, beneficiary and nominee are captured during onboarding and editable here.</div></div></div>';
+};
+
+VIEWS.notifications = function(){
+  var rows=NOTIFS.map(function(n){var tone={good:"var(--good)",info:"var(--info)",lime:"var(--lime2)",warn:"var(--warn)"}[n.tone];return '<div class="list-row"><span class="ic" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface);color:'+tone+'"><i class="fa-solid '+n.icon+'"></i></span><div style="flex:1;min-width:180px"><div style="font-weight:600">'+n.t+'</div><div class="muted" style="font-size:12.5px">'+n.d+'</div></div><span class="muted" style="font-size:11.5px">'+n.when+'</span></div>';}).join("");
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="page-title">Notifications</div><div class="sub">Approvals, contributions, statements and document requests.</div></div><button class="btn btn-ghost btn-sm" onclick="app.toast(\'All marked read\')">Mark all read</button></div><div class="card card-pad section-gap" style="display:flex;flex-direction:column;gap:10px">'+rows+'</div>';
+};
+
+VIEWS.settings = function(){
+  return '<div class="page-title">Settings</div><div class="sub">Language, timezone, and security. '+liveTag().replace("tag","badge badge-good")+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Preferences</div><div class="field"><label>Language</label><select class="input"><option>English</option><option>Kiswahili</option></select></div><div class="field"><label>Timezone</label><select class="input"><option>Africa/Nairobi (EAT)</option></select></div><div class="field"><label>Theme</label><button class="btn btn-ghost btn-block" onclick="app.toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i> Toggle light / dark</button></div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Security</div><div class="list-row" style="justify-content:space-between"><div><div style="font-weight:600">Two-factor authentication</div><div class="muted" style="font-size:12px">Email one-time code at login</div></div><label style="cursor:pointer"><input type="checkbox" checked onchange="app.toast(this.checked?\'2FA enabled\':\'2FA disabled\')"/> </label></div>'+
+      '<div class="list-row section-gap" style="justify-content:space-between"><div><div style="font-weight:600">Trusted device</div><div class="muted" style="font-size:12px">Signed, expiring token — cannot be forged</div></div><span class="badge badge-good">On</span></div>'+
+      '<button class="btn btn-ghost btn-block section-gap" onclick="app.toast(\'Password reset email sent\')"><i class="fa-solid fa-key"></i> Reset password</button></div></div>';
+};
+VIEWS.onboarding = function(){
+  var st = S.onbStep||0;
+  var steps=["Personal details","Documents (KYC)","Agreements","Review & submit"];
+  var stepper=steps.map(function(s,i){var cls=i<st?"step done":(i===st?"step active":"step");return '<div class="'+cls+'"><div class="sn">'+(i<st?'<i class="fa-solid fa-check"></i>':(i+1))+'</div>'+s+'</div>';}).join("");
+  var body="";
+  if(st===0){
+    body='<div class="card card-pad"><div style="font-weight:700;margin-bottom:14px">Step 1 — Your details & people</div>'+
+      '<div class="three-col"><div class="field"><label>Full name</label><input class="input" value="'+S.user.name+'"/></div><div class="field"><label>National ID / Passport</label><input class="input" placeholder="ID number"/></div><div class="field"><label>KRA PIN</label><input class="input" placeholder="A000000000X"/></div><div class="field"><label>Date of birth</label><input class="input" type="date"/></div><div class="field"><label>Phone</label><input class="input" value="'+S.user.phone+'"/></div><div class="field"><label>Account type</label><select class="input"><option>Individual</option><option>Group (Chama)</option><option>Corporate (Institution)</option><option>Other</option></select></div></div>'+
+      '<div class="nav-group-label">Next of kin (required) · Beneficiary · Nominee</div><div class="three-col"><input class="input" placeholder="Next of kin name"/><input class="input" placeholder="Relationship"/><input class="input" placeholder="Phone"/></div>'+
+      '<div style="display:flex;justify-content:flex-end;gap:9px;margin-top:16px"><button class="btn btn-ghost" onclick="app.toast(\'Saved — you can return later\')">Save</button><button class="btn btn-lime" onclick="app.wizNext()">Save & continue <i class="fa-solid fa-arrow-right"></i></button></div></div>';
+  } else if(st===1){
+    body=VIEWS.kyc().replace('<div class="page-title">KYC Verification</div><div class="sub">Overall status: '+statusBadge(S.user.kyc)+' · Account type: '+typeLabel(S.user.type)+'. You only see the checklist for your own account type.</div>','<div style="font-weight:700;margin-bottom:6px">Step 2 — Upload your documents</div><div class="muted" style="font-size:13px;margin-bottom:14px">Allowed: PDF, JPG, PNG, DOCX · max 128 MB each. Required items must be uploaded before you can submit.</div>')+
+      '<div style="display:flex;justify-content:space-between;gap:9px;margin-top:16px"><button class="btn btn-ghost" onclick="app.wizPrev()"><i class="fa-solid fa-arrow-left"></i> Back</button><button class="btn btn-lime" onclick="app.wizNext()">Continue <i class="fa-solid fa-arrow-right"></i></button></div>';
+  } else if(st===2){
+    body='<div class="card card-pad"><div style="font-weight:700;margin-bottom:6px">Step 3 — Review & e-sign your agreement</div><div class="muted" style="font-size:13px;margin-bottom:14px">Sign the AWI Membership Agreement, Terms & Conditions and Confidentiality Agreement — one packet, electronically via PandaDoc.</div>'+
+      '<div class="list-row" style="justify-content:space-between"><div style="display:flex;gap:12px;align-items:center"><span class="ic" style="width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--surface);color:var(--lime2)"><i class="fa-solid fa-file-contract"></i></span><div><div style="font-weight:600">AWI Membership Agreement & Confidentiality</div><div class="muted" style="font-size:12px">'+(S.sigDone?"Signed via PandaDoc":"Not yet signed")+'</div></div></div>'+(S.sigDone?'<span class="badge badge-good"><i class="fa-solid fa-circle-check"></i> Signed</span>':'<button class="btn btn-lime btn-sm" onclick="app.esign()"><i class="fa-solid fa-signature"></i> Open & e-sign now</button>')+'</div>'+
+      '<div style="display:flex;justify-content:space-between;gap:9px;margin-top:16px"><button class="btn btn-ghost" onclick="app.wizPrev()"><i class="fa-solid fa-arrow-left"></i> Back</button><button class="btn btn-lime" onclick="'+(S.sigDone?"app.wizNext()":"app.toast('Please e-sign the agreement to continue')")+'">Continue <i class="fa-solid fa-arrow-right"></i></button></div></div>';
+  } else if(st===3){
+    body='<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Step 4 — Review & submit</div><div class="muted" style="font-size:13px;margin-bottom:14px">Please review your information. If everything is correct, submit your pack for committee approval.</div>'+
+      '<div class="three-col"><div class="list-row" style="flex-direction:column;align-items:flex-start"><span class="muted" style="font-size:11.5px">Personal details</span><span style="font-weight:600"><i class="fa-solid fa-circle-check" style="color:var(--good)"></i> Complete</span></div><div class="list-row" style="flex-direction:column;align-items:flex-start"><span class="muted" style="font-size:11.5px">Documents (KYC)</span><span style="font-weight:600"><i class="fa-solid fa-circle-check" style="color:var(--good)"></i> Uploaded</span></div><div class="list-row" style="flex-direction:column;align-items:flex-start"><span class="muted" style="font-size:11.5px">Agreement</span><span style="font-weight:600"><i class="fa-solid fa-circle-check" style="color:var(--good)"></i> Signed</span></div></div>'+
+      '<div style="display:flex;justify-content:space-between;gap:9px;margin-top:16px"><button class="btn btn-ghost" onclick="app.wizPrev()"><i class="fa-solid fa-arrow-left"></i> Back</button><button class="btn btn-lime" onclick="app.submitPack()"><i class="fa-solid fa-paper-plane"></i> Submit for approval</button></div></div>';
+  } else {
+    body='<div class="card card-pad" style="text-align:center;padding:48px 24px"><div class="ic grad-lime" style="width:64px;height:64px;border-radius:18px;display:grid;place-items:center;color:#20260a;font-size:26px;margin:0 auto"><i class="fa-solid fa-paper-plane"></i></div><div style="font-weight:800;font-size:20px;margin-top:16px">Submitted for approval</div><div class="muted" style="font-size:14px;max-width:440px;margin:8px auto 0">Thank you. Your complete membership pack has been submitted to the AWIVEST committee. You will receive an email once it has been reviewed.</div><button class="btn btn-lime section-gap" onclick="app.switchRole(\'secretary\')">See it in the Secretary console <i class="fa-solid fa-arrow-right"></i></button></div>';
+  }
+  return '<div style="max-width:900px;margin:0 auto;padding:28px 22px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="display:flex;align-items:center;gap:12px"><div class="brandtile grad-lime" style="color:#20260a">A</div><div><div style="font-weight:800">AWIVEST</div><div class="muted" style="font-size:11px">Complete your membership</div></div></div><button class="btn btn-ghost btn-sm" onclick="app.logout()">Exit</button></div>'+
+    (st<4?'<div class="stepper">'+stepper+'</div>':'')+ body +'</div>';
+};
+VIEWS.staff = function(){
+  var all=MEMBERS;
+  var queue=all.filter(function(m){return m.status==="pending"&&m.onboarding==="submitted";});
+  var active=all.filter(function(m){return m.status==="active";}).length;
+  var pending=all.filter(function(m){return m.status==="pending";}).length;
+  var kpis=[{l:"Awaiting approval",v:queue.length,i:"fa-user-clock",a:true},{l:"Active members",v:active,i:"fa-user-check"},{l:"Pending members",v:pending,i:"fa-hourglass-half"},{l:"Total members",v:all.length,i:"fa-users"}];
+  var kpiHtml=kpis.map(function(k){return '<div class="card kpi hover-lift"><div style="display:flex;justify-content:space-between"><span class="lbl">'+k.l+'</span><span class="ic '+(k.a?"grad-lime":"")+'" style="'+(k.a?"color:#20260a":"background:var(--surface2);color:var(--lime2)")+'"><i class="fa-solid '+k.i+'"></i></span></div><div class="val num">'+k.v+'</div></div>';}).join("");
+  var q = queue.length? queue.map(function(m){return '<div class="list-row"><div style="flex:1;min-width:200px"><div style="font-weight:600">'+m.name+'</div><div class="muted" style="font-size:12px">'+m.id+' · '+m.email+' · '+typeLabel(m.type)+'</div></div><a class="btn btn-ghost btn-sm" href="#/staff-member/'+m.idx+'">Review pack</a><button class="btn btn-lime btn-sm" onclick="app.approve('+m.idx+')"><i class="fa-solid fa-check"></i> Approve</button></div>';}).join("") : '<div class="muted" style="font-size:13px">No packs waiting. You are all caught up.</div>';
+  var rows=all.map(function(m){return '<tr><td><div style="font-weight:600">'+m.name+'</div><div class="muted" style="font-size:11.5px">'+m.email+'</div></td><td class="num">'+m.id+'</td><td>'+ROLE_META[m.role].label+'</td><td>'+statusBadge(m.status)+'</td><td style="text-align:right"><a class="btn btn-ghost btn-sm" href="#/staff-member/'+m.idx+'">Open</a></td></tr>';}).join("");
+  return '<div class="page-title">Approvals &amp; Members</div><div class="sub">Review submitted membership packs, approve members, and manage the register.</div>'+
+    '<div class="kpi-grid section-gap">'+kpiHtml+'</div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:4px">Awaiting approval</div><div class="muted" style="font-size:12.5px;margin-bottom:14px">Members who submitted a complete pack for committee approval.</div><div style="display:flex;flex-direction:column;gap:10px">'+q+'</div></div>'+
+    '<div class="card card-pad section-gap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-weight:700">All members</div><div class="search" style="max-width:280px"><i class="fa-solid fa-magnifying-glass"></i><input id="msearch" placeholder="Search name or ID…" onkeyup="app.filterTable(\'msearch\',\'mtbl\')"/></div></div><div style="overflow-x:auto"><table class="tbl" id="mtbl"><thead><tr><th>Name</th><th>Investor ID</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+};
+
+VIEWS["staff-member"] = function(args){
+  var m=MEMBERS[+(args&&args[0])] || MEMBERS[46];
+  var docs={individual:["Passport-size photo","National ID / Passport copy","Proof of address","KRA PIN / tax certificate"],group:["Group constitution","Officials' IDs","Group resolution","Member list"],corporate:["Certificate of Incorporation","Company registration (CR12)","Directors' IDs","Board resolution"],other:["ID / registration document","Supporting document"]}[m.type]||[];
+  var docRows=docs.map(function(d,i){return '<div class="list-row"><span class="ic" style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface);color:var(--lime2)"><i class="fa-solid fa-file"></i></span><div style="flex:1;min-width:160px;font-weight:600;font-size:13.5px">'+d+'</div><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Opening secure signed link…\')"><i class="fa-solid fa-eye"></i> View</button><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Document approved\')" style="color:var(--good)"><i class="fa-solid fa-check"></i></button><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Document rejected — note sent\')" style="color:var(--bad)"><i class="fa-solid fa-xmark"></i></button></div>';}).join("");
+  return '<a class="btn btn-ghost btn-sm" href="#/staff"><i class="fa-solid fa-arrow-left"></i> Back to members</a>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-top:14px"><div><div class="page-title">'+m.name+'</div><div class="sub">'+m.id+' · '+typeLabel(m.type)+' · '+statusBadge(m.status)+' · KYC '+statusBadge(m.kyc)+'</div></div>'+
+    (m.status==="pending"?'<div style="display:flex;gap:9px"><button class="btn btn-ghost" onclick="app.reject('+m.idx+')"><i class="fa-solid fa-xmark"></i> Reject</button><button class="btn btn-lime" onclick="app.approve('+m.idx+')"><i class="fa-solid fa-check"></i> Approve member</button></div>':'<button class="btn btn-ghost" onclick="app.toast(\'Member set inactive\')">Set inactive</button>')+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Personal details</div><div style="display:flex;flex-direction:column;gap:9px;font-size:13.5px"><div class="list-row" style="justify-content:space-between"><span class="muted">Email</span><span>'+m.email+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Phone</span><span>'+m.phone+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Account type</span><span class="chip">'+typeLabel(m.type)+'</span></div><div class="list-row" style="justify-content:space-between"><span class="muted">Agreement</span><span class="badge badge-good">Signed (PandaDoc)</span></div></div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">KYC documents</div><div style="display:flex;flex-direction:column;gap:9px">'+docRows+'</div></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:8px">Committee note</div><textarea class="input" rows="2" placeholder="Add a note to the member (sent on approve/reject)…"></textarea></div>';
+};
+
+VIEWS["staff-kyc"] = function(){
+  var applicants=MEMBERS.filter(function(m){return m.kyc!=="verified";});
+  var rows=applicants.map(function(m){return '<div class="list-row"><div style="flex:1;min-width:180px"><div style="font-weight:600">'+m.name+'</div><div class="muted" style="font-size:12px">'+m.id+' · '+typeLabel(m.type)+' · '+statusBadge(m.kyc)+'</div></div><a class="btn btn-ghost btn-sm" href="#/staff-member/'+m.idx+'">Open pack</a><button class="btn btn-lime btn-sm" onclick="app.approve('+m.idx+')"><i class="fa-solid fa-user-check"></i> Verify</button></div>';}).join("");
+  return '<div class="page-title">KYC review</div><div class="sub">Members with documents awaiting review are listed first. Verifying also activates the account.</div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:12px">Awaiting KYC review ('+applicants.length+')</div><div style="display:flex;flex-direction:column;gap:10px">'+(rows||'<div class="muted">All members verified.</div>')+'</div></div>';
+};
+VIEWS["staff-agreements"] = function(){
+  var rows=[{n:"Fatuma Hassan",id:"AWI-010",s:"Completed",d:"2026-08-28"},{n:"Aisha Abdi",id:"AWI-024",s:"Sent",d:"2026-09-02"},{n:"Grace Kirui",id:"AWI-025",s:"Completed",d:"2026-08-19"},{n:"Priscilla Simiyu",id:"AWI-045",s:"Awaiting signature",d:"2026-09-05"}];
+  var tr=rows.map(function(r){var b=r.s==="Completed"?"badge-good":r.s==="Sent"?"badge-info":"badge-warn";return '<tr><td style="font-weight:600">'+r.n+'</td><td class="num">'+r.id+'</td><td><span class="badge '+b+'">'+r.s+'</span></td><td class="muted">'+r.d+'</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Re-sent signing link\')">Re-send</button> <button class="btn btn-ghost btn-sm" onclick="app.toast(\'Refreshed from PandaDoc\')">Refresh</button></td></tr>';}).join("");
+  return '<div class="page-title">Agreements</div><div class="sub">Membership agreements sent for e-signing via PandaDoc, with re-send and refresh.</div>'+
+    '<div class="card card-pad section-gap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-weight:700">Agreement documents</div><button class="btn btn-lime btn-sm" onclick="app.toast(\'Upload new agreement version (prototype)\')"><i class="fa-solid fa-upload"></i> Upload version</button></div><div class="list-row" style="justify-content:space-between"><div style="display:flex;gap:12px;align-items:center"><i class="fa-solid fa-file-contract" style="color:var(--lime2)"></i><div><div style="font-weight:600;font-size:13.5px">AWI Membership Agreement 2026 (active)</div><div class="muted" style="font-size:12px">Template ID set · signer role: Investor</div></div></div><span class="badge badge-good">Active</span></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:12px">Sent for signature</div><table class="tbl"><thead><tr><th>Member</th><th>ID</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>'+tr+'</tbody></table></div>';
+};
+
+VIEWS["staff-documents"] = function(){
+  var rows=DOCUMENTS.map(function(d){return '<tr><td style="font-weight:600">'+d.name+'</td><td><span class="chip">'+d.type+'</span></td><td class="muted">'+d.scope+'</td><td class="muted">'+d.date+'</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Edit document (prototype)\')">Edit</button> <button class="btn btn-ghost btn-sm" onclick="app.toast(\'Document deleted\')" style="color:var(--bad)">Delete</button></td></tr>';}).join("");
+  return '<div class="page-title">Documents</div><div class="sub">Publish documents and statements to all members or a specific member. Files live in a private, encrypted bucket.</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Upload a document</div><div class="field"><label>Title</label><input class="input" placeholder="e.g. Q3 2026 Fund Statement"/></div><div class="field"><label>Type</label><select class="input"><option>Statement / report</option><option>Agreement</option><option>Policy</option><option>Confidential</option><option>Welfare statement</option></select></div><div class="field"><label>Visibility</label><select class="input"><option>All members</option><option>Specific member</option></select></div><div class="drop" style="padding:16px" onclick="app.toast(\'Choose file (prototype)\')"><i class="fa-solid fa-cloud-arrow-up"></i> Choose file</div><button class="btn btn-lime btn-block section-gap" onclick="app.toast(\'Document published\')">Publish</button></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Library</div><table class="tbl"><thead><tr><th>Document</th><th>Type</th><th>Scope</th><th>Date</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+};
+
+VIEWS["staff-reports"] = function(){
+  var kpis=[{l:"Total investors",v:FUND.members,i:"fa-users"},{l:"Active members",v:44,i:"fa-user-check"},{l:"KYC pending",v:4,i:"fa-id-card-clip"},{l:"Fund under management",v:kes(FUND.current),i:"fa-vault",a:true}];
+  var kpiHtml=kpis.map(function(k){return '<div class="card kpi hover-lift"><div style="display:flex;justify-content:space-between"><span class="lbl">'+k.l+'</span><span class="ic '+(k.a?"grad-lime":"")+'" style="'+(k.a?"color:#20260a":"background:var(--surface2);color:var(--lime2)")+'"><i class="fa-solid '+k.i+'"></i></span></div><div class="val num">'+k.v+'</div></div>';}).join("");
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="page-title">Reports</div><div class="sub">Collective totals across the register. '+soonTag().replace("tag","badge badge-purple")+' live charts connect next phase.</div></div><button class="btn btn-ghost btn-sm" onclick="app.toast(\'Exporting awivest-report-20260906.csv\')"><i class="fa-solid fa-file-csv"></i> Export CSV</button></div>'+
+    '<div class="kpi-grid section-gap">'+kpiHtml+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:6px">Fund growth (KES millions)</div>'+areaChart([98,100,102,104,106.4,108,110,111,112,113.4])+'<div class="muted" style="font-size:12px;margin-top:6px">Opening 106.4M (31 Dec 2025) → 113.4M current. +7.0M contributions in 2026.</div></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px">Members by account type</div>'+donut([{l:"Individual",v:41,c:"#a6cd35"},{l:"Group (Chama)",v:4,c:"#7e2674"},{l:"Corporate",v:3,c:"#a6398f"}])+'</div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:8px">Reconciliation</div><div class="muted" style="font-size:13px">Opening '+kes(FUND.opening)+' + 2026 contributions '+kes(FUND.contrib)+' + interest KES 0 = current '+kes(FUND.current)+'. Every member reconciles exactly; '+FUND.exits+' exits flagged for refund.</div></div>';
+};
+
+VIEWS["staff-roles"] = function(){
+  if(!isAdmin(S.role)) return '<div class="page-title">Role management</div><div class="sub">This area is restricted to Admin and the Chairlady.</div>';
+  var staff=MEMBERS.filter(function(m){return m.role!=="member";});
+  var rows=staff.map(function(m){return '<tr><td style="font-weight:600">'+m.name+'</td><td class="num">'+m.id+'</td><td><span class="badge badge-purple">'+ROLE_META[m.role].label+'</span></td><td style="text-align:right"><select class="input" style="width:auto;font-size:12.5px;padding:7px 30px 7px 12px" onchange="app.promote('+m.idx+',this.value)"><option '+(m.role==="member"?"selected":"")+' value="member">Investor</option><option '+(m.role==="secretary"?"selected":"")+' value="secretary">Secretary</option><option '+(m.role==="admin"?"selected":"")+' value="admin">Admin</option><option '+(m.role==="superadmin"?"selected":"")+' value="superadmin">Chairlady</option></select></td></tr>';}).join("");
+  return '<div class="page-title">Role management</div><div class="sub">Promote a trusted member to Secretary or Admin, or adjust roles. Enforced at the database level. '+liveTag().replace("tag","badge badge-good")+' Admin / Chairlady only.</div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:12px">Current staff</div><table class="tbl"><thead><tr><th>Name</th><th>ID</th><th>Role</th><th style="text-align:right">Change role</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:8px">Promote a member</div><div style="display:flex;gap:9px;flex-wrap:wrap"><select class="input" style="flex:1;min-width:200px"><option>Select a member…</option>'+MEMBERS.filter(function(m){return m.role==="member";}).slice(0,10).map(function(m){return '<option>'+m.name+' ('+m.id+')</option>';}).join("")+'</select><select class="input" style="width:auto"><option>Secretary</option><option>Admin</option></select><button class="btn btn-lime" onclick="app.toast(\'Role updated (prototype)\')">Assign</button></div></div>';
+};
+
+VIEWS["staff-settings"] = function(){
+  return '<div class="page-title">Settings</div><div class="sub">Configure the PandaDoc e-signature connection and M-Pesa (Daraja). Both stay off until configured. '+liveTag().replace("tag","badge badge-good")+'</div>'+
+    '<div class="two-col section-gap"><div class="card card-pad"><div style="font-weight:700;margin-bottom:12px"><i class="fa-solid fa-signature"></i> PandaDoc</div><div class="field"><label>API key</label><input class="input" type="password" value="pd_live_••••••••••••"/></div><div class="field"><label>Onboarding packet template ID</label><input class="input" value="tmpl_AWI_membership_2026"/></div><div class="field"><label>Webhook secret</label><input class="input" type="password" value="••••••••"/></div><button class="btn btn-lime" onclick="app.toast(\'PandaDoc connection tested — OK\')">Save & test</button></div>'+
+    '<div class="card card-pad"><div style="font-weight:700;margin-bottom:12px"><i class="fa-solid fa-mobile-screen-button"></i> M-Pesa (Daraja)</div><div class="field"><label>Consumer key</label><input class="input" type="password" value="••••••••••"/></div><div class="field"><label>Shortcode / Paybill</label><input class="input" value="4001234"/></div><div class="field"><label>Callback URL secret</label><input class="input" type="password" value="••••••"/></div><button class="btn btn-ghost" onclick="app.toast(\'M-Pesa credentials saved\')">Save</button></div></div>'+
+    '<div class="card card-pad section-gap"><div style="font-weight:700;margin-bottom:12px">General</div><div class="three-col"><div class="field"><label>Notification email</label><input class="input" value="office@awivest.com"/></div><div class="field"><label>Max upload size (MB)</label><input class="input" value="128"/></div><div class="field"><label>Sender name</label><input class="input" value="AWIVEST"/></div></div><button class="btn btn-lime" onclick="app.toast(\'Settings saved\')">Save settings</button></div>';
+};
+//@@VIEWS@@
+
+/* ----------------------------- NAV DEFINITIONS ----------------------------- */
+var MEMBER_NAV = [
+  {group:"Overview", items:[
+    {id:"dashboard",label:"Dashboard",icon:"fa-gauge-high",live:true},
+    {id:"portfolio",label:"Investment Portfolio",icon:"fa-chart-pie"},
+    {id:"financial-profile",label:"Financial Profile",icon:"fa-heart-pulse",tag:"MSI"}
+  ]},
+  {group:"Planning", items:[
+    {id:"planning",label:"Planning Centre",icon:"fa-compass-drafting"},
+    {id:"goals",label:"Goal Tracker",icon:"fa-bullseye"}
+  ]},
+  {group:"Transactions", items:[
+    {id:"payments",label:"Payments",icon:"fa-money-bill-transfer"},
+    {id:"dividends",label:"Dividends",icon:"fa-coins"},
+    {id:"statements",label:"Statements",icon:"fa-file-invoice-dollar"},
+    {id:"opportunities",label:"Opportunities",icon:"fa-lightbulb"}
+  ]},
+  {group:"Compliance", items:[
+    {id:"forms",label:"Online Forms",icon:"fa-file-signature"},
+    {id:"kyc",label:"KYC Verification",icon:"fa-id-card-clip",live:true},
+    {id:"documents",label:"Document Centre",icon:"fa-folder-open",live:true},
+    {id:"agreements",label:"Agreements",icon:"fa-file-contract",live:true},
+    {id:"welfare",label:"Welfare",icon:"fa-hand-holding-heart"}
+  ]},
+  {group:"Account", items:[
+    {id:"profile",label:"Profile",icon:"fa-user",live:true},
+    {id:"notifications",label:"Notifications",icon:"fa-bell"},
+    {id:"settings",label:"Settings",icon:"fa-gear",live:true}
+  ]}
+];
+
+var STAFF_NAV = [
+  {group:"Management", items:[
+    {id:"staff",label:"Approvals & Members",icon:"fa-user-check",live:true},
+    {id:"staff-agreements",label:"Agreements",icon:"fa-file-contract",live:true},
+    {id:"staff-documents",label:"Documents",icon:"fa-folder-open",live:true},
+    {id:"staff-kyc",label:"KYC review",icon:"fa-id-card-clip",live:true},
+    {id:"staff-reports",label:"Reports",icon:"fa-chart-column"}
+  ]},
+  {group:"Administration", items:[
+    {id:"staff-roles",label:"Role management",icon:"fa-user-shield",admin:true},
+    {id:"staff-settings",label:"Settings",icon:"fa-gear",live:true}
+  ]}
+];
+
+/* ----------------------------- SHELLS ----------------------------- */
+function memberSidebar(active){
+  var u=S.user;
+  var groups=MEMBER_NAV.map(function(g){
+    var items=g.items.map(function(it){
+      var tag = it.tag?('<span class="tag">'+it.tag+'</span>'):(it.live?liveTag():soonTag());
+      return '<a class="nav-item '+(active===it.id?"active":"")+'" href="#/'+it.id+'"><i class="fa-solid '+it.icon+'"></i><span>'+it.label+'</span>'+tag+'</a>';
+    }).join("");
+    return '<div><div class="nav-group-label">'+g.group+'</div>'+items+'</div>';
+  }).join("");
+  var staffLink = isStaff(S.role)? '<a class="nav-item" style="background:var(--surface2);border:1px solid var(--border);margin-bottom:6px" href="#/staff"><i class="fa-solid fa-user-shield"></i><span>Staff console</span></a>':'';
+  return '<aside class="sidebar '+(S.sidebarOpen?"open":"")+'">'+
+    '<div style="display:flex;align-items:center;gap:12px;padding:20px 20px 8px"><div class="brandtile grad-lime" style="color:#20260a">A</div><div><div style="font-weight:800;letter-spacing:-.3px">AWIVEST</div><div class="muted" style="font-size:11px">Investor Portal</div></div></div>'+
+    '<nav class="side-scroll">'+staffLink+groups+'</nav>'+
+    '<div style="padding:12px 14px;border-top:1px solid var(--border)"><div style="display:flex;align-items:center;gap:12px;padding:8px"><div class="avatar grad-lime" style="color:#20260a">'+initials(u.name)+'</div><div style="min-width:0"><div style="font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+u.name+'</div><div class="muted" style="font-size:11.5px">'+u.id+'</div></div><button class="icon-btn" style="margin-left:auto;width:34px;height:34px" onclick="app.logout()" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket" style="font-size:13px"></i></button></div></div>'+
+    '</aside>';
+}
+function staffSidebar(active){
+  var u=S.user;
+  var groups=STAFF_NAV.map(function(g){
+    var items=g.items.map(function(it){
+      if(it.admin && !isAdmin(S.role)) return '<div class="nav-item" style="opacity:.45;cursor:not-allowed" title="Admin / Chairlady only"><i class="fa-solid '+it.icon+'"></i><span>'+it.label+'</span><i class="fa-solid fa-lock" style="margin-left:auto;font-size:11px"></i></div>';
+      var tag = it.live?liveTag():(it.admin?'<span class="tag">Live</span>':soonTag());
+      return '<a class="nav-item '+(active===it.id?"active":"")+'" href="#/'+it.id+'"><i class="fa-solid '+it.icon+'"></i><span>'+it.label+'</span>'+tag+'</a>';
+    }).join("");
+    return '<div><div class="nav-group-label">'+g.group+'</div>'+items+'</div>';
+  }).join("");
+  return '<aside class="sidebar '+(S.sidebarOpen?"open":"")+'">'+
+    '<div style="display:flex;align-items:center;gap:12px;padding:20px 20px 8px"><div class="brandtile grad-purple" style="color:#fff">A</div><div><div style="font-weight:800;letter-spacing:-.3px">AWIVEST</div><div class="muted" style="font-size:11px">Staff Console</div></div></div>'+
+    '<nav class="side-scroll">'+groups+
+      '<div class="nav-group-label">Portal</div><a class="nav-item" href="#/dashboard"><i class="fa-solid fa-arrow-left-long"></i><span>Investor portal</span></a>'+
+    '</nav>'+
+    '<div style="padding:12px 14px;border-top:1px solid var(--border)"><div style="display:flex;align-items:center;gap:12px;padding:8px"><div class="avatar">'+initials(u.name)+'</div><div style="min-width:0"><div style="font-weight:600;font-size:13.5px">'+u.name+'</div><div class="muted" style="font-size:11.5px">'+ROLE_META[S.role].label+'</div></div><button class="icon-btn" style="margin-left:auto;width:34px;height:34px" onclick="app.logout()" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket" style="font-size:13px"></i></button></div></div>'+
+    '</aside>';
+}
+function topbar(kind){
+  var viewAs='<select class="input" style="width:auto;padding:8px 34px 8px 12px;font-size:12.5px" onchange="app.switchRole(this.value)" title="Demo: view as role">'+
+    ['member','secretary','admin','superadmin'].map(function(r){return '<option value="'+r+'" '+(S.role===r?"selected":"")+'>View as: '+ROLE_META[r].label+'</option>';}).join("")+'</select>';
+  var searchBox = kind==="member"? '<label class="search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="Search holdings, forms, documents…"/></label>' : '<div style="font-weight:700">Staff Console</div>';
+  var badge = kind==="member"? '<span class="badge badge-good hide-sm">'+(S.user.status.charAt(0).toUpperCase()+S.user.status.slice(1))+'</span>' : '<span class="badge badge-purple hide-sm">'+ROLE_META[S.role].label+'</span>';
+  return '<header class="topbar"><button class="icon-btn menu-btn" onclick="app.toggleSidebar()"><i class="fa-solid fa-bars"></i></button>'+searchBox+
+    '<div style="margin-left:auto;display:flex;align-items:center;gap:10px">'+viewAs+badge+
+    '<button class="icon-btn" onclick="app.toggleTheme()" title="Theme"><i class="fa-solid fa-circle-half-stroke"></i></button>'+
+    '<button class="icon-btn" onclick="location.hash=\'#/notifications\'"><i class="fa-solid fa-bell"></i></button>'+
+    '<div class="avatar">'+initials(S.user.name)+'</div></div></header>';
+}
+function shell(kind,active,body){
+  var side = kind==="member"? memberSidebar(active): staffSidebar(active);
+  var scrim = S.sidebarOpen? '<div class="scrim" onclick="app.toggleSidebar()"></div>':'';
+  return '<div class="shell">'+scrim+side+'<div class="content">'+topbar(kind)+'<main class="view">'+body+'</main></div></div>';
+}
+
+/* ----------------------------- ROUTER ----------------------------- */
+var STAFF_ROUTES = {"staff":1,"staff-agreements":1,"staff-documents":1,"staff-kyc":1,"staff-reports":1,"staff-roles":1,"staff-settings":1,"staff-member":1};
+function render(){
+  var app=document.getElementById("app");
+  if(!S.role){ app.innerHTML=VIEWS.login(); return; }
+  var hash=(location.hash||"#/dashboard").replace(/^#\//,"");
+  var parts=hash.split("/");
+  var route=parts[0]||"dashboard";
+  S.route=route;
+  // guard staff routes
+  if(STAFF_ROUTES[route] && !isStaff(S.role)){ location.hash="#/dashboard"; return; }
+  if(route==="staff-roles" && !isAdmin(S.role)){ route="staff"; location.hash="#/staff"; return; }
+  var fn=VIEWS[route];
+  var kind = STAFF_ROUTES[route]?"staff":"member";
+  if(route==="onboarding"){ app.innerHTML=VIEWS.onboarding(); postRender(route); return; }
+  var body = fn? fn(parts.slice(1)) : ('<div class="page-title">Coming soon</div><div class="sub">This screen is being wired up.</div>');
+  app.innerHTML = shell(kind, route, body);
+  postRender(route);
+  window.scrollTo(0,0);
+}
+function postRender(route){
+  if(route==="forms"||route==="agreements") app.initSig&&app.initSig();
+}
+
+/* ----------------------------- APP HANDLERS ----------------------------- */
+var app = {
+  login:function(role){ S.role=role; S.user = role==="member"?SAMPLE_MEMBER: MEMBERS.filter(function(m){return m.role===role;})[0]||{name:ROLE_META[role].label+" User",id:"—",status:"active",role:role}; if(!S.user.status)S.user.status="active"; location.hash = isStaff(role)?"#/staff":"#/dashboard"; render(); },
+  switchRole:function(role){ S.role=role; S.user = role==="member"?SAMPLE_MEMBER: MEMBERS.filter(function(m){return m.role===role;})[0]; if(!S.user)S.user={name:ROLE_META[role].label+" User",id:"—",status:"active"}; if(!S.user.status)S.user.status="active"; location.hash = isStaff(role)?"#/staff":"#/dashboard"; render(); },
+  logout:function(){ S.role=null;S.user=null;location.hash="";render(); },
+  toggleTheme:function(){ var h=document.documentElement; h.setAttribute("data-theme", h.getAttribute("data-theme")==="light"?"dark":"light"); },
+  toggleSidebar:function(){ S.sidebarOpen=!S.sidebarOpen; render(); },
+  go:function(r){ location.hash="#/"+r; },
+  toast:function(msg){ var t=document.createElement("div"); t.textContent=msg; t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--purple2),var(--purple));color:#fff;padding:13px 20px;border-radius:14px;z-index:200;box-shadow:var(--shadow);font-weight:600;font-size:14px"; document.body.appendChild(t); setTimeout(function(){t.style.opacity="0";t.style.transition="opacity .4s";},2200); setTimeout(function(){t.remove();},2700); }
+};
+/* ---- interactive handlers ---- */
+app.approve=function(idx){ MEMBERS[idx].status="active"; MEMBERS[idx].kyc="verified"; MEMBERS[idx].onboarding="complete"; app.toast(MEMBERS[idx].name+" approved & activated"); render(); };
+app.reject=function(idx){ MEMBERS[idx].status="inactive"; app.toast(MEMBERS[idx].name+" rejected — note sent"); render(); };
+app.uploadSim=function(i){ S.kycUploaded["k"+i]=true; app.toast("Uploaded — stored in the private encrypted bucket"); render(); };
+app.stkPush=function(){ var ph=document.getElementById("pay_phone"); app.toast("STK push sent to "+(ph?ph.value:"your phone")+" — enter your M-Pesa PIN"); setTimeout(function(){ var a=document.getElementById("pay_amt"); app.toast("Payment received — KES "+(a?Number(a.value).toLocaleString():"")+" confirmed"); },2600); };
+app.esign=function(){ S.sigDone=true; app.toast("Opening PandaDoc… signature completed"); render(); };
+app.wizNext=function(){ S.onbStep=(S.onbStep||0)+1; render(); };
+app.wizPrev=function(){ S.onbStep=Math.max(0,(S.onbStep||0)-1); render(); };
+app.submitPack=function(){ S.onbStep=4; app.toast("Membership pack submitted for approval"); render(); };
+app.promote=function(idx,role){ MEMBERS[idx].role=role; app.toast(MEMBERS[idx].name+" is now "+ROLE_META[role].label); render(); };
+app.filterTable=function(inp,tbl){ var q=(document.getElementById(inp).value||"").toLowerCase(); var rows=document.querySelectorAll("#"+tbl+" tbody tr"); rows.forEach(function(tr){ tr.style.display = tr.textContent.toLowerCase().indexOf(q)>-1?"":"none"; }); };
+app.calc=function(id){
+  function v(k){ var e=document.getElementById(id+"_"+k); return parseFloat(((e&&e.value)||"0").replace(/[^0-9.\-]/g,""))||0; }
+  var out=document.getElementById(id+"_out"), msg="";
+  if(id==="ret"||id==="grow"){ var cur=v("cur"),mo=v("mo"),yr=v("yr"),r=v("r")/100/12,n=yr*12; var fv=cur*Math.pow(1+r,n)+(r? mo*((Math.pow(1+r,n)-1)/r): mo*n); msg="Projected value: <strong style='color:var(--text)'>"+kes(Math.round(fv))+"</strong> after "+yr+" years."; }
+  else if(id==="sip"){ var tgt=v("tgt"),yr2=v("yr"),r2=v("r")/100/12,n2=yr2*12; var m=r2? tgt*r2/(Math.pow(1+r2,n2)-1): tgt/n2; msg="Save <strong style='color:var(--text)'>"+kes(Math.round(m))+"</strong> per month to reach "+kes(tgt)+" in "+yr2+" years."; }
+  else if(id==="inf"){ var cur3=v("cur"),yr3=v("yr"),r3=v("r")/100; var fut=cur3*Math.pow(1+r3,yr3); msg="You will need <strong style='color:var(--text)'>"+kes(Math.round(fut))+"</strong> in "+yr3+" years to match the buying power of "+kes(cur3)+" today."; }
+  if(out) out.innerHTML=msg;
+};
+app.initSig=function(){
+  var c=document.getElementById("sig"); if(!c) return;
+  var ctx=c.getContext("2d"); c.width=c.offsetWidth; c.height=170; ctx.strokeStyle="#20260a"; ctx.lineWidth=2.5; ctx.lineCap="round"; var drawing=false;
+  function pos(e){ var r=c.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+  function down(e){ drawing=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+  function move(e){ if(!drawing)return; var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+  function up(){ drawing=false; }
+  c.addEventListener("mousedown",down); c.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+  c.addEventListener("touchstart",down,{passive:false}); c.addEventListener("touchmove",move,{passive:false}); c.addEventListener("touchend",up);
+};
+app.clearSig=function(){ var c=document.getElementById("sig"); if(c){ c.getContext("2d").clearRect(0,0,c.width,c.height); } };
+
+window.app=app;
+
+/* boot */
+window.addEventListener("hashchange", render);
+render();
+</script>
+</body>
+</html>
