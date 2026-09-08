@@ -127,7 +127,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Fund record (AWIVEST register)</div>
         <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-          The member self-links by National ID / Passport at onboarding. Confirm or fix the match here. On file for this login: <strong>{m.full_name || '—'}</strong> · ID <strong>{m.national_id || '—'}</strong>
+          The member self-links by National ID / Passport (or registered phone) at onboarding. Confirm or fix the match here. On file for this login: <strong>{m.full_name || '—'}</strong> · ID <strong>{m.national_id || '—'}</strong> · Phone <strong>{m.phone || '—'}</strong>
         </div>
         {linkedFinance ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
