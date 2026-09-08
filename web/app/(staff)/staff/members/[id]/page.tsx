@@ -123,6 +123,45 @@ export default async function MemberDetail({ params }: { params: { id: string } 
         </form>
       </div>
 
+      {/* Fund record — map this login to its AWIVEST register position (member_finances). */}
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Fund record (AWIVEST register)</div>
+        <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+          The member self-links by National ID / Passport at onboarding. Confirm or fix the match here. On file for this login: <strong>{m.full_name || '—'}</strong> · ID <strong>{m.national_id || '—'}</strong>
+        </div>
+        {linkedFinance ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span className="badge badge-good" style={{ fontSize: 11 }}><i className="fa-solid fa-link" /> Linked to {linkedFinance.member_no}</span>
+              <span style={{ fontSize: 13 }}>{linkedFinance.full_name} · Current balance KES {Number(linkedFinance.current_balance || 0).toLocaleString()}</span>
+            </div>
+            <form action={unlinkFundRecord}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="member_no" value={linkedFinance.member_no} />
+              <button className="btn btn-ghost btn-sm" type="submit"><i className="fa-solid fa-link-slash" /> Unlink</button>
+            </form>
+          </div>
+        ) : (unlinkedFinance && unlinkedFinance.length > 0) ? (
+          <form action={linkFundRecord} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <input type="hidden" name="id" value={m.id} />
+            <div className="field" style={{ flex: 1, minWidth: 260, marginBottom: 0 }}>
+              <label>Match to an unlinked register record</label>
+              <select className="input" name="member_no" required defaultValue="">
+                <option value="" disabled>Select a member…</option>
+                {(unlinkedFinance as any[]).map((f) => (
+                  <option key={f.member_no} value={f.member_no}>
+                    {f.member_no} — {f.full_name} (KES {Number(f.current_balance || 0).toLocaleString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className="btn btn-lime" type="submit"><i className="fa-solid fa-link" /> Link record</button>
+          </form>
+        ) : (
+          <div className="muted" style={{ fontSize: 12.5 }}>Every register record is already linked to a login.</div>
+        )}
+      </div>
+
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
         {/* Personal */}
         <div className="card card-pad">

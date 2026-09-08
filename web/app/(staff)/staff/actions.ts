@@ -82,6 +82,33 @@ export async function setMemberStatus(formData: FormData) {
   refresh(id);
 }
 
+// Confirm / fix which AWIVEST fund record (member_finances row, keyed by AWI
+// register no.) this login owns. Members self-link by National ID / Passport at
+// onboarding; this is the office confirm-match + override. Staff-only — the
+// actual write is done by the is_staff()-gated SECURITY DEFINER RPC.
+export async function linkFundRecord(formData: FormData) {
+  const id = String(formData.get('id') || '');
+  const memberNo = String(formData.get('member_no') || '').trim();
+  if (!id || !memberNo) return;
+  const { supabase } = await requireStaff();
+  const { error } = await supabase.rpc('staff_link_membership', {
+    p_member_no: memberNo,
+    p_member_id: id,
+  });
+  if (error) console.error('linkFundRecord failed:', error.message);
+  refresh(id);
+}
+
+export async function unlinkFundRecord(formData: FormData) {
+  const id = String(formData.get('id') || '');
+  const memberNo = String(formData.get('member_no') || '').trim();
+  if (!id || !memberNo) return;
+  const { supabase } = await requireStaff();
+  const { error } = await supabase.rpc('staff_unlink_membership', { p_member_no: memberNo });
+  if (error) console.error('unlinkFundRecord failed:', error.message);
+  refresh(id);
+}
+
 // Send a one-off agreement (from the one-off template) to a single investor.
 // PandaDoc emails the investor a secure signing link. Staff-only.
 export async function sendOneOffAgreement(memberId: string): Promise<{ ok?: true; error?: string }> {
