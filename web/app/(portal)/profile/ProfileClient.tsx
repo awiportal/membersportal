@@ -164,7 +164,7 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
   const kyc = String(profile?.kyc_status || 'pending');
   const role = String(profile?.role || 'member');
   const memberSince = fmtDate(profile?.joined_at || profile?.created_at);
-  const c = country ? COUNTRY_BY_CODE[country] : undefined;
+  const c = resolveCountry(country);
 
   function save() {
     setMsg(null);

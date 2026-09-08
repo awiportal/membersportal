@@ -268,17 +268,35 @@ export default function LoginForm() {
 
                     <div className="field"><label>Country</label>
                       <div className="input-group"><i className="fa-solid fa-globe" />
-                        <select className="input" value={country} onChange={(e) => onCountryChange(e.target.value)} required>
-                          {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
-                        </select>
+                        <input
+                          className="input"
+                          list="reg-country-list"
+                          value={country}
+                          onChange={(e) => onCountryChange(e.target.value)}
+                          placeholder="Start typing, e.g. Kenya"
+                          autoComplete="country-name"
+                          required
+                        />
+                        <datalist id="reg-country-list">
+                          {COUNTRIES.map((c) => (<option key={c.code} value={c.name} />))}
+                        </datalist>
                       </div>
                     </div>
 
                     <div className="field"><label>Phone</label>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <select className="input" value={dialCode} onChange={(e) => setDialCode(e.target.value)} style={{ maxWidth: 132, flex: '0 0 auto' }} aria-label="Country dialing code">
+                        <input
+                          className="input"
+                          list="reg-dial-list"
+                          value={dialCode}
+                          onChange={(e) => setDialCode(e.target.value)}
+                          style={{ maxWidth: 132, flex: '0 0 auto' }}
+                          aria-label="Country dialing code"
+                          placeholder="+254"
+                        />
+                        <datalist id="reg-dial-list">
                           {DIAL_OPTIONS.map((d) => (<option key={d.key} value={d.dial}>{d.flag} {d.dial}</option>))}
-                        </select>
+                        </datalist>
                         <div className="input-group" style={{ flex: 1 }}><i className="fa-solid fa-phone" /><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="7XX XXX XXX" inputMode="tel" /></div>
                       </div>
                     </div>

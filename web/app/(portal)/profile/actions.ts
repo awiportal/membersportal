@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { COUNTRY_BY_CODE } from '@/lib/countries';
+import { COUNTRIES, COUNTRY_BY_CODE } from '@/lib/countries';
 
 export type ProfileInput = {
   full_name?: string;
