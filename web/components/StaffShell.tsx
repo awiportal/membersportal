@@ -62,19 +62,26 @@ export default function StaffShell({
           <Link href="/staff/fund-records" className={`nav-item ${pathname.startsWith('/staff/fund-records') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-file-import" /><span>Fund records</span>
           </Link>
+          <Link href="/staff/opportunities" className={`nav-item ${pathname.startsWith('/staff/opportunities') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-lightbulb" /><span>Opportunities</span>
+          </Link>
+          <Link href="/staff/reports" className={`nav-item ${pathname.startsWith('/staff/reports') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-chart-column" /><span>Reports &amp; distribution</span>
+          </Link>
+          <div className="nav-group-label">Administration</div>
+          {isAdmin(profile?.role) ? (
+            <Link href="/staff/roles" className={`nav-item ${pathname.startsWith('/staff/roles') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+              <i className="fa-solid fa-user-shield" /><span>Role management</span>
+            </Link>
+          ) : (
+            <div className="nav-item" style={{ opacity: 0.45, cursor: 'not-allowed' }} title="Admin / Chairlady only">
+              <i className="fa-solid fa-user-shield" /><span>Role management</span>
+              <i className="fa-solid fa-lock" style={{ marginLeft: 'auto', fontSize: 11 }} />
+            </div>
+          )}
           <Link href="/staff/settings" className={`nav-item ${pathname.startsWith('/staff/settings') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-gear" /><span>Settings</span>
           </Link>
-          <div className="nav-group-label">Coming soon</div>
-          {[
-            ['Welfare', 'fa-hand-holding-heart'],
-            ['Opportunities', 'fa-lightbulb'],
-            ['Reports', 'fa-chart-column'],
-          ].map(([l, ic]) => (
-            <div key={l} className="nav-item" style={{ opacity: 0.5, cursor: 'not-allowed' }} title="Being wired up next">
-              <i className={`fa-solid ${ic}`} /><span>{l}</span>
-            </div>
-          ))}
           <div className="nav-group-label">Portal</div>
           <Link href="/dashboard" className="nav-item" onClick={() => setOpen(false)}>
             <i className="fa-solid fa-arrow-left-long" /><span>Investor portal</span>
