@@ -93,6 +93,21 @@ export async function savePersonalData(formData: FormData) {
     redirect('/onboarding?step=personal&err=save');
   }
 
+  // Auto-link to the member's AWIVEST fund record (member_finances) using the
+  // National ID / Passport she just entered, falling back to her registered
+  // phone. Best-effort and non-blocking: an unmatched member simply isn't
+  // linked here — the office confirms the match from the staff member console.
+  // See migrations v1.3 / v1.4.
+  const nid = clean(formData, 'national_id');
+  const linkPhone = clean(formData, 'phone');
+  if (nid || linkPhone) {
+    try {
+      await supabase.rpc('claim_membership', { p_national_id: nid, p_phone: linkPhone });
+    } catch (e: any) {
+      console.error('auto-link membership failed (non-fatal):', e?.message);
+    }
+  }
+
   for (const kind of RELATIONS) {
     const name = clean(formData, `${kind}_name`);
     const relationship = clean(formData, `${kind}_relationship`);
