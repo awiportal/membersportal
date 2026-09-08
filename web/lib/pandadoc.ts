@@ -154,3 +154,12 @@ export async function getEsignSummary(
   const memberSigned = fullyExecuted || !!(mine && mine.completed);
   return { status, memberSigned, fullyExecuted, signers };
 }
+
+/** List available templates (id + name) for staff document pickers. */
+export async function listTemplates(): Promise<{ id: string; name: string }[]> {
+  const data = await pd('/templates?count=100');
+  const results: any[] = data?.results || [];
+  return results
+    .map((t) => ({ id: String(t?.id || ''), name: String(t?.name || t?.id || 'Untitled template') }))
+    .filter((t) => t.id);
+}

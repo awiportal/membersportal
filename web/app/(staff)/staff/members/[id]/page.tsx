@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { roleLabel, statusLabel } from '@/lib/roles';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
-import { approveMember, rejectMember, setMemberStatus } from '../../actions';
+import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord } from '../../actions';
 import OneOffAgreement from './OneOffAgreement';
 
 export const dynamic = 'force-dynamic';
@@ -40,9 +40,13 @@ export default async function MemberDetail({ params }: { params: { id: string } 
     }
   }
 
-  const { data: settingsRows } = await supabase.from('app_settings').select('key,value');
-  const settings = Object.fromEntries(((settingsRows ?? []) as any[]).map((r) => [r.key, r.value])) as Record<string, string>;
-  const oneoffConfigured = pandadocConfigured() && !!(settings['pandadoc_oneoff_template_id'] || '').trim();
+  // Fund record: the member_finances row linked to this login (if any), plus the
+  // unlinked register rows the office can match this login to. Staff read every
+  // row via the member_finances is_staff() RLS policy.
+  const [{ data: linkedFinance }, { data: unlinkedFinance }] = await Promise.all([
+    supabase.from('member_finances').select('member_no, full_name, current_balance').eq('member_id', id).maybeSingle(),
+    supabase.from('member_finances').select('member_no, full_name, current_balance').is('member_id', null).order('member_no', { ascending: true }),
+  ]);
 
   const docsWithUrls = await Promise.all(
     ((docs ?? []) as any[]).map(async (d) => {
@@ -266,7 +270,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
           <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 13.5 }}>Send a one-off agreement</div>
             <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Email this investor a separate document to e-sign (for example a resolution or addendum).</div>
-            <OneOffAgreement memberId={m.id} memberEmail={m.email} configured={oneoffConfigured} />
+            <OneOffAgreement memberId={m.id} memberEmail={m.email} configured={pandadocConfigured()} />
           </div>
         </div>
       </div>
