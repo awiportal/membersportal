@@ -308,6 +308,14 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
         <div className="field"><label>Email</label><input className="input" name="_email" defaultValue={email} readOnly /></div>
       </div>
 
+      <div className="grid2">
+        <DateOfBirthPicker initial={profile?.date_joined ?? ''} name="date_joined" label="Date of joining AWI" />
+        <div className="field">
+          <label>About your join date</label>
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>When you first joined AWIVEST. Long-standing members: choose your original join year — it becomes your “Member since”.</div>
+        </div>
+      </div>
+
       {isIndividual && (
         <>
           <div className="grid2">
@@ -823,6 +831,7 @@ function ReviewStep({
       <Row k="Tax ID / KRA PIN" v={profile?.kra_pin} />
       <Row k="Phone" v={profile?.phone} />
       <Row k="Address" v={addr} />
+      <Row k="Date joined AWI" v={profile?.date_joined} />
       {!isOrg && (
         <>
           <Row k="Next of kin" v={rel('next_of_kin')} />

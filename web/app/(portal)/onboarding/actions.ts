@@ -71,6 +71,7 @@ export async function savePersonalData(formData: FormData) {
       beneficial_owner_name: clean(formData, 'beneficial_owner_name'),
       beneficial_owner_role: clean(formData, 'beneficial_owner_role'),
       date_of_birth: clean(formData, 'date_of_birth'),
+      date_joined: clean(formData, 'date_joined'),
       phone: clean(formData, 'phone'),
       country: clean(formData, 'country'),
       address_line1: clean(formData, 'address_line1'),
