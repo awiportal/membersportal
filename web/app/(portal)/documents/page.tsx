@@ -9,7 +9,7 @@ export default async function DocumentsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (\!user) redirect('/login');
+  if (!user) redirect('/login');
 
   // Row-level security on `documents` already limits the result to documents
   // shared with everyone (member_id is null) or addressed to this member.

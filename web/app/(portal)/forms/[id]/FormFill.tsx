@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { submitForm } from './actions';
+import { submitForm } from '../actions';
 
 export type FormField = { label: string; type?: string; required?: boolean; options?: string[] };
 

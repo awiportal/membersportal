@@ -72,7 +72,7 @@ export default function KycClient({
     try {
       const supabase = createClient();
       const { data, error } = await supabase.storage.from('kyc').createSignedUrl(d.file_path, 120);
-      if (error || \!data?.signedUrl) throw error || new Error('no url');
+      if (error || !data?.signedUrl) throw error || new Error('no url');
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
     } catch {
       setMsg('Could not open this file. Please try again.');

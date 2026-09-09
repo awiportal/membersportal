@@ -26,9 +26,9 @@ async function requireStaff(): Promise<{ userId: string } | { error: string }> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (\!user) return { error: 'You appear to be signed out. Please sign in again and retry.' };
+  if (!user) return { error: 'You appear to be signed out. Please sign in again and retry.' };
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (\!isStaff(me?.role)) {
+  if (!isStaff(me?.role)) {
     return { error: `Your account role is "${me?.role ?? 'none'}", which is not a staff role.` };
   }
   return { userId: user.id };
@@ -44,19 +44,19 @@ export async function uploadDocument(formData: FormData): Promise<{ ok?: true; e
   const memberId = String(formData.get('member_id') || '').trim();
   const file = formData.get('file');
 
-  if (\!title) return { error: 'Please give the document a title.' };
-  if (\!DOC_TYPES.includes(type)) return { error: 'Please choose a valid document type.' };
-  if (\!(file instanceof File) || file.size === 0) return { error: 'Please choose a file to upload.' };
-  if (scope === 'member' && \!memberId) return { error: 'Please choose which member this document is for.' };
+  if (!title) return { error: 'Please give the document a title.' };
+  if (!DOC_TYPES.includes(type)) return { error: 'Please choose a valid document type.' };
+  if (!(file instanceof File) || file.size === 0) return { error: 'Please choose a file to upload.' };
+  if (scope === 'member' && !memberId) return { error: 'Please choose which member this document is for.' };
 
   const keyInfo = describeServiceKey();
-  if (\!keyInfo.ok) return { error: keyInfo.message };
+  if (!keyInfo.ok) return { error: keyInfo.message };
 
   const admin = createAdminClient();
 
   if (scope === 'member') {
     const { data: m } = await admin.from('profiles').select('id').eq('id', memberId).maybeSingle();
-    if (\!m) return { error: 'That member could not be found. Please pick another.' };
+    if (!m) return { error: 'That member could not be found. Please pick another.' };
   }
 
   const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
@@ -94,7 +94,7 @@ export async function deleteDocument(formData: FormData) {
   const gate = await requireStaff();
   if ('error' in gate) return;
   const id = String(formData.get('id') || '');
-  if (\!id) return;
+  if (!id) return;
 
   const admin = createAdminClient();
   const { data: row } = await admin.from('documents').select('file_path').eq('id', id).maybeSingle();

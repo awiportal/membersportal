@@ -39,7 +39,7 @@ export default function KycReview({ groups }: { groups: Group[] }) {
     setMsg(null);
     try {
       const res = await getKycDocUrl(id);
-      if (res?.error || \!res?.url) {
+      if (res?.error || !res?.url) {
         setMsg(res?.error || 'Could not open the file.');
         return;
       }
@@ -86,7 +86,7 @@ export default function KycReview({ groups }: { groups: Group[] }) {
     }
   }
 
-  if (\!groups.length) {
+  if (!groups.length) {
     return (
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div className="page-title">KYC review</div>

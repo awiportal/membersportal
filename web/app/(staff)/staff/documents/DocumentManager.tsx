@@ -31,15 +31,15 @@ export default function DocumentManager({ members }: { members: Member[] }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    if (\!title.trim()) {
+    if (!title.trim()) {
       setMsg('Please give the document a title.');
       return;
     }
-    if (\!file) {
+    if (!file) {
       setMsg('Please choose a file to upload.');
       return;
     }
-    if (scope === 'member' && \!memberId) {
+    if (scope === 'member' && !memberId) {
       setMsg('Please choose which member this document is for.');
       return;
     }

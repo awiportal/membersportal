@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { roleLabel } from '@/lib/roles';
+import { roleLabel, isAdmin } from '@/lib/roles';
 
 // Shows the user's uploaded photo when present, otherwise their coloured
 // initials — same 40x40 rounded shape everywhere.

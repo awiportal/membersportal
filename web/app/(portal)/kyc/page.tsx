@@ -9,7 +9,7 @@ export default async function KycPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (\!user) redirect('/login');
+  if (!user) redirect('/login');
 
   const [{ data: profile }, { data: docs }] = await Promise.all([
     supabase.from('profiles').select('member_type, kyc_status').eq('id', user.id).single(),
