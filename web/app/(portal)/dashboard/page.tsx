@@ -108,7 +108,7 @@ export default async function DashboardPage() {
           </div>
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
             <div>
-              <div className="muted" style={{ fontSize: 12 }}>Opening balance (31 Dec 2025)</div>
+              <div className="muted" style={{ fontSize: 12 }}>Contributions to end-2025</div>
               <div className="num" style={{ fontWeight: 800, fontSize: 20 }}>{KES(Number(fin.opening_balance_2025))}</div>
             </div>
             <div>
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
               <div className="num" style={{ fontWeight: 800, fontSize: 20 }}>{KES(Number(fin.contributions_2026))}</div>
             </div>
             <div>
-              <div className="muted" style={{ fontSize: 12 }}>Interest 2026</div>
+              <div className="muted" style={{ fontSize: 12 }}>Total interest (to Jul 2026)</div>
               <div className="num" style={{ fontWeight: 800, fontSize: 20 }}>{KES(Number(fin.total_interest_2026))}</div>
             </div>
             <div>
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-            Figures from the AWIVEST member register. Britam and Jubilee interest for 2026 are posted once the insurer statements are received.
+            Figures from the AWIVEST Final Compiled Statement (2018-Jul 2026). Contributions are shown to end-2025 and for 2026 separately; total interest combines Britam, Jubilee MMF and FIF, and prior-year interest. The four figures sum to the current balance.
           </div>
         </div>
       )}

@@ -109,7 +109,7 @@ html[data-theme="light"] select.input option{background-color:#ffffff;color:#241
 html[data-theme="light"] .brand-logo--dark{display:none}
 html[data-theme="light"] .brand-logo--light{display:block}
 .input-group{position:relative}
-.input-group i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted2)}
+.input-group>i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted2)}
 .input-group .input{padding-left:42px}
 
 .tabs{display:inline-flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:4px;width:100%}
