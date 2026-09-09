@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isStaff } from '@/lib/roles';
-import { pandadocConfigured, createFromTemplate, sendForSigning } from '@/lib/pandadoc';
+import { pandadocConfigured, createFromTemplate, sendForSigning, listTemplates } from '@/lib/pandadoc';
 
 async function requireStaff() {
   const supabase = createClient();

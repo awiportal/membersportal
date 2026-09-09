@@ -11,9 +11,9 @@ export default async function StaffKyc() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (\!user) redirect('/login');
+  if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (\!isStaff(me?.role)) redirect('/dashboard');
+  if (!isStaff(me?.role)) redirect('/dashboard');
 
   const admin = createAdminClient();
   const { data: docs } = await admin

@@ -21,6 +21,13 @@ function initialCountryCode(raw?: string | null): string {
   return hit ? hit.code : '';
 }
 
+function resolveCountry(raw?: string | null) {
+  if (!raw) return undefined;
+  if (COUNTRY_BY_CODE[raw]) return COUNTRY_BY_CODE[raw];
+  const lower = String(raw).trim().toLowerCase();
+  return COUNTRIES.find((x) => x.name.toLowerCase() === lower);
+}
+
 function fmtDate(d?: string | null) {
   if (!d) return '—';
   try {

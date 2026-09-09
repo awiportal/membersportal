@@ -19,20 +19,20 @@ export async function getDocumentDownloadUrl(id: string): Promise<{ url?: string
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (\!user) return { error: 'Your session has expired. Please sign in again.' };
+  if (!user) return { error: 'Your session has expired. Please sign in again.' };
 
   const { data: doc, error } = await supabase
     .from('documents')
     .select('id, file_path')
     .eq('id', id)
     .maybeSingle();
-  if (error || \!doc?.file_path) return { error: 'This document is not available.' };
+  if (error || !doc?.file_path) return { error: 'This document is not available.' };
 
   const admin = createAdminClient();
   const { data: signed, error: signErr } = await admin.storage
     .from('documents')
     .createSignedUrl(doc.file_path, 120);
-  if (signErr || \!signed?.signedUrl) return { error: 'Could not prepare the download link. Please try again.' };
+  if (signErr || !signed?.signedUrl) return { error: 'Could not prepare the download link. Please try again.' };
 
   return { url: signed.signedUrl };
 }

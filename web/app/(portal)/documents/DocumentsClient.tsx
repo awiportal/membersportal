@@ -39,7 +39,7 @@ export default function DocumentsClient({ docs, uid }: { docs: Doc[]; uid: strin
     setMsg(null);
     try {
       const res = await getDocumentDownloadUrl(id);
-      if (res?.error || \!res?.url) {
+      if (res?.error || !res?.url) {
         setMsg(res?.error || 'Could not open this document. Please try again.');
         return;
       }
