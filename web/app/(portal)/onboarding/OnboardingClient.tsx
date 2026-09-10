@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { RELATION_KINDS, memberTypeLabel, docsFor, GENDER_OPTIONS } from '@/lib/onboarding';
 import { COUNTRIES } from '@/lib/countries';
+import SignaturePad from '@/components/SignaturePad';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
 
 const ORDER = ['personal', 'documents', 'agreements', 'review'] as const;
@@ -20,7 +21,7 @@ const STEP_META: Record<string, { label: string; icon: string }> = {
 type Rel = { relation_kind: string; name?: string; relationship?: string; phone?: string; id_number?: string };
 type Doc = { doc_type: string; file_path: string; status: string; uploaded_at?: string };
 type Agreement = { id: string; title: string; description?: string | null; required: boolean; fileUrl: string };
-type Acceptance = { agreement_id: string; signed_name: string; signed_at: string };
+type Acceptance = { agreement_id: string; signed_name: string; signed_at: string; signature_image?: string | null; signed_date?: string | null };
 
 // Submit button whose pending state comes from the real form status, so it
 // always resets on completion or error and can never get stuck on "Saving…".
@@ -306,6 +307,14 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
           <input className="input" name="full_name" value={f.full_name} onChange={set('full_name')} required placeholder={namePlaceholder} />
         </div>
         <div className="field"><label>Email</label><input className="input" name="_email" defaultValue={email} readOnly /></div>
+      </div>
+
+      <div className="grid2">
+        <DateOfBirthPicker initial={profile?.date_joined ?? ''} name="date_joined" label="Date of joining AWI" />
+        <div className="field">
+          <label>About your join date</label>
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>When you first joined AWIVEST. Long-standing members: choose your original join year — it becomes your “Member since”.</div>
+        </div>
       </div>
 
       {isIndividual && (
@@ -698,9 +707,9 @@ function AgreementsStep({ agreements, acceptances, memberName, err }: { agreemen
 
   return (
     <div className="card card-pad">
-      <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Open each document to read it, then sign by typing your full name." />
+      <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Open each document to read it, then sign it with your name, the date, and your drawn signature." />
       {err === 'agreements' && <ErrorBanner text="Please sign all required agreements before continuing." />}
-      {err === 'sign' && <ErrorBanner text="Please type your full name to sign." />}
+      {err === 'sign' && <ErrorBanner text="Please add your drawn signature and your full name to sign." />}
 
       {agreements.length === 0 ? (
         <div className="muted" style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5 }}>
@@ -726,18 +735,41 @@ function AgreementsStep({ agreements, acceptances, memberName, err }: { agreemen
                 </div>
 
                 {acc ? (
-                  <div className="badge badge-good" style={{ marginTop: 12 }}>
-                    <i className="fa-solid fa-signature" /> Signed by {acc.signed_name} on {new Date(acc.signed_at).toLocaleDateString()}
+                  <div style={{ marginTop: 12, padding: 12, borderRadius: 12, border: '1px dashed var(--border)', background: 'var(--surface)' }}>
+                    <div className="muted" style={{ fontSize: 10.5, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Signed</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                      {acc.signature_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={acc.signature_image} alt="Signature" style={{ height: 54, maxWidth: 240, background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: 4 }} />
+                      ) : (
+                        <span style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontStyle: 'italic' }}>{acc.signed_name}</span>
+                      )}
+                      <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                        <div style={{ fontWeight: 700 }}>{acc.signed_name}</div>
+                        <div className="muted">Dated {new Date(acc.signed_date || acc.signed_at).toLocaleDateString()}</div>
+                      </div>
+                      <div style={{ marginLeft: 'auto', color: '#37c98a', fontSize: 12, fontWeight: 600 }}><i className="fa-solid fa-circle-check" /> Verified</div>
+                    </div>
                   </div>
                 ) : (
-                  <form action={signAgreement} style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <form action={signAgreement} style={{ marginTop: 12 }}>
                     <input type="hidden" name="agreement_id" value={a.id} />
-                    <div className="field" style={{ flex: '1 1 240px', margin: 0 }}>
-                      <label>Type your full name to sign</label>
-                      <input className="input" name="signed_name" defaultValue={memberName} placeholder="e.g. Jane Wanjiru" required />
+                    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+                      <div className="field" style={{ margin: 0 }}>
+                        <label>Full name <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                        <input className="input" name="signed_name" defaultValue={memberName} placeholder="e.g. Jane Wanjiru" required />
+                      </div>
+                      <div className="field" style={{ margin: 0 }}>
+                        <label>Date</label>
+                        <input className="input" name="signed_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} max={new Date().toISOString().slice(0, 10)} />
+                      </div>
                     </div>
-                    <SubmitButton className="btn btn-lime" pendingText="Signing…" style={{ whiteSpace: 'nowrap' }}>
-                      <i className="fa-solid fa-pen-nib" /> Sign
+                    <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
+                      <label>Draw your signature <span style={{ color: 'var(--lime2)' }}>*</span></label>
+                      <SignaturePad name="signature_image" />
+                    </div>
+                    <SubmitButton className="btn btn-lime" pendingText="Signing…" style={{ marginTop: 12 }}>
+                      <i className="fa-solid fa-pen-nib" /> Sign &amp; stamp
                     </SubmitButton>
                   </form>
                 )}
@@ -823,6 +855,7 @@ function ReviewStep({
       <Row k="Tax ID / KRA PIN" v={profile?.kra_pin} />
       <Row k="Phone" v={profile?.phone} />
       <Row k="Address" v={addr} />
+      <Row k="Date joined AWI" v={profile?.date_joined} />
       {!isOrg && (
         <>
           <Row k="Next of kin" v={rel('next_of_kin')} />

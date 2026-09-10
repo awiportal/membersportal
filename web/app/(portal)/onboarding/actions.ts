@@ -71,6 +71,7 @@ export async function savePersonalData(formData: FormData) {
       beneficial_owner_name: clean(formData, 'beneficial_owner_name'),
       beneficial_owner_role: clean(formData, 'beneficial_owner_role'),
       date_of_birth: clean(formData, 'date_of_birth'),
+      date_joined: clean(formData, 'date_joined'),
       phone: clean(formData, 'phone'),
       country: clean(formData, 'country'),
       address_line1: clean(formData, 'address_line1'),
@@ -164,12 +165,17 @@ export async function signAgreement(formData: FormData) {
 
   const agreement_id = String(formData.get('agreement_id') || '');
   const signed_name = String(formData.get('signed_name') || '').trim();
-  if (!agreement_id || !signed_name) {
+  const signature_image = String(formData.get('signature_image') || '').trim();
+  const signed_date_raw = String(formData.get('signed_date') || '').trim();
+  const signed_date_ok = signed_date_raw.length === 10 && signed_date_raw.charAt(4) === '-' && signed_date_raw.charAt(7) === '-';
+  const signed_date = signed_date_ok ? signed_date_raw : new Date().toISOString().slice(0, 10);
+  const has_signature = signature_image.startsWith('data:image/') && signature_image.length < 700000;
+  if (!agreement_id || !signed_name || !has_signature) {
     redirect('/onboarding?step=agreements&err=sign');
   }
 
   const { error } = await supabase.from('agreement_acceptances').upsert(
-    { member_id: uid, agreement_id, signed_name, signed_at: new Date().toISOString() },
+    { member_id: uid, agreement_id, signed_name, signature_image, signed_date, signed_at: new Date().toISOString() },
     { onConflict: 'member_id,agreement_id' }
   );
   if (error) console.error('signAgreement failed:', error.message);
