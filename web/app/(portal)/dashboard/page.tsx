@@ -232,17 +232,29 @@ export default async function DashboardPage() {
   }
 
 
-  // Fall back to the member's registered fund position when live holdings/
-  // contributions have not been loaded yet, so the KPIs still show real money.
-  const portfolioValue = totalValue || Number(fin?.current_balance || 0);
-  const contribValue = totalContrib || Number(fin?.contributions_2026 || 0);
+  // When the member is linked to the AWIVEST register, their real fund figures
+  // are authoritative — show those, not any demo holdings that may be loaded.
+  const portfolioValue = fin ? Number(fin.current_balance || 0) : totalValue;
+  const contribValue = fin
+    ? Number(fin.lifetime_contributions || 0) || Number(fin.opening_balance_2025 || 0) + Number(fin.contributions_2026 || 0)
+    : totalContrib;
+  const dividendsValue = fin ? Number(fin.total_interest_2026 || 0) : totalDiv;
 
   const byClass: Record<string, number> = {};
   holds.forEach((h) => {
     const k = h.asset_class || 'Other';
     byClass[k] = (byClass[k] || 0) + Number(h.value || 0);
   });
-  const segments: Segment[] = Object.entries(byClass).map(([label, value], i) => ({ label, value, color: COLORS[i % COLORS.length] }));
+  // Real fund composition for linked members (sums to current balance); the demo
+  // holdings allocation is only a fallback before the register is linked.
+  const fundComposition: Segment[] = [
+    { label: 'Contributions to 2025', value: Number(fin?.opening_balance_2025 || 0), color: '#7e2674' },
+    { label: '2026 contributions', value: Number(fin?.contributions_2026 || 0), color: '#a6cd35' },
+    { label: 'Interest earned', value: Number(fin?.total_interest_2026 || 0), color: '#5aa9f0' },
+  ].filter((s) => s.value > 0);
+  const segments: Segment[] = fin
+    ? fundComposition
+    : Object.entries(byClass).map(([label, value], i) => ({ label, value, color: COLORS[i % COLORS.length] }));
   const trend = [0.86, 0.88, 0.9, 0.92, 0.95, 0.97, 1.0].map((f) => Math.round(((portfolioValue || 1) * f) / 1000));
   const empty = holds.length === 0 && !fin;
 
@@ -260,7 +272,7 @@ export default async function DashboardPage() {
             {profile?.status === 'active' ? 'Your account is active.' : 'Your account is pending approval — complete your membership below.'}
           </div>
         </div>
-        {!empty && !notActive && <LoadDemoData />}
+        {!empty && !notActive && !fin && <LoadDemoData />}
       </div>
 
       {notActive && (
@@ -344,8 +356,8 @@ export default async function DashboardPage() {
               <div className="val num">{KESc(contribValue)}</div>
             </div>
             <div className="card kpi hover-lift">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Dividends received</span><span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-coins" style={{ color: 'var(--lime2)' }} /></span></div>
-              <div className="val num">{KESc(totalDiv)}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Interest earned</span><span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-coins" style={{ color: 'var(--lime2)' }} /></span></div>
+              <div className="val num">{KESc(dividendsValue)}</div>
             </div>
             <div className="card kpi hover-lift">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Financial wellness</span><span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-heart-pulse" style={{ color: 'var(--purple2)' }} /></span></div>
@@ -360,7 +372,7 @@ export default async function DashboardPage() {
               <AreaChart data={trend} />
             </div>
             <div className="card card-pad hover-lift">
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Asset allocation</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{fin ? 'Fund composition' : 'Asset allocation'}</div>
               <Donut segments={segments} />
             </div>
           </div>
