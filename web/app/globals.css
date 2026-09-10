@@ -5,7 +5,7 @@
 :root{
   --purple:#7e2674; --purple2:#a6398f; --lime:#a6cd35; --lime2:#c3e05f;
   --bg:#160a15; --bg2:#0e060d;
-  --surface:rgba(255,255,255,0.045); --surface2:rgba(255,255,255,0.07);
+  --surface:rgba(255,255,255,0.045); --surface2:rgba(255,255,255,0.07); --menu-bg:#20111f;
   --border:rgba(255,255,255,0.10); --border2:rgba(255,255,255,0.16);
   --text:#f6f3f8; --muted:#b9aec6; --muted2:#8f83a3;
   --good:#37c98a; --warn:#f2b23b; --bad:#f0616d; --info:#5aa9f0;
@@ -15,7 +15,7 @@
 }
 html[data-theme="light"]{
   --bg:#f3eef6; --bg2:#e7dfed;
-  --surface:rgba(255,255,255,0.85); --surface2:#ffffff;
+  --surface:rgba(255,255,255,0.85); --surface2:#ffffff; --menu-bg:#ffffff;
   --border:rgba(42,10,39,0.10); --border2:rgba(42,10,39,0.18);
   --text:#241026; --muted:#5f5468; --muted2:#7d7288;
   --sidebar:rgba(255,255,255,0.85); --topbar:rgba(255,255,255,0.80);
@@ -47,6 +47,7 @@ html[data-theme="light"]{scrollbar-color:rgba(42,10,39,0.40) transparent}
 :focus-visible{outline:none;box-shadow:var(--ring);border-radius:12px}
 
 .glass,.card{background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
+.menu-pop{background:var(--menu-bg);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow)}
 .card-pad{padding:20px}
 .hover-lift{transition:transform .25s cubic-bezier(.2,.8,.2,1),border-color .25s}
 .hover-lift:hover{transform:translateY(-3px);border-color:var(--border2)}
