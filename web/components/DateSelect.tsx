@@ -1,28 +1,29 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
+import FancySelect from "./FancySelect";
 
-// A friendly Day / Month / Year picker for older members who find the native
-// calendar pop-up fiddly. Works two ways:
+// A friendly Day / Month / Year picker for members who find the native calendar
+// pop-up fiddly. Built on FancySelect so the Year list has a visible scrollbar
+// and type-to-filter instead of the OS dropdown. Works two ways:
 //   * Controlled:  <DateSelect value={v} onChange={setV} />
 //   * In a form:   <DateSelect name="date_of_birth" defaultValue={...} />  ->
 //                  it renders a hidden input so the yyyy-mm-dd value submits.
-// You can combine both (controlled value + name) — onboarding does this.
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 function parse(v?: string | null): { d: string; m: string; y: string } {
-  if (!v) return { d: '', m: '', y: '' };
+  if (v === undefined || v === null || v === "") return { d: "", m: "", y: "" };
   const match = String(v).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return { d: '', m: '', y: '' };
+  if (match === null) return { d: "", m: "", y: "" };
   return { y: match[1], m: String(Number(match[2])), d: String(Number(match[3])) };
 }
 
 function daysInMonth(y: number, m: number): number {
-  if (!y || !m) return 31;
+  if (Number.isFinite(y) === false || Number.isFinite(m) === false || m < 1) return 31;
   return new Date(y, m, 0).getDate();
 }
 
@@ -41,7 +42,7 @@ export default function DateSelect({
   fromYear?: number;
   toYear?: number;
 }) {
-  const controlled = value !== undefined;
+  const controlled = typeof value === "string";
   const now = new Date();
   const maxY = toYear ?? now.getFullYear();
   const minY = fromYear ?? 1930;
@@ -52,20 +53,19 @@ export default function DateSelect({
 
   function combine(nd: string, nm: string, ny: string): string {
     if (nd && nm && ny) {
-      return `${ny}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`;
+      return ny + "-" + String(nm).padStart(2, "0") + "-" + String(nd).padStart(2, "0");
     }
-    return '';
+    return "";
   }
 
   function update(nd: string, nm: string, ny: string) {
-    // Clamp the day if the new month/year has fewer days.
     let day = nd;
     if (day && nm && ny) {
       const dim = daysInMonth(Number(ny), Number(nm));
       if (Number(day) > dim) day = String(dim);
     }
-    if (!controlled) setInner({ d: day, m: nm, y: ny });
-    onChange?.(combine(day, nm, ny));
+    if (controlled === false) setInner({ d: day, m: nm, y: ny });
+    if (onChange) onChange(combine(day, nm, ny));
   }
 
   const years: number[] = [];
@@ -75,26 +75,15 @@ export default function DateSelect({
   const days: number[] = [];
   for (let i = 1; i <= dim; i++) days.push(i);
 
+  const dayOpts = days.map((n) => ({ value: String(n), label: String(n) }));
+  const monthOpts = MONTHS.map((label, i) => ({ value: String(i + 1), label }));
+  const yearOpts = years.map((n) => ({ value: String(n), label: String(n) }));
+
   return (
-    <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1.5fr 1.1fr' }}>
-      <select className="input" aria-label="Day" value={d} onChange={(e) => update(e.target.value, m, y)}>
-        <option value="">Day</option>
-        {days.map((n) => (
-          <option key={n} value={String(n)}>{n}</option>
-        ))}
-      </select>
-      <select className="input" aria-label="Month" value={m} onChange={(e) => update(d, e.target.value, y)}>
-        <option value="">Month</option>
-        {MONTHS.map((label, i) => (
-          <option key={label} value={String(i + 1)}>{label}</option>
-        ))}
-      </select>
-      <select className="input" aria-label="Year" value={y} onChange={(e) => update(d, m, e.target.value)}>
-        <option value="">Year</option>
-        {years.map((n) => (
-          <option key={n} value={String(n)}>{n}</option>
-        ))}
-      </select>
+    <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1.5fr 1.1fr" }}>
+      <FancySelect ariaLabel="Day" placeholder="Day" options={dayOpts} value={d} onChange={(v) => update(v, m, y)} searchable={false} />
+      <FancySelect ariaLabel="Month" placeholder="Month" options={monthOpts} value={m} onChange={(v) => update(d, v, y)} searchable={false} />
+      <FancySelect ariaLabel="Year" placeholder="Year" options={yearOpts} value={y} onChange={(v) => update(d, m, v)} />
       {name ? <input type="hidden" name={name} value={combine(d, m, y)} readOnly /> : null}
     </div>
   );

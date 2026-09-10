@@ -6,6 +6,7 @@ import { COUNTRIES, COUNTRY_BY_CODE } from '@/lib/countries';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile, saveAvatar } from './actions';
 import DateSelect from '@/components/DateSelect';
+import CountrySelect from '@/components/CountrySelect';
 
 function initials(name?: string) {
   const n = (name || '').trim();
@@ -316,14 +317,7 @@ export default function ProfileClient({ profile, accountEmail }: { profile: any;
 
           <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
             <Field label="Country of residence">
-              <select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>
-                <option value="">Select a country…</option>
-                {COUNTRIES.map((cc) => (
-                  <option key={cc.code} value={cc.code}>
-                    {cc.flag} {cc.name}
-                  </option>
-                ))}
-              </select>
+              <CountrySelect valueBy="code" value={country} onChange={setCountry} ariaLabel="Country of residence" />
             </Field>
             <Field label="Phone" hint="Use international format, e.g. +254 712 345678">
               <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={c ? `${c.dial} …` : '+254 712 345678'} inputMode="tel" autoComplete="tel" />

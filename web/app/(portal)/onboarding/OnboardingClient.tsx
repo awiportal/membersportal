@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { RELATION_KINDS, memberTypeLabel, docsFor, GENDER_OPTIONS } from '@/lib/onboarding';
-import { COUNTRIES } from '@/lib/countries';
+import CountrySelect from '@/components/CountrySelect';
+import FancySelect from '@/components/FancySelect';
 import SignaturePad from '@/components/SignaturePad';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
 
@@ -173,18 +174,12 @@ function DateOfBirthPicker({ initial, name = 'date_of_birth', label = 'Date of b
     <div className="field">
       <label>{label}</label>
       <div style={{ display: 'flex', gap: 8 }}>
-        <select className="input" value={d} onChange={(e) => setD(e.target.value)} aria-label="Day">
-          <option value="">Day</option>
-          {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((n) => (<option key={n} value={n}>{n}</option>))}
-        </select>
-        <select className="input" value={mo} onChange={(e) => setMo(e.target.value)} aria-label="Month">
-          <option value="">Month</option>
-          {DOB_MONTHS.map((name, i) => (<option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>))}
-        </select>
-        <select className="input" value={y} onChange={(e) => setY(e.target.value)} aria-label="Year">
-          <option value="">Year</option>
-          {DOB_YEARS.map((yr) => (<option key={yr} value={yr}>{yr}</option>))}
-        </select>
+        <FancySelect ariaLabel="Day" placeholder="Day" searchable={false} value={d} onChange={setD}
+          options={Array.from({ length: 31 }, (_, i) => String(i + 1)).map((n) => ({ value: n, label: n }))} />
+        <FancySelect ariaLabel="Month" placeholder="Month" searchable={false} value={mo} onChange={setMo}
+          options={DOB_MONTHS.map((nm, i) => ({ value: String(i + 1).padStart(2, '0'), label: nm }))} />
+        <FancySelect ariaLabel="Year" placeholder="Year" value={y} onChange={setY}
+          options={DOB_YEARS.map((yr) => ({ value: yr, label: yr }))} />
       </div>
       <input type="hidden" name={name} value={iso} />
     </div>
@@ -243,6 +238,7 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
     return b;
   });
   const set = (k: string) => (e: any) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const setV = (k: string) => (v: string) => setF((s) => ({ ...s, [k]: v }));
   const setR = (rk: string, k: string) => (e: any) => setRel((s) => ({ ...s, [rk]: { ...s[rk], [k]: e.target.value } }));
 
   // Live "already in use" checks for identity fields (National ID + Phone).
@@ -335,10 +331,7 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
           <div className="grid2">
             <div className="field">
               <label>Nationality / Citizenship <span style={{ color: 'var(--lime2)' }}>*</span></label>
-              <select className="input" name="nationality" value={f.nationality} onChange={set('nationality')} required>
-                <option value="">Select</option>
-                {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
-              </select>
+              <CountrySelect name="nationality" value={f.nationality} onChange={setV('nationality')} placeholder="Select" ariaLabel="Nationality" />
             </div>
             <div className="field">
               <label>Gender <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
@@ -371,10 +364,7 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
             <DateOfBirthPicker initial={profile?.org_reg_date ?? ''} name="org_reg_date" label={orgDateLabel} />
             <div className="field">
               <label>{orgCountryLabel} <span style={{ color: 'var(--lime2)' }}>*</span></label>
-              <select className="input" name="org_reg_country" value={f.org_reg_country} onChange={set('org_reg_country')} required>
-                <option value="">Select</option>
-                {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
-              </select>
+              <CountrySelect name="org_reg_country" value={f.org_reg_country} onChange={setV('org_reg_country')} placeholder="Select" ariaLabel={orgCountryLabel} />
             </div>
           </div>
           <div className="field">
@@ -478,9 +468,7 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
         <div className="field"><label>Postal / ZIP code <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label><input className="input" name="postal_code" value={f.postal_code} onChange={set('postal_code')} placeholder="e.g. 00100" /></div>
         <div className="field">
           <label>Country <span style={{ color: 'var(--lime2)' }}>*</span></label>
-          <select className="input" name="country" value={f.country} onChange={set('country')} required>
-            {COUNTRIES.map((c) => (<option key={c.code} value={c.name}>{c.flag} {c.name}</option>))}
-          </select>
+          <CountrySelect name="country" value={f.country} onChange={setV('country')} ariaLabel="Country" />
         </div>
       </div>
 
