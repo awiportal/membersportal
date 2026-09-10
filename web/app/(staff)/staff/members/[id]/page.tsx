@@ -256,8 +256,11 @@ export default async function MemberDetail({ params }: { params: { id: string } 
                   <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13 }}>{a.title}{a.required ? '' : ' (optional)'}</span>
                     {acc ? (
-                      <span className="badge badge-good" style={{ fontSize: 11 }} title={new Date(acc.signed_at).toLocaleString()}>
-                        <i className="fa-solid fa-signature" /> {acc.signed_name}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <span className="badge badge-good" style={{ fontSize: 11 }} title={new Date(acc.signed_at).toLocaleString()}>
+                          <i className="fa-solid fa-signature" /> {acc.signed_name}
+                        </span>
+                        <Link href={`/staff/agreements/signed/${acc.id}`} className="btn btn-ghost btn-sm"><i className="fa-solid fa-eye" /> Preview / download</Link>
                       </span>
                     ) : (
                       <span className="badge badge-warn" style={{ fontSize: 11 }}>Not signed</span>
