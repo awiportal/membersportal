@@ -39,7 +39,9 @@ export default function VerifyClient({ email }: { email: string }) {
       if ((res as any)?.error) setMsg({ kind: 'err', text: (res as any).error });
       else {
         setMsg({ kind: 'ok', text: 'Verified. Taking you in…' });
-        router.push('/dashboard');
+        // Route to the right home for this user (staff -> /staff, member ->
+        // /dashboard); '/' resolves the destination by role server-side.
+        router.push('/');
         router.refresh();
       }
     });
