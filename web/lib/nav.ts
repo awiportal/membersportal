@@ -4,8 +4,13 @@ export type NavGroup = { group: string; items: NavItem[] };
 export const NAV: NavGroup[] = [
   { group: 'Overview', items: [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
+    { id: 'information', label: 'Information Center', icon: 'fa-bullhorn' },
     { id: 'portfolio', label: 'Investment Portfolio', icon: 'fa-chart-pie' },
     { id: 'financial-profile', label: 'Financial Profile', icon: 'fa-heart-pulse', tag: 'MSI' },
+  ]},
+  { group: 'Planning', items: [
+    { id: 'planning', label: 'Planning Centre', icon: 'fa-compass-drafting' },
+    { id: 'goals', label: 'Goal Tracker', icon: 'fa-bullseye' },
   ]},
   { group: 'Transactions', items: [
     { id: 'contributions', label: 'My Contributions', icon: 'fa-hand-holding-dollar' },
@@ -13,10 +18,6 @@ export const NAV: NavGroup[] = [
     { id: 'dividends', label: 'Dividends', icon: 'fa-coins' },
     { id: 'statements', label: 'Statements', icon: 'fa-file-invoice-dollar' },
     { id: 'opportunities', label: 'Opportunities', icon: 'fa-lightbulb' },
-  ]},
-  { group: 'Planning', items: [
-    { id: 'planning', label: 'Planning Centre', icon: 'fa-compass-drafting' },
-    { id: 'goals', label: 'Goal Tracker', icon: 'fa-bullseye' },
   ]},
   { group: 'Compliance', items: [
     { id: 'forms', label: 'Online Forms', icon: 'fa-file-signature' },

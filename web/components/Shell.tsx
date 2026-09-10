@@ -9,7 +9,7 @@ import ThemeToggle from "./ThemeToggle";
 
 // Sections a member can reach before their membership is approved (manual 3.7):
 // Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
-const ALLOWED_WHEN_PENDING = new Set(["dashboard", "kyc", "profile", "notifications", "settings"]);
+const ALLOWED_WHEN_PENDING = new Set(["dashboard", "information", "kyc", "profile", "notifications", "settings"]);
 
 // Shows the member's uploaded photo when they have one, otherwise their
 // coloured initials. Keeps the same 40x40 rounded shape in every position.
