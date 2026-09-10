@@ -114,6 +114,10 @@ export default function StaffShell({
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="badge badge-purple hide-sm">{roleLabel(profile?.role)}</span>
             <Avatar url={profile?.avatar_url} initials={initials} title={name} />
+            <Link href="/staff" aria-label="AWIVEST home" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/awi-logo.png" alt="AWIVEST" width={34} height={34} style={{ display: 'block' }} />
+            </Link>
           </div>
         </header>
         <main className="view">{children}</main>
