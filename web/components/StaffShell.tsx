@@ -65,6 +65,9 @@ export default function StaffShell({
           <Link href="/staff/fund-records" className={`nav-item ${pathname.startsWith('/staff/fund-records') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-file-import" /><span>Fund records</span>
           </Link>
+          <Link href="/staff/fund-data" className={`nav-item ${pathname.startsWith('/staff/fund-data') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-database" /><span>Fund data</span>
+          </Link>
           <Link href="/staff/opportunities" className={`nav-item ${pathname.startsWith('/staff/opportunities') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-lightbulb" /><span>Opportunities</span>
           </Link>
