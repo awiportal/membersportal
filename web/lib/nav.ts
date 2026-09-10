@@ -7,16 +7,16 @@ export const NAV: NavGroup[] = [
     { id: 'portfolio', label: 'Investment Portfolio', icon: 'fa-chart-pie' },
     { id: 'financial-profile', label: 'Financial Profile', icon: 'fa-heart-pulse', tag: 'MSI' },
   ]},
-  { group: 'Planning', items: [
-    { id: 'planning', label: 'Planning Centre', icon: 'fa-compass-drafting' },
-    { id: 'goals', label: 'Goal Tracker', icon: 'fa-bullseye' },
-  ]},
   { group: 'Transactions', items: [
     { id: 'contributions', label: 'My Contributions', icon: 'fa-hand-holding-dollar' },
     { id: 'payments', label: 'Payments', icon: 'fa-money-bill-transfer' },
     { id: 'dividends', label: 'Dividends', icon: 'fa-coins' },
     { id: 'statements', label: 'Statements', icon: 'fa-file-invoice-dollar' },
     { id: 'opportunities', label: 'Opportunities', icon: 'fa-lightbulb' },
+  ]},
+  { group: 'Planning', items: [
+    { id: 'planning', label: 'Planning Centre', icon: 'fa-compass-drafting' },
+    { id: 'goals', label: 'Goal Tracker', icon: 'fa-bullseye' },
   ]},
   { group: 'Compliance', items: [
     { id: 'forms', label: 'Online Forms', icon: 'fa-file-signature' },
