@@ -12,6 +12,7 @@ export const NAV: NavGroup[] = [
     { id: 'goals', label: 'Goal Tracker', icon: 'fa-bullseye' },
   ]},
   { group: 'Transactions', items: [
+    { id: 'contributions', label: 'My Contributions', icon: 'fa-hand-holding-dollar' },
     { id: 'payments', label: 'Payments', icon: 'fa-money-bill-transfer' },
     { id: 'dividends', label: 'Dividends', icon: 'fa-coins' },
     { id: 'statements', label: 'Statements', icon: 'fa-file-invoice-dollar' },
