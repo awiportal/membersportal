@@ -90,15 +90,23 @@ export default async function SignedAgreementsRegister() {
                       {agr?.title || "Agreement"} · {fmtDate(a.signed_date || a.signed_at)}
                     </div>
                   </div>
+                  <div style={{ width: 128, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {drawn ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.signature_image} alt="signature" style={{ maxHeight: 30, maxWidth: 116, background: "#fff", borderRadius: 6, padding: "2px 5px" }} />
+                    ) : (
+                      <span style={{ fontFamily: "Georgia, serif", fontStyle: "italic", fontSize: 14 }}>{a.signed_name || "-"}</span>
+                    )}
+                  </div>
                   <span className={"badge " + (drawn ? "badge-good" : "badge-info")} style={{ fontSize: 11 }}>
                     {drawn ? "Drawn signature" : "Typed"}
                   </span>
                   <Link href={"/staff/agreements/signed/" + a.id} className="btn btn-ghost btn-sm">
                     <i className="fa-solid fa-eye" /> Preview
                   </Link>
-                  <Link href={"/staff/agreements/signed/" + a.id} className="btn btn-primary btn-sm">
+                  <a href={"/staff/agreements/signed/" + a.id + "/download"} className="btn btn-primary btn-sm">
                     <i className="fa-solid fa-download" /> Download
-                  </Link>
+                  </a>
                 </div>
               );
             })}

@@ -260,7 +260,8 @@ export default async function MemberDetail({ params }: { params: { id: string } 
                         <span className="badge badge-good" style={{ fontSize: 11 }} title={new Date(acc.signed_at).toLocaleString()}>
                           <i className="fa-solid fa-signature" /> {acc.signed_name}
                         </span>
-                        <Link href={`/staff/agreements/signed/${acc.id}`} className="btn btn-ghost btn-sm"><i className="fa-solid fa-eye" /> Preview / download</Link>
+                        <Link href={`/staff/agreements/signed/${acc.id}`} className="btn btn-ghost btn-sm"><i className="fa-solid fa-eye" /> Preview</Link>
+                        <a href={`/staff/agreements/signed/${acc.id}/download`} className="btn btn-primary btn-sm"><i className="fa-solid fa-file-pdf" /> Download PDF</a>
                       </span>
                     ) : (
                       <span className="badge badge-warn" style={{ fontSize: 11 }}>Not signed</span>

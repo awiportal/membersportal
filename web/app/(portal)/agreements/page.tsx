@@ -83,11 +83,20 @@ export default async function AgreementsPage() {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 9, marginTop: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                  {publicUrl && (
+                  {acc ? (
+                    <>
+                      <a href={`/agreements/download/${acc.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-lime btn-sm">
+                        <i className="fa-solid fa-file-circle-check" /> View signed document
+                      </a>
+                      <a href={`/agreements/download/${acc.id}?download=1`} className="btn btn-ghost btn-sm">
+                        <i className="fa-solid fa-download" /> Download
+                      </a>
+                    </>
+                  ) : publicUrl ? (
                     <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
                       <i className="fa-solid fa-arrow-up-right-from-square" /> View document
                     </a>
-                  )}
+                  ) : null}
                   {!acc && (
                     <form action={signAgreementDoc} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1, minWidth: 240 }}>
                       <input type="hidden" name="agreement_id" value={d.id} />

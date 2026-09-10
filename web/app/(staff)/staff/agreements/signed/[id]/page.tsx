@@ -68,7 +68,8 @@ export default async function SignedAgreementCertificate({ params }: { params: {
             <i className="fa-solid fa-file-arrow-down" /> Download original
           </a>
         ) : null}
-        <PrintButton label="Download / Print certificate" />
+        <a href={`/staff/agreements/signed/${acc.id}/download`} className="btn btn-primary btn-sm"><i className="fa-solid fa-file-pdf" /> Download signed PDF</a>
+        <PrintButton label="Print" className="btn btn-ghost btn-sm" />
       </div>
 
       <div className="card card-pad print-sheet" id="cert">
