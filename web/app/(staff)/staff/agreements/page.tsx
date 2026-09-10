@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import Link from 'next/link';
 import AgreementAdder from './AgreementAdder';
 import { setAgreementActive, setAgreementRequired, deleteAgreement } from './actions';
 
@@ -22,6 +23,10 @@ export default async function StaffAgreements() {
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div className="page-title">Membership agreements</div>
       <div className="sub">Publish the documents every new member must read and sign during onboarding. Changes appear to members immediately.</div>
+
+      <div style={{ marginTop: 14 }}>
+        <Link href="/staff/agreements/signed" className="btn btn-ghost btn-sm"><i className="fa-solid fa-file-signature" /> View signed agreements</Link>
+      </div>
 
       <div style={{ marginTop: 20 }}>
         <AgreementAdder />
