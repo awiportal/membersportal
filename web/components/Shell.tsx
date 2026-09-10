@@ -257,6 +257,10 @@ export default function Shell({
                 </div>
               ) : null}
             </div>
+            <Link href="/dashboard" aria-label="AWIVEST home" style={{ display: "inline-flex", alignItems: "center" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/awi-logo.png" alt="AWIVEST" width={34} height={34} style={{ display: "block" }} />
+            </Link>
           </div>
         </header>
         <main className="view">{children}</main>

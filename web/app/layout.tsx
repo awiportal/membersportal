@@ -4,6 +4,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'AWIVEST Investor Portal',
   description: 'African Women Investors — members investor portal.',
+  icons: {
+    icon: '/awi-logo.png',
+    shortcut: '/awi-logo.png',
+    apple: '/awi-logo.png',
+  },
 };
 
 // Applied before first paint so a saved light/dark choice never flashes.
