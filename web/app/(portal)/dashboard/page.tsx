@@ -4,6 +4,7 @@ import { KES, KESc, pct } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
 import LoadDemoData from '@/components/LoadDemoData';
+import { isStaff, roleLabel } from '@/lib/roles';
 
 const COLORS = ['#a6398f', '#a6cd35', '#5aa9f0', '#f2b23b', '#ef7fd8', '#37c98a'];
 
@@ -40,6 +41,196 @@ export default async function DashboardPage() {
 
   const notActive = profile?.status !== 'active';
   const submitted = profile?.onboarding_step === 'submitted';
+
+  const role = (profile as any)?.role as string | undefined;
+  const staff = isStaff(role);
+  const showFundOverview = staff && (fin ? false : true);
+
+  if (showFundOverview) {
+    const { data: fundRows } = await supabase
+      .from('member_finances')
+      .select('member_no, full_name, status, opening_balance_2025, contributions_2026, total_interest_2026, current_balance, member_id')
+      .order('current_balance', { ascending: false });
+    const rows = (fundRows ?? []) as any[];
+    const nn = (v: any) => Number(v || 0);
+    const sum = (f: (r: any) => number) => rows.reduce((s, r) => s + f(r), 0);
+    const totalFund = sum((r) => nn(r.current_balance));
+    const opening = sum((r) => nn(r.opening_balance_2025));
+    const contributions = sum((r) => nn(r.contributions_2026));
+    const interest = sum((r) => nn(r.total_interest_2026));
+    const members = rows.length;
+    const active = rows.filter((r) => r.status === 'active').length;
+    const exiting = rows.filter((r) => r.status === 'exiting').length;
+    const exited = rows.filter((r) => r.status === 'exited').length;
+    const linked = rows.filter((r) => r.member_id).length;
+    const avg = members ? totalFund / members : 0;
+    const top = rows.slice(0, 6);
+    const linkedPct = members ? Math.round((linked / members) * 100) : 0;
+    const dist = [
+      { label: 'Opening balance (to 2025)', value: opening, color: '#7e2674' },
+      { label: '2026 contributions', value: contributions, color: '#a6cd35' },
+      { label: 'Interest 2026', value: interest, color: '#5aa9f0' },
+    ].filter((d) => d.value > 0);
+    const fundSegments: Segment[] = dist.map((d) => ({ label: d.label, value: d.value, color: d.color }));
+    const monthsN = 7;
+    const ramp = Array.from({ length: monthsN }, (_, i) =>
+      Math.round(((opening + ((totalFund - opening) * i) / (monthsN - 1)) / 1000000) * 10) / 10
+    );
+    const quickLinks = [
+      { href: '/staff', icon: 'fa-users-gear', label: 'Approvals & Members', desc: 'Review and manage the register' },
+      { href: '/staff/reports', icon: 'fa-chart-pie', label: 'Reports & distribution', desc: 'Fund position and exports' },
+      { href: '/staff/kyc', icon: 'fa-id-card-clip', label: 'KYC review', desc: 'Verify member documents' },
+      { href: '/staff/fund-records', icon: 'fa-database', label: 'Fund records', desc: 'Identifiers and matching' },
+    ];
+
+    return (
+      <div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+          <div>
+            <div className="page-title">Welcome, {firstName}</div>
+            <div className="sub">
+              {roleLabel(role)} · fund overview across {members} member{members === 1 ? '' : 's'} · as at 31 Jul 2026
+            </div>
+          </div>
+          <Link href="/staff" className="btn btn-lime">
+            <i className="fa-solid fa-gauge-high" /> Staff console
+          </Link>
+        </div>
+
+        {members === 0 ? (
+          <div className="card card-pad" style={{ textAlign: 'center', padding: '56px 24px' }}>
+            <div className="grad-purple" style={{ width: 70, height: 70, borderRadius: 20, margin: '0 auto 18px', display: 'grid', placeItems: 'center', color: '#fff' }}>
+              <i className="fa-solid fa-database" style={{ fontSize: 26 }} />
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 20 }}>No fund data loaded yet</div>
+            <p className="muted" style={{ fontSize: 14, maxWidth: 460, margin: '10px auto 22px', lineHeight: 1.6 }}>
+              Once the AWIVEST register is imported into member_finances, the whole-fund position, distribution and member health appear here.
+            </p>
+            <Link href="/staff/fund-records" className="btn btn-lime">
+              <i className="fa-solid fa-arrow-right" /> Go to Fund records
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(215px,1fr))', marginBottom: 16 }}>
+              <div className="card kpi hover-lift">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="lbl">Members</span>
+                  <span className="ic grad-purple" style={{ color: '#fff' }}><i className="fa-solid fa-users" /></span>
+                </div>
+                <div className="val num">{members}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{active} active · {exiting} exiting</div>
+              </div>
+              <div className="card kpi hover-lift">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="lbl">Fund under management</span>
+                  <span className="ic grad-lime" style={{ color: '#20260a' }}><i className="fa-solid fa-vault" /></span>
+                </div>
+                <div className="val num">{KESc(totalFund)}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Avg {KES(avg)} / member</div>
+              </div>
+              <div className="card kpi hover-lift">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="lbl">2026 contributions</span>
+                  <span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-hand-holding-dollar" style={{ color: 'var(--lime2)' }} /></span>
+                </div>
+                <div className="val num">{KESc(contributions)}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Year to date</div>
+              </div>
+              <div className="card kpi hover-lift">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="lbl">Interest earned 2026</span>
+                  <span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-chart-line" style={{ color: 'var(--lime2)' }} /></span>
+                </div>
+                <div className="val num">{KESc(interest)}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Britam + Jubilee + prior years</div>
+              </div>
+            </div>
+
+            <div className="dash-grid" style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0,1.9fr) minmax(0,1fr)', marginBottom: 16 }}>
+              <div className="card card-pad hover-lift">
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Fund position (KES millions)</div>
+                <div className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>Interpolated between opening balance (Dec 2025) and current balance (Jul 2026).</div>
+                <AreaChart data={ramp} />
+                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Opening {KES(opening)} + contributions {KES(contributions)} + interest {KES(interest)} ={' '}
+                  <span style={{ color: 'var(--lime2)' }}>{KES(totalFund)}</span>.
+                </div>
+              </div>
+              <div className="card card-pad hover-lift">
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Money distribution</div>
+                {fundSegments.length ? <Donut segments={fundSegments} /> : <div className="muted" style={{ fontSize: 13 }}>No fund data loaded yet.</div>}
+              </div>
+            </div>
+
+            <div className="dash-grid" style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', marginBottom: 16 }}>
+              <div className="card card-pad hover-lift">
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Register health</div>
+                <div className="muted" style={{ fontSize: 12.5, marginBottom: 14 }}>Membership status and how much of the register is linked to a portal login.</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+                  <span className="badge badge-good"><i className="fa-solid fa-circle-check" /> {active} active</span>
+                  <span className="badge badge-warn"><i className="fa-solid fa-right-from-bracket" /> {exiting} exiting</span>
+                  <span className="badge badge-bad"><i className="fa-solid fa-user-slash" /> {exited} exited</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Members linked to a login</span>
+                  <span className="muted num">{linked}/{members} · {linkedPct}%</span>
+                </div>
+                <div className="bar"><span style={{ width: `${linkedPct}%` }} /></div>
+              </div>
+              <div className="card card-pad hover-lift">
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Quick actions</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {quickLinks.map((q) => (
+                    <Link key={q.href} href={q.href} className="hover-lift" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                      <span className="ic grad-purple" style={{ color: '#fff', width: 38, height: 38, borderRadius: 11, display: 'grid', placeItems: 'center', flexShrink: 0 }}><i className={`fa-solid ${q.icon}`} /></span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontWeight: 600, fontSize: 14 }}>{q.label}</span>
+                        <span className="muted" style={{ fontSize: 12 }}>{q.desc}</span>
+                      </span>
+                      <i className="fa-solid fa-chevron-right muted" style={{ fontSize: 12 }} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="card card-pad hover-lift">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Top balances</div>
+                <Link href="/staff/reports" className="btn btn-ghost btn-sm">Full register <i className="fa-solid fa-arrow-right" /></Link>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+                  <thead>
+                    <tr className="muted" style={{ textAlign: 'left' }}>
+                      <th style={{ padding: '8px 10px' }}>Reg. no.</th>
+                      <th style={{ padding: '8px 10px' }}>Name</th>
+                      <th style={{ padding: '8px 10px' }}>Status</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right' }}>Current balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top.map((r) => (
+                      <tr key={r.member_no} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td className="num" style={{ padding: '10px', fontWeight: 600 }}>{r.member_no}</td>
+                        <td style={{ padding: '10px' }}>{r.full_name}</td>
+                        <td style={{ padding: '10px' }}>
+                          <span className={`badge ${r.status === 'active' ? 'badge-good' : r.status === 'exiting' ? 'badge-warn' : 'badge-bad'}`}>{r.status}</span>
+                        </td>
+                        <td className="num" style={{ padding: '10px', textAlign: 'right', fontWeight: 700 }}>{KES(nn(r.current_balance))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
 
   // Fall back to the member's registered fund position when live holdings/
   // contributions have not been loaded yet, so the KPIs still show real money.
