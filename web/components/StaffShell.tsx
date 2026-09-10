@@ -42,7 +42,8 @@ export default function StaffShell({
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 8px' }}>
-          <div className="grad-purple" style={{ width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 900, fontSize: 18 }}>A</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/awi-logo.png" alt="AWIVEST" width={40} height={40} style={{ display: 'block' }} />
           <div><div style={{ fontWeight: 800, letterSpacing: '-.3px' }}>AWIVEST</div><div className="muted" style={{ fontSize: 11 }}>Staff Console</div></div>
         </div>
         <nav className="side-scroll">
@@ -114,10 +115,6 @@ export default function StaffShell({
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="badge badge-purple hide-sm">{roleLabel(profile?.role)}</span>
             <Avatar url={profile?.avatar_url} initials={initials} title={name} />
-            <Link href="/staff" aria-label="AWIVEST home" style={{ display: 'inline-flex', alignItems: 'center' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/awi-logo.png" alt="AWIVEST" width={34} height={34} style={{ display: 'block' }} />
-            </Link>
           </div>
         </header>
         <main className="view">{children}</main>

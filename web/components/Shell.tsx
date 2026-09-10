@@ -127,7 +127,8 @@ export default function Shell({
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 20px 8px" }}>
-          <div className="grad-lime" style={{ width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center", color: "#20260a", fontWeight: 900, fontSize: 18 }}>A</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/awi-logo.png" alt="AWIVEST" width={40} height={40} style={{ display: "block" }} />
           <div><div style={{ fontWeight: 800, letterSpacing: "-.3px" }}>AWIVEST</div><div className="muted" style={{ fontSize: 11 }}>Investor Portal</div></div>
         </div>
         <nav className="side-scroll">
@@ -257,10 +258,6 @@ export default function Shell({
                 </div>
               ) : null}
             </div>
-            <Link href="/dashboard" aria-label="AWIVEST home" style={{ display: "inline-flex", alignItems: "center" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/awi-logo.png" alt="AWIVEST" width={34} height={34} style={{ display: "block" }} />
-            </Link>
           </div>
         </header>
         <main className="view">{children}</main>
