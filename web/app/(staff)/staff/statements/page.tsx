@@ -14,9 +14,10 @@ export default async function StaffStatementsPage() {
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (!isStaff(me?.role)) redirect('/staff');
 
+  // Full rows so the browser can render each members statement inline in a drawer.
   const { data: rows } = await supabase
     .from('member_finances')
-    .select('member_no, full_name, status, refund_status, current_balance, contributions_2026, total_interest_2026, member_id')
+    .select('*')
     .order('member_no', { ascending: true });
 
   return <StaffStatementsBrowser rows={(rows ?? []) as any[]} />;
