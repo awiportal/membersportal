@@ -182,7 +182,7 @@ export default function Shell({
             {sideMenuOpen ? (
               <div
                 role="menu"
-                className="card"
+                className="menu-pop"
                 style={{ position: "absolute", left: 0, right: 0, bottom: "calc(100% + 8px)", zIndex: 90, padding: 9, boxShadow: "0 -18px 48px -18px rgba(0,0,0,0.6)" }}
               >
                 <AccountMenu close={() => setSideMenuOpen(false)} />
@@ -250,7 +250,7 @@ export default function Shell({
               {userMenuOpen ? (
                 <div
                   role="menu"
-                  className="card"
+                  className="menu-pop"
                   style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 248, zIndex: 90, padding: 9, boxShadow: "0 20px 48px -16px rgba(0,0,0,0.55)" }}
                 >
                   <AccountMenu close={() => setUserMenuOpen(false)} />
