@@ -190,11 +190,90 @@ html[data-theme="light"] .brand-logo--light{display:block}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 
-/* ---- Print: signed-agreement certificate download (browser print-to-PDF) ---- */
+/* ===== Investment statement sheet (member + staff, print-ready) =====
+   A single, professional statement layout: brand letterhead, a headline
+   summary band, a two-column ledger with right-aligned tabular figures, the
+   2026 monthly schedule, and an official footer. Uses theme variables so it
+   looks right on screen (light/dark); the print block below re-inks it for
+   clean, ink-friendly A4 output. */
+.statement-sheet{padding:30px 34px}
+.statement-sheet .stmt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;padding-bottom:18px;border-bottom:2px solid var(--purple2)}
+.stmt-brand{display:flex;align-items:center;gap:14px}
+.stmt-monogram{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:16px;letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,var(--purple2),var(--purple));box-shadow:0 10px 22px -12px rgba(126,38,116,0.9)}
+.stmt-brand-name{font-weight:800;font-size:18px;letter-spacing:.02em}
+.stmt-brand-tag{font-size:12px;color:var(--muted);margin-top:1px}
+.stmt-doc{text-align:right}
+.stmt-doc-title{font-weight:800;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--purple2)}
+.stmt-doc-meta{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+
+.stmt-identity{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:18px}
+.stmt-member-name{font-weight:800;font-size:22px;letter-spacing:-.4px}
+.stmt-member-meta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px;font-size:12.5px;color:var(--muted)}
+.stmt-member-meta strong{color:var(--text);font-weight:700}
+
+.stmt-summary{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:1px;margin-top:20px;border-radius:16px;overflow:hidden;border:1px solid var(--border);background:var(--border)}
+.stmt-summary>div{background:var(--surface2);padding:16px 18px}
+.stmt-summary-hero{background:linear-gradient(135deg,rgba(126,38,116,0.24),rgba(166,205,53,0.10))}
+.stmt-summary-lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted2);font-weight:700}
+.stmt-summary-val{font-size:27px;font-weight:800;letter-spacing:-.6px;margin-top:6px}
+.stmt-summary-note{font-size:11px;color:var(--muted);margin-top:2px}
+.stmt-summary-num{font-size:18px;font-weight:800;letter-spacing:-.3px;margin-top:8px}
+
+.stmt-cols{display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:26px}
+.stmt-h{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--purple2);margin:0 0 8px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.stmt-row{display:flex;justify-content:space-between;gap:16px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)}
+.stmt-row-k{font-size:13px;color:var(--muted)}
+.stmt-row-v{font-size:13px;font-weight:600;text-align:right;white-space:nowrap}
+.stmt-row-v.is-strong{font-size:15.5px;font-weight:800}
+.stmt-row--total{border-bottom:none;border-top:2px solid var(--border2);margin-top:4px;padding-top:11px}
+.stmt-row--total .stmt-row-k{color:var(--text);font-weight:700}
+.stmt-fine{font-size:11.5px;color:var(--muted2);margin-top:8px}
+
+.stmt-months{display:grid;gap:8px;grid-template-columns:repeat(6,1fr)}
+.stmt-month{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:9px 11px}
+.stmt-month.is-filled{border-color:rgba(166,205,53,0.40);background:rgba(166,205,53,0.09)}
+.stmt-month-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted2)}
+.stmt-month-val{font-size:12.5px;font-weight:700;margin-top:3px;text-align:right}
+
+.stmt-note-box{display:flex;gap:9px;align-items:flex-start;margin-top:20px;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6}
+.stmt-note-box i{color:var(--info);margin-top:2px}
+
+.stmt-foot{margin-top:24px;padding-top:14px;border-top:1px solid var(--border)}
+.stmt-foot-line{font-size:11px;color:var(--muted2);line-height:1.7;max-width:72ch}
+.stmt-foot-meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:10.5px;color:var(--muted2);font-variant-numeric:tabular-nums}
+
+@media (max-width:560px){
+  .statement-sheet{padding:20px}
+  .stmt-summary{grid-template-columns:1fr}
+  .stmt-months{grid-template-columns:repeat(3,1fr)}
+  .stmt-member-name{font-size:20px}
+}
+
+
+/* ---- Print: statement / signed-agreement download (browser print-to-PDF) ---- */
 @media print {
+  @page { size: A4; margin: 14mm; }
   .sidebar, .topbar, .scrim, .drawer, .drawer-scrim, .no-print { display: none !important; }
-  body { background: #ffffff !important; }
+  html, body { background: #ffffff !important; }
+  .view { padding: 0 !important; }
   .print-sheet { box-shadow: none !important; border: 1px solid #ddd !important; background: #ffffff !important; color: #111 !important; }
   .print-sheet .muted { color: #555 !important; }
   .print-sheet .badge { border-color: #ccc !important; }
+  /* Statement sheet: fill the page, re-ink brand accents so they print. */
+  .statement-sheet { border: none !important; padding: 0 !important; border-radius: 0 !important; }
+  .statement-sheet .stmt-head { border-bottom-color: #7e2674 !important; }
+  .statement-sheet .stmt-doc-title, .statement-sheet .stmt-h { color: #7e2674 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .statement-sheet .stmt-monogram { background: #7e2674 !important; color: #fff !important; box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .statement-sheet .stmt-summary { border-color: #dcdcdc !important; background: #dcdcdc !important; }
+  .statement-sheet .stmt-summary > div { background: #ffffff !important; }
+  .statement-sheet .stmt-summary-hero { background: #f5edf3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .statement-sheet .stmt-row, .statement-sheet .stmt-h { border-color: #e6e6e6 !important; }
+  .statement-sheet .stmt-row--total { border-top-color: #bcbcbc !important; }
+  .statement-sheet .stmt-member-name, .statement-sheet .stmt-summary-val, .statement-sheet .stmt-summary-num, .statement-sheet .stmt-brand-name { color: #111 !important; }
+  .statement-sheet .stmt-summary-lbl, .statement-sheet .stmt-summary-note, .statement-sheet .stmt-member-meta, .statement-sheet .stmt-brand-tag, .statement-sheet .stmt-doc-meta, .statement-sheet .stmt-row-k, .statement-sheet .stmt-fine, .statement-sheet .stmt-foot-line, .statement-sheet .stmt-foot-meta, .statement-sheet .stmt-month-lbl { color: #555 !important; }
+  .statement-sheet .stmt-member-meta strong { color: #111 !important; }
+  .statement-sheet .stmt-month { border-color: #e2e2e2 !important; background: #fafafa !important; }
+  .statement-sheet .stmt-month.is-filled { background: #f2f7e0 !important; border-color: #cfe08a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .statement-sheet .stmt-note-box { background: #f7f7f7 !important; border-color: #e6e6e6 !important; }
+  .statement-sheet .stmt-block, .statement-sheet .stmt-summary { break-inside: avoid; page-break-inside: avoid; }
 }
