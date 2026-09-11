@@ -12,6 +12,26 @@ export function isAdmin(role?: string | null) {
   return !!role && ADMIN_ROLES.includes(role);
 }
 
+// Chairlady is the single superadmin-tier governance role.
+export function isChairlady(role?: string | null) {
+  return role === 'superadmin';
+}
+
+// ---- Withdrawal workflow capabilities -------------------------------------
+// Segregated duties (confirmed with the office):
+//   review  (submitted -> under_review): any staff member (Secretary+),
+//   decide  (approve / reject):          Chairlady only,
+//   pay     (mark paid / disburse):      Admin or Chairlady.
+export function canReviewWithdrawal(role?: string | null) {
+  return isStaff(role);
+}
+export function canDecideWithdrawal(role?: string | null) {
+  return isChairlady(role);
+}
+export function canPayWithdrawal(role?: string | null) {
+  return isAdmin(role);
+}
+
 export function roleLabel(role?: string | null) {
   switch (role) {
     case 'superadmin':

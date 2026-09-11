@@ -11,6 +11,7 @@ export const NAV: NavGroup[] = [
   { group: 'Transactions', items: [
     { id: 'contributions', label: 'My Contributions', icon: 'fa-hand-holding-dollar' },
     { id: 'payments', label: 'Payments', icon: 'fa-money-bill-transfer' },
+    { id: 'withdrawals', label: 'Withdrawals', icon: 'fa-money-bill-wave' },
     { id: 'dividends', label: 'Dividends', icon: 'fa-coins' },
     { id: 'statements', label: 'Statements', icon: 'fa-file-invoice-dollar' },
     { id: 'opportunities', label: 'Opportunities', icon: 'fa-lightbulb' },
