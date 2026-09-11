@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isStaff } from '@/lib/roles';
 import DocumentManager from './DocumentManager';
 import { deleteDocument } from './actions';
+import ConfirmSubmit from '@/components/ConfirmSubmit';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,9 +91,9 @@ export default async function StaffDocuments() {
                 </div>
                 <form action={deleteDocument}>
                   <input type="hidden" name="id" value={d.id} />
-                  <button className="btn btn-ghost btn-sm" type="submit" style={{ color: '#ff8a8a' }}>
+                  <ConfirmSubmit className="btn btn-ghost btn-sm" style={{ color: '#ff8a8a' }} ariaLabel="Delete document" title="Delete this document?" body="This permanently removes the document and its file for members. This can’t be undone." confirmLabel="Delete document">
                     <i className="fa-solid fa-trash" />
-                  </button>
+                  </ConfirmSubmit>
                 </form>
               </div>
             ))}
