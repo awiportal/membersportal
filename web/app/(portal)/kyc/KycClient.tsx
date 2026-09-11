@@ -21,6 +21,20 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   rejected: { label: 'Needs attention', cls: 'badge-bad' },
 };
 
+// Uploads go straight to storage, so validate on the client before we ever hit
+// the network — otherwise an oversized phone photo or a wrong file type only
+// surfaces as a raw storage error. Mirrors the checklist's `accept` spec.
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB
+
+function fileMatchesAccept(file: File, accept: string): boolean {
+  const type = (file.type || '').toLowerCase();
+  if (!type) return true; // unknown MIME (some phones) — let staff review be the backstop
+  return accept
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .some((t) => (t.endsWith('/*') ? type.startsWith(t.slice(0, -1)) : type === t));
+}
+
 export default function KycClient({
   uid,
   memberType,
@@ -43,6 +57,19 @@ export default function KycClient({
 
   async function upload(docKey: string, file: File) {
     setMsg(null);
+    const accept = checklist.find((d) => d.key === docKey)?.accept ?? 'image/*,application/pdf';
+    if (!fileMatchesAccept(file, accept)) {
+      setMsg(
+        accept.includes('application/pdf')
+          ? 'Please upload an image (JPG or PNG) or a PDF file.'
+          : 'Please upload an image file (JPG or PNG).',
+      );
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setMsg('That file is larger than 15 MB. Please upload a smaller file — a clear phone photo is usually well under this.');
+      return;
+    }
     setBusy(docKey);
     try {
       const supabase = createClient();
