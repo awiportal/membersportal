@@ -54,17 +54,29 @@ export default async function DashboardPage() {
     const rows = (fundRows ?? []) as any[];
     const nn = (v: any) => Number(v || 0);
     const sum = (f: (r: any) => number) => rows.reduce((s, r) => s + f(r), 0);
-    const totalFund = sum((r) => nn(r.current_balance));
-    const opening = sum((r) => nn(r.opening_balance_2025));
+    // Reconcile exactly with Reports & distribution. The two non-member fund
+    // accounts (status 'account') belong in the fund TOTAL but not in member
+    // counts; members with status exiting/exited are dropped for "excl. exits".
+    const isAccount = (r: any) => r.status === 'account';
+    const isExit = (r: any) => r.status === 'exiting' || r.status === 'exited';
+    const memberRows = rows.filter((r) => !isAccount(r));
+    const totalFund = sum((r) => nn(r.current_balance)); // whole fund, incl. fund accounts
+    const totalExclExits = sum((r) => (isExit(r) ? 0 : nn(r.current_balance)));
     const contributions = sum((r) => nn(r.contributions_2026));
     const interest = sum((r) => nn(r.total_interest_2026));
-    const members = rows.length;
-    const active = rows.filter((r) => r.status === 'active').length;
-    const exiting = rows.filter((r) => r.status === 'exiting').length;
-    const exited = rows.filter((r) => r.status === 'exited').length;
-    const linked = rows.filter((r) => r.member_id).length;
-    const avg = members ? totalFund / members : 0;
-    const top = rows.slice(0, 6);
+    // Derive opening so the split always reconciles to the fund total, even when
+    // a withdrawal sits between contributions+interest and the current balance.
+    const opening = totalFund - contributions - interest;
+    const accountsTotal = rows.filter(isAccount).reduce((s, r) => s + nn(r.current_balance), 0);
+    const exitingBalance = sum((r) => (isExit(r) ? nn(r.current_balance) : 0));
+    const activeBalance = totalExclExits - accountsTotal; // active members only
+    const w = (v: number) => (totalFund ? (v / totalFund) * 100 : 0);
+    const members = memberRows.length;
+    const active = memberRows.filter((r) => r.status === 'active').length;
+    const exiting = memberRows.filter((r) => r.status === 'exiting').length;
+    const exited = memberRows.filter((r) => r.status === 'exited').length;
+    const linked = memberRows.filter((r) => r.member_id).length;
+    const top = memberRows.slice(0, 6);
     const linkedPct = members ? Math.round((linked / members) * 100) : 0;
     const dist = [
       { label: 'Opening balance (to 2025)', value: opening, color: '#7e2674' },
@@ -127,7 +139,7 @@ export default async function DashboardPage() {
                   <span className="ic grad-lime" style={{ color: '#20260a' }}><i className="fa-solid fa-vault" /></span>
                 </div>
                 <div className="val num">{KESc(totalFund)}</div>
-                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Avg {KES(avg)} / member</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Excl. exits {KESc(totalExclExits)}</div>
               </div>
               <div className="card kpi hover-lift">
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -144,6 +156,52 @@ export default async function DashboardPage() {
                 </div>
                 <div className="val num">{KESc(interest)}</div>
                 <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Britam + Jubilee + prior years</div>
+              </div>
+            </div>
+
+            <div className="card card-pad hover-lift" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>How Fund under management breaks down</div>
+                <Link href="/staff/reports" className="btn btn-ghost btn-sm">Reports &amp; distribution <i className="fa-solid fa-arrow-right" /></Link>
+              </div>
+              <div className="muted" style={{ fontSize: 12.5, margin: '4px 0 16px' }}>
+                The headline {KESc(totalFund)} is the whole fund. Removing the members who are leaving gives {KESc(totalExclExits)} &mdash; the same Total excl. exits figure on Reports &amp; distribution.
+              </div>
+
+              <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ width: `${w(activeBalance)}%`, background: 'var(--lime2)' }} />
+                <div style={{ width: `${w(accountsTotal)}%`, background: 'var(--purple2)' }} />
+                <div style={{ width: `${w(exitingBalance)}%`, background: '#f2b23b' }} />
+              </div>
+
+              <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', marginTop: 16 }}>
+                {[
+                  { c: 'var(--lime2)', l: `Active members (${active})`, v: activeBalance, note: 'Staying in the fund' },
+                  { c: 'var(--purple2)', l: 'Fund accounts', v: accountsTotal, note: 'Membership fees + welfare' },
+                  { c: '#f2b23b', l: `Exiting members (${exiting})`, v: exitingBalance, note: 'Refunded on exit &mdash; leaving' },
+                ].map((seg) => (
+                  <div key={seg.l} style={{ padding: 12, borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: seg.c, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12.5, fontWeight: 600 }}>{seg.l}</span>
+                    </div>
+                    <div className="num" style={{ fontWeight: 800, fontSize: 15, marginTop: 6 }}>{KES(seg.v)}</div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }} dangerouslySetInnerHTML={{ __html: seg.note }} />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <div style={{ flex: 1, minWidth: 210, padding: '12px 14px', borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <div className="muted" style={{ fontSize: 11.5 }}>Excl. exits (active members + fund accounts)</div>
+                  <div className="num" style={{ fontWeight: 800, fontSize: 17, marginTop: 3 }}>{KES(totalExclExits)}</div>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>Matches Reports &amp; distribution</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 210, padding: '12px 14px', borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--lime2)' }}>
+                  <div className="muted" style={{ fontSize: 11.5 }}>Fund under management (everything)</div>
+                  <div className="num" style={{ fontWeight: 800, fontSize: 17, marginTop: 3, color: 'var(--lime2)' }}>{KES(totalFund)}</div>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>Excl. exits + {KES(exitingBalance)} exiting</div>
+                </div>
               </div>
             </div>
 
