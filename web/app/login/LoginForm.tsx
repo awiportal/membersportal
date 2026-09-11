@@ -95,9 +95,14 @@ export default function LoginForm() {
       if (error) {
         const raw = (error.message || (error as any)?.error_description || '').toString();
         const lm = raw.toLowerCase();
+        const status = String((error as any)?.status ?? (error as any)?.code ?? '');
         let friendly: string;
-        if (lm.includes('already') || lm.includes('registered') || (lm.includes('user') && lm.includes('exists'))) {
+        if (status === '429' || lm.includes('rate limit') || lm.includes('too many') || (lm.includes('for') && lm.includes('seconds'))) {
+          friendly = 'Too many sign-up attempts in a short time. Please wait a minute or two, then try again. (If you are testing repeatedly this is the built-in email rate limit — setting up a custom SMTP sender in Supabase removes it.)';
+        } else if (lm.includes('already') || lm.includes('registered') || (lm.includes('user') && lm.includes('exists'))) {
           friendly = 'That email address is already in use. Please sign in instead, or use a different email.';
+        } else if (lm.includes('password')) {
+          friendly = raw || 'That password does not meet the requirements. Please use at least 8 characters.';
         } else if (
           lm.includes('database error') || lm.includes('saving new user') ||
           lm.includes('duplicate') || lm.includes('unique') || raw.trim() === ''
