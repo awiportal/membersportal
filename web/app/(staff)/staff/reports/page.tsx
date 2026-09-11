@@ -14,11 +14,13 @@ type Row = {
   status: string;
   opening_balance_2025: number;
   contributions_2026: number;
-  britam_interest_2026: number;
-  jubilee_interest_2026: number;
   total_interest_2026: number;
   current_balance: number;
   refund_on_exit: number;
+  britam_interest_life: number;
+  jubilee_mmf: number;
+  jubilee_fif: number;
+  jubilee_fif_apr_jul: number;
 };
 
 const n = (v: unknown) => Number(v || 0);
@@ -38,7 +40,7 @@ export default async function StaffReportsPage() {
   const { data: rowsData } = await supabase
     .from('member_finances')
     .select(
-      'member_no, full_name, status, opening_balance_2025, contributions_2026, britam_interest_2026, jubilee_interest_2026, total_interest_2026, current_balance, refund_on_exit'
+      'member_no, full_name, status, opening_balance_2025, contributions_2026, total_interest_2026, current_balance, refund_on_exit, britam_interest_life, jubilee_mmf, jubilee_fif, jubilee_fif_apr_jul'
     )
     .order('current_balance', { ascending: false });
   const rows = (rowsData ?? []) as Row[];
@@ -63,8 +65,8 @@ export default async function StaffReportsPage() {
   // even where a withdrawal (e.g. AWI-007) sits between contributions+interest
   // and the current balance.
   const opening = total - contributions - interest;
-  const britam = sum((r) => n(r.britam_interest_2026));
-  const jubilee = sum((r) => n(r.jubilee_interest_2026));
+  const britam = sum((r) => n(r.britam_interest_life));
+  const jubilee = sum((r) => n(r.jubilee_mmf) + n(r.jubilee_fif) + n(r.jubilee_fif_apr_jul));
   const withdrawals = sum((r) => n(r.refund_on_exit));
   const accounts = rows.filter(isAccount);
   const accountsTotal = accounts.reduce((s, r) => s + n(r.current_balance), 0);
