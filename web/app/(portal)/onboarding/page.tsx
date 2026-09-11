@@ -46,17 +46,19 @@ export default async function OnboardingPage({
   // otherwise the member sees the original typed-name agreements.
   const esignEnabled = pandadocConfigured() && !!(settings['pandadoc_onboarding_template_id'] || '').trim();
 
-  const agreements = await Promise.all(
-    ((agrDocs ?? []) as any[]).map(async (d) => ({
-      id: d.id,
-      title: d.title,
-      description: d.description,
-      required: d.required,
-      fileUrl: d.file_path
-        ? (await supabase.storage.from('agreements').createSignedUrl(d.file_path, 3600)).data?.signedUrl ?? ''
-        : '',
-    }))
-  );
+  // The 'agreements' bucket is PUBLIC (blank templates, no member data), so we
+  // build public URLs. createSignedUrl() needs a storage SELECT policy that the
+  // members do not have, so for them it returned no URL — leaving the "Read"
+  // link with an empty href that did nothing. getPublicUrl() always resolves.
+  const agreements = ((agrDocs ?? []) as any[]).map((d) => ({
+    id: d.id,
+    title: d.title,
+    description: d.description,
+    required: d.required,
+    fileUrl: d.file_path
+      ? supabase.storage.from('agreements').getPublicUrl(d.file_path).data.publicUrl
+      : '',
+  }));
 
   return (
     <OnboardingClient

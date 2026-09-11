@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { COUNTRIES } from '@/lib/countries';
 import { guardLogin } from './actions';
+import FancySelect from '@/components/FancySelect';
 
 type MemberType = 'individual' | 'group' | 'corporate' | 'other';
 
@@ -248,14 +249,18 @@ export default function LoginForm() {
                 {mode === 'register' && (
                   <>
                     <div className="field"><label>Account type</label>
-                      <div className="input-group"><i className="fa-solid fa-user-group" />
-                        <select className="input" value={memberType} onChange={(e) => setMemberType(e.target.value as MemberType)} required>
-                          <option value="individual">Individual</option>
-                          <option value="group">Group (Chama)</option>
-                          <option value="corporate">Corporate (Institution)</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
+                      <FancySelect
+                        ariaLabel="Account type"
+                        searchable={false}
+                        value={memberType}
+                        onChange={(v) => setMemberType(v as MemberType)}
+                        options={[
+                          { value: 'individual', label: 'Individual' },
+                          { value: 'group', label: 'Group (Chama)' },
+                          { value: 'corporate', label: 'Corporate (Institution)' },
+                          { value: 'other', label: 'Other' },
+                        ]}
+                      />
                     </div>
 
                     <div className="field"><label>{nameLabel}</label>
