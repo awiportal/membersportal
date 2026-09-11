@@ -73,7 +73,7 @@ export default function VerifyClient({ email }: { email: string }) {
         </div>
         <div style={{ fontWeight: 800, fontSize: 20, textAlign: 'center' }}>Enter your sign-in code</div>
         <p className="muted" style={{ fontSize: 13.5, textAlign: 'center', marginTop: 6, lineHeight: 1.5 }}>
-          For extra security, we’ve emailed a 6-digit code to <strong>{masked}</strong>. Enter it below to continue.
+          For extra security, we’ve emailed a sign-in code to <strong>{masked}</strong>. Enter it below to continue.
         </p>
 
         {msg ? (
@@ -94,14 +94,14 @@ export default function VerifyClient({ email }: { email: string }) {
         ) : null}
 
         <div className="field" style={{ marginTop: 14 }}>
-          <label>6-digit code</label>
+          <label>Sign-in code</label>
           <input
             className="input"
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="123456"
+            placeholder="Enter code"
             style={{ letterSpacing: 6, fontSize: 20, textAlign: 'center' }}
           />
         </div>
