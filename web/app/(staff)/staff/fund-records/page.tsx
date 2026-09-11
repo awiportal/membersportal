@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isStaff } from '@/lib/roles';
 import { importFundIdentifiers } from './actions';
+import RegisterStatus from './RegisterStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,16 @@ export default async function FundRecordsPage({
   const withId = list.filter((r) => r.national_id).length;
   const withPhone = list.filter((r) => r.phone).length;
   const linked = list.filter((r) => r.member_id).length;
+
+  // Mask identifiers HERE, on the server — the client table receives only the
+  // masked strings, so raw National ID / phone never reach the browser.
+  const safeRows = list.map((r) => ({
+    member_no: String(r.member_no),
+    full_name: String(r.full_name || ''),
+    nationalId: mask(r.national_id),
+    phone: mask(r.phone),
+    linked: !!r.member_id,
+  }));
 
   const updated = Number(searchParams?.updated || 0);
   const failed = Number(searchParams?.failed || 0);
@@ -101,44 +112,8 @@ export default async function FundRecordsPage({
         </div>
       </form>
 
-      {/* Status table */}
-      <div className="card card-pad">
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Register status</div>
-        {list.length === 0 ? (
-          <div className="muted" style={{ fontSize: 13 }}>No fund records loaded yet.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr className="muted" style={{ textAlign: 'left', fontSize: 11.5 }}>
-                  <th style={{ padding: '8px 10px' }}>Reg. no.</th>
-                  <th style={{ padding: '8px 10px' }}>Name</th>
-                  <th style={{ padding: '8px 10px' }}>National ID</th>
-                  <th style={{ padding: '8px 10px' }}>Phone</th>
-                  <th style={{ padding: '8px 10px' }}>Link</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((r) => (
-                  <tr key={r.member_no} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '9px 10px' }} className="num">{r.member_no}</td>
-                    <td style={{ padding: '9px 10px', fontWeight: 600 }}>{r.full_name}</td>
-                    <td style={{ padding: '9px 10px' }} className="num">{mask(r.national_id)}</td>
-                    <td style={{ padding: '9px 10px' }} className="num">{mask(r.phone)}</td>
-                    <td style={{ padding: '9px 10px' }}>
-                      {r.member_id ? (
-                        <span className="badge badge-good" style={{ fontSize: 10.5 }}><i className="fa-solid fa-link" /> Linked</span>
-                      ) : (
-                        <span className="badge badge-warn" style={{ fontSize: 10.5 }}>Unlinked</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Status table (search + unlinked filter; identifiers masked server-side) */}
+      <RegisterStatus rows={safeRows} />
     </div>
   );
 }
