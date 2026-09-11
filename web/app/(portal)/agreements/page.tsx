@@ -72,7 +72,10 @@ export default async function AgreementsPage() {
         ) : (
           docs.map((d) => {
             const acc = accByDoc[d.id];
-            const publicUrl = supabase.storage.from('agreements').getPublicUrl(d.file_path).data.publicUrl;
+            // The 'agreements' bucket is private, so the pre-signed URL minted
+            // above is the only way to open an unsigned document — a public URL
+            // would 404 against a private bucket.
+            const viewUrl = signedUrlByDoc[d.id];
             return (
               <div key={d.id} className="card card-pad">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
@@ -103,8 +106,8 @@ export default async function AgreementsPage() {
                         <i className="fa-solid fa-download" /> Download
                       </a>
                     </>
-                  ) : publicUrl ? (
-                    <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
+                  ) : viewUrl ? (
+                    <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
                       <i className="fa-solid fa-arrow-up-right-from-square" /> View document
                     </a>
                   ) : null}
