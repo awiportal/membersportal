@@ -46,12 +46,14 @@ export async function approveMember(formData: FormData) {
     .from('profiles')
     .update({
       status: 'active',
-      kyc_status: 'approved',
       joined_at: p?.joined_at ?? new Date().toISOString(),
     })
     .eq('id', id);
 
-  await supabase.from('kyc_documents').update({ status: 'approved' }).eq('member_id', id);
+  // KYC is reviewed separately on the /staff/kyc screen (per-document Approve +
+  // Mark verified). Activating the membership here must NOT touch the member's
+  // KYC documents or KYC status — account approval and KYC approval are
+  // independent steps.
   await supabase.from('notifications').insert({
     member_id: id,
     type: 'approval',
