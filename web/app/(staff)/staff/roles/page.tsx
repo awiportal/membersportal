@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { isStaff, isAdmin, roleLabel } from '@/lib/roles';
 import { setRole } from './actions';
+import InvestorRoleTable from './InvestorRoleTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,11 @@ export default async function StaffRolesPage({ searchParams }: { searchParams: {
           <i className="fa-solid fa-circle-check" style={{ color: 'var(--lime2)' }} /> Role updated.
         </div>
       )}
+      {searchParams?.denied && (
+        <div className="card card-pad" style={{ marginTop: 16 }}>
+          <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--warn, #f2b23b)' }} /> That role change was blocked. Only an Admin or the Chairlady can change roles.
+        </div>
+      )}
 
       <div className="card card-pad" style={{ marginTop: 18 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>Current staff ({staff.length})</div>
@@ -90,10 +96,10 @@ export default async function StaffRolesPage({ searchParams }: { searchParams: {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
               <thead>
                 <tr className="muted" style={{ textAlign: 'left', fontSize: 12 }}>
-                  <th style={{ padding: '8px 10px' }}>Name</th>
-                  <th style={{ padding: '8px 10px' }}>ID</th>
-                  <th style={{ padding: '8px 10px' }}>Role</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>Change role</th>
+                  <th scope="col" style={{ padding: '8px 10px' }}>Name</th>
+                  <th scope="col" style={{ padding: '8px 10px' }}>ID</th>
+                  <th scope="col" style={{ padding: '8px 10px' }}>Role</th>
+                  <th scope="col" style={{ padding: '8px 10px', textAlign: 'right' }}>Change role</th>
                 </tr>
               </thead>
               <tbody>
@@ -118,38 +124,7 @@ export default async function StaffRolesPage({ searchParams }: { searchParams: {
         )}
       </div>
 
-      <div className="card card-pad" style={{ marginTop: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>All investors ({members.length})</div>
-        <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-          Promote any investor to Secretary or Admin. Changes take effect immediately and are audited.
-        </div>
-        {members.length === 0 ? (
-          <div className="muted" style={{ fontSize: 13 }}>No investor accounts yet.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
-              <thead>
-                <tr className="muted" style={{ textAlign: 'left', fontSize: 12 }}>
-                  <th style={{ padding: '8px 10px' }}>Name</th>
-                  <th style={{ padding: '8px 10px' }}>ID</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>Assign role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((p) => (
-                  <tr key={p.id} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '9px 10px', fontWeight: 600 }}>{p.full_name || p.email || '—'}</td>
-                    <td style={{ padding: '9px 10px' }} className="num muted">{p.investor_id || '—'}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'right' }}>
-                      <RoleSelect id={p.id} role={p.role || 'member'} self={p.id === me?.id} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <InvestorRoleTable members={members} />
     </div>
   );
 }
