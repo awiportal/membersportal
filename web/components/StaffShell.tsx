@@ -70,6 +70,9 @@ export default function StaffShell({
           <Link href="/staff/welfare" className={`nav-item ${pathname.startsWith('/staff/welfare') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-hand-holding-heart" /><span>Welfare claims</span>
           </Link>
+          <Link href="/staff/withdrawals" className={`nav-item ${pathname.startsWith('/staff/withdrawals') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-money-bill-wave" /><span>Withdrawals</span>
+          </Link>
           <Link href="/staff/fund-records" className={`nav-item ${pathname.startsWith('/staff/fund-records') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-file-import" /><span>Fund records</span>
           </Link>
