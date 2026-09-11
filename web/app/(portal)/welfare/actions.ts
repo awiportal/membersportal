@@ -35,5 +35,11 @@ export async function fileClaim(formData: FormData) {
   const amount = amountRaw ? Number(amountRaw.replace(/[^0-9.]/g, '')) || null : null;
 
   await supabase.from('welfare_claims').insert({ member_id: uid, claim_type, amount, status: 'pending' });
+  await supabase.from('notifications').insert({
+    member_id: uid,
+    type: 'welfare',
+    title: 'Welfare claim received',
+    body: `We've received your ${claim_type} welfare claim${amount ? ` for KES ${Number(amount).toLocaleString()}` : ''}. The AWIVEST office will review it and update you here.`,
+  });
   revalidatePath('/welfare');
 }

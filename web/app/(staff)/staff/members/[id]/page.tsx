@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { roleLabel, statusLabel } from '@/lib/roles';
+import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
 import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord } from '../../actions';
@@ -47,6 +48,17 @@ export default async function MemberDetail({ params }: { params: { id: string } 
     supabase.from('member_finances').select('member_no, full_name, current_balance').eq('member_id', id).maybeSingle(),
     supabase.from('member_finances').select('member_no, full_name, current_balance').is('member_id', null).order('member_no', { ascending: true }),
   ]);
+
+  // Financial activity for this member — money in (contributions) and money out
+  // (dividends declared, welfare claims). Staff read every row via RLS.
+  const [{ data: contribRows }, { data: dividendRows }, { data: welfareRows }] = await Promise.all([
+    supabase.from('contributions').select('*').eq('member_id', id).order('created_at', { ascending: false }).limit(10),
+    supabase.from('dividends').select('*').eq('member_id', id).order('declared_at', { ascending: false }).limit(10),
+    supabase.from('welfare_claims').select('*').eq('member_id', id).order('filed_at', { ascending: false }).limit(10),
+  ]);
+  const contributions = (contribRows ?? []) as any[];
+  const dividendsList = (dividendRows ?? []) as any[];
+  const welfareClaims = (welfareRows ?? []) as any[];
 
   const docsWithUrls = await Promise.all(
     ((docs ?? []) as any[]).map(async (d) => {
@@ -164,6 +176,61 @@ export default async function MemberDetail({ params }: { params: { id: string } 
         ) : (
           <div className="muted" style={{ fontSize: 12.5 }}>Every register record is already linked to a login.</div>
         )}
+      </div>
+
+      {/* Financial activity — money in (contributions) and out (dividends, welfare). */}
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Financial activity</div>
+        <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+          Contributions, dividends and welfare claims recorded for this member. Withdrawals will appear here once recorded.
+        </div>
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Contributions</div>
+            {contributions.length === 0 ? (
+              <div className="muted" style={{ fontSize: 12.5 }}>None recorded.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {contributions.map((c) => (
+                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
+                    <span className="muted">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : ''} · {c.method}{c.status && c.status !== 'confirmed' ? ` · ${c.status}` : ''}</span>
+                    <span style={{ fontWeight: 600 }}>{KES(Number(c.amount || 0))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Dividends</div>
+            {dividendsList.length === 0 ? (
+              <div className="muted" style={{ fontSize: 12.5 }}>None recorded.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {dividendsList.map((d) => (
+                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
+                    <span className="muted">{d.source}{d.period ? ` · ${d.period}` : ''} · {d.status}</span>
+                    <span style={{ fontWeight: 600 }}>{KES(Number(d.amount || 0))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Welfare claims</div>
+            {welfareClaims.length === 0 ? (
+              <div className="muted" style={{ fontSize: 12.5 }}>None filed.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {welfareClaims.map((w) => (
+                  <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
+                    <span className="muted">{w.filed_at ? new Date(w.filed_at).toLocaleDateString('en-GB') : ''} · {w.claim_type} · {w.status}</span>
+                    <span style={{ fontWeight: 600 }}>{w.amount ? KES(Number(w.amount)) : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
