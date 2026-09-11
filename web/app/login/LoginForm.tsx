@@ -93,26 +93,49 @@ export default function LoginForm() {
         },
       });
       if (error) {
-        const raw = (error.message || (error as any)?.error_description || '').toString();
+        const rawMsg = (error?.message ?? '').toString();
+        const rawDesc = ((error as any)?.error_description ?? '').toString();
+        let raw = (rawMsg || rawDesc).trim();
+        // Some auth errors arrive with an empty or non-human body — e.g. the
+        // Supabase auth client stringifies an empty error object to the literal
+        // "{}". Never surface those raw; treat them as "no usable message".
+        if (
+          raw === '{}' || raw === '[]' || raw === 'null' || raw === 'undefined' ||
+          raw === '[object Object]' || /^[{[]/.test(raw)
+        ) {
+          raw = '';
+        }
         const lm = raw.toLowerCase();
-        const status = String((error as any)?.status ?? (error as any)?.code ?? '');
+        const codeStr = String((error as any)?.code ?? '').trim();
+        const statusStr = String((error as any)?.status ?? '').trim();
+        const refRaw = codeStr && codeStr \!== 'undefined' && codeStr \!== 'null' ? codeStr : statusStr;
+        const ref = refRaw && refRaw \!== 'undefined' && refRaw \!== 'null' ? ` (reference: ${refRaw})` : '';
         let friendly: string;
-        if (status === '429' || lm.includes('rate limit') || lm.includes('too many') || (lm.includes('for') && lm.includes('seconds'))) {
-          friendly = 'Too many sign-up attempts in a short time. Please wait a minute or two, then try again. (If you are testing repeatedly this is the built-in email rate limit — setting up a custom SMTP sender in Supabase removes it.)';
+        if (
+          statusStr === '429' || codeStr === 'over_email_send_rate_limit' ||
+          lm.includes('rate limit') || lm.includes('email rate') || lm.includes('too many') ||
+          (lm.includes('for') && lm.includes('seconds'))
+        ) {
+          friendly = 'Too many sign-up attempts in a short time. Please wait a minute or two, then try again. (If you are testing repeatedly this is Supabase\u2019s built-in email rate limit \u2014 adding a custom SMTP sender removes it.)';
         } else if (lm.includes('already') || lm.includes('registered') || (lm.includes('user') && lm.includes('exists'))) {
           friendly = 'That email address is already in use. Please sign in instead, or use a different email.';
         } else if (lm.includes('password')) {
           friendly = raw || 'That password does not meet the requirements. Please use at least 8 characters.';
         } else if (
           lm.includes('database error') || lm.includes('saving new user') ||
-          lm.includes('duplicate') || lm.includes('unique') || raw.trim() === ''
+          lm.includes('duplicate') || lm.includes('unique')
         ) {
           // Most common cause: the phone number (or National ID) is already
-          // registered to another member — the database allows each only once.
+          // registered to another member \u2014 the database allows each only once.
           friendly =
             'We could not create this account. This usually means the phone number is already registered to another member. Please use a different phone number (and a fresh email if you have signed up before).';
+        } else if (raw === '') {
+          // Empty / opaque error from the auth layer \u2014 most often the built-in
+          // email rate limit, or a transient network hiccup.
+          friendly =
+            'We could not create your account just now. This is usually a temporary limit on sign-up emails \u2014 please wait a minute and try again.' + ref;
         } else {
-          friendly = raw || 'We could not create your account just now. Please check your details and try again.';
+          friendly = raw + ref;
         }
         setMsg({ t: friendly, kind: 'bad' });
       } else if (data.session) {
