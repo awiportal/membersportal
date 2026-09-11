@@ -63,6 +63,9 @@ export default function StaffShell({
           <Link href="/staff/kyc" className={`nav-item ${pathname.startsWith('/staff/kyc') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-id-card-clip" /><span>KYC review</span>
           </Link>
+          <Link href="/staff/welfare" className={`nav-item ${pathname.startsWith('/staff/welfare') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-hand-holding-heart" /><span>Welfare claims</span>
+          </Link>
           <Link href="/staff/fund-records" className={`nav-item ${pathname.startsWith('/staff/fund-records') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-file-import" /><span>Fund records</span>
           </Link>
