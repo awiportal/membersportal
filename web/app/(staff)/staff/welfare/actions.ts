@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isStaff } from '@/lib/roles';
+import { sendMemberEmail } from '@/lib/email';
 
 async function requireStaff() {
   const supabase = createClient();
@@ -60,6 +61,17 @@ async function decide(
     action: `welfare_${status}`,
     meta: { claim_id: claim.id, claim_type: claim.claim_type, amount: claim.amount },
   });
+
+  // Email the member on approve/pay (best-effort; in-app notification already sent).
+  if (status === 'approved' || status === 'paid') {
+    const { data: prof } = await supabase.from('profiles').select('email, full_name').eq('id', claim.member_id).single();
+    await sendMemberEmail({
+      to: prof?.email,
+      subject: status === 'paid' ? 'AWIVEST welfare funds sent' : 'AWIVEST welfare claim approved',
+      heading: title,
+      bodyHtml: `<p style="margin:0 0 12px;">Hi ${prof?.full_name || 'there'},</p><p style="margin:0;">${body}</p>`,
+    });
+  }
 
   revalidatePath('/staff/welfare');
 }
