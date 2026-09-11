@@ -499,6 +499,21 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
 }
 
 /* ---------------------------- Step 2: Documents ---------------------------- */
+
+// Uploads go straight to storage, so validate on the client before the network
+// call — otherwise an oversized phone photo or a wrong file type only surfaces
+// as a raw storage error. Limit matches the copy shown on this step (25 MB).
+const MAX_KYC_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+function kycFileMatchesAccept(file: File, accept: string): boolean {
+  const type = (file.type || '').toLowerCase();
+  if (!type) return true; // unknown MIME (some phones) — staff review is the backstop
+  return accept
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .some((t) => (t.endsWith('/*') ? type.startsWith(t.slice(0, -1)) : type === t));
+}
+
 function DocumentsStep({ uid, docs, err, memberType }: { uid: string; docs: Doc[]; err?: string; memberType: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -510,6 +525,19 @@ function DocumentsStep({ uid, docs, err, memberType }: { uid: string; docs: Doc[
 
   async function handleFile(docKey: string, file: File) {
     setMsg(null);
+    const accept = docTypes.find((d) => d.key === docKey)?.accept ?? 'image/*,application/pdf';
+    if (!kycFileMatchesAccept(file, accept)) {
+      setMsg(
+        accept.includes('application/pdf')
+          ? 'Please upload an image (JPG or PNG) or a PDF file.'
+          : 'Please upload an image file (JPG or PNG).',
+      );
+      return;
+    }
+    if (file.size > MAX_KYC_UPLOAD_BYTES) {
+      setMsg('That file is larger than 25 MB. Please upload a smaller file — a clear phone photo is usually well under this.');
+      return;
+    }
     setBusy(docKey);
     try {
       const supabase = createClient();
