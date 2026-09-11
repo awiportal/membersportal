@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, describeServiceKey } from '@/lib/supabase/admin';
 import { isStaff } from '@/lib/roles';
 
+const ALLOWED_AGREEMENT_EXT = new Set(['pdf', 'doc', 'docx']);
+const MAX_AGREEMENT_BYTES = 15 * 1024 * 1024; // 15 MB
+
 /**
  * Confirm the caller is a signed-in staff member, then hand back an admin
  * (service-role) client for the privileged write. The admin client bypasses
@@ -24,18 +27,15 @@ async function requireStaffAdmin() {
 export async function addAgreement(
   formData: FormData
 ): Promise<{ ok?: true; error?: string }> {
-  // 1) Confirm signed-in staff. Precise messages so the real state is visible.
+  // 1) Confirm signed-in staff.
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: '[v3] You appear to be signed out. Please sign in again and retry.' };
+  if (!user) return { error: 'Your session has expired. Please sign in again and retry.' };
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  const role = me?.role ? String(me.role) : 'none';
   if (!isStaff(me?.role)) {
-    return {
-      error: `[v3] Your account role is "${role}", which is not a staff role — the system will not let you add agreements. Set this account to a staff role (e.g. superadmin) first.`,
-    };
+    return { error: 'You need a staff role to add agreements.' };
   }
 
   // 2) Validate input.
@@ -43,13 +43,19 @@ export async function addAgreement(
   const description = String(formData.get('description') || '').trim() || null;
   const required = String(formData.get('required') || '') === '1';
   const file = formData.get('file');
-  if (!title) return { error: '[v3] Please give the agreement a title.' };
-  if (!(file instanceof File) || file.size === 0) return { error: '[v3] Please choose a file to upload.' };
+  if (!title) return { error: 'Please give the agreement a title.' };
+  if (!(file instanceof File) || file.size === 0) return { error: 'Please choose a file to upload.' };
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!ALLOWED_AGREEMENT_EXT.has(ext)) return { error: 'Unsupported file type. Please upload a PDF or Word document.' };
+  if (file.size > MAX_AGREEMENT_BYTES) return { error: 'That file is too large. The maximum size is 15 MB.' };
 
   // 3) Confirm the server actually has a real service-role key. A wrong key
   //    (e.g. the anon key) is the usual cause of a lingering RLS error here.
   const keyInfo = describeServiceKey();
-  if (!keyInfo.ok) return { error: `[v3] ${keyInfo.message}` };
+  if (!keyInfo.ok) {
+    console.error('addAgreement: service-role key not configured:', keyInfo.message);
+    return { error: 'Uploads are not configured on the server yet. Please contact the administrator.' };
+  }
 
   // 4) Privileged write via the admin client (bypasses RLS).
   const admin = createAdminClient();
@@ -59,14 +65,16 @@ export async function addAgreement(
     /* bucket already exists — ignore */
   }
 
-  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
   const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   const { error: upErr } = await admin.storage
     .from('agreements')
     .upload(path, bytes, { upsert: true, contentType: file.type || 'application/octet-stream' });
-  if (upErr) return { error: `[v3] Could not upload the file (key role: ${keyInfo.role}): ${upErr.message}` };
+  if (upErr) {
+    console.error('addAgreement: upload failed:', upErr.message);
+    return { error: 'Could not upload the file. Please try again.' };
+  }
 
   const { error: insErr } = await admin.from('agreement_documents').insert({
     title,
@@ -77,7 +85,10 @@ export async function addAgreement(
     required,
     created_by: user.id,
   });
-  if (insErr) return { error: `[v3] Could not save the agreement (key role: ${keyInfo.role}): ${insErr.message}` };
+  if (insErr) {
+    console.error('addAgreement: insert failed:', insErr.message);
+    return { error: 'Could not save the agreement. Please try again.' };
+  }
 
   revalidatePath('/staff/agreements');
   revalidatePath('/onboarding');
