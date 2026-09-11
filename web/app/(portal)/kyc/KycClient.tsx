@@ -57,6 +57,11 @@ export default function KycClient({
 
   async function upload(docKey: string, file: File) {
     setMsg(null);
+    const existingDoc = byType.get(docKey);
+    if (existingDoc?.status === 'approved') {
+      setMsg('This document has been approved and is locked. Please contact the AWIVEST team if it needs to be changed.');
+      return;
+    }
     const accept = checklist.find((d) => d.key === docKey)?.accept ?? 'image/*,application/pdf';
     if (!fileMatchesAccept(file, accept)) {
       setMsg(
@@ -158,6 +163,7 @@ export default function KycClient({
           {checklist.map((doc) => {
             const existing = byType.get(doc.key);
             const st = existing ? STATUS_META[existing.status] ?? STATUS_META.pending : null;
+            const locked = existing?.status === 'approved';
             return (
               <div
                 key={doc.key}
@@ -223,27 +229,33 @@ export default function KycClient({
                     )}
                   </button>
                 )}
-                <label className="btn btn-lime btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
-                  {busy === doc.key ? (
-                    'Uploading…'
-                  ) : (
-                    <>
-                      <i className="fa-solid fa-upload" /> {existing ? 'Replace' : 'Upload'}
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept={doc.accept}
-                    style={{ display: 'none' }}
-                    disabled={busy === doc.key}
-                    onChange={(e) => {
-                      const input = e.currentTarget;
-                      const file = input.files?.[0];
-                      if (file) upload(doc.key, file);
-                      input.value = '';
-                    }}
-                  />
-                </label>
+                {locked ? (
+                  <span className="badge" style={{ fontSize: 11, opacity: 0.75, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <i className="fa-solid fa-lock" /> Locked
+                  </span>
+                ) : (
+                  <label className="btn btn-lime btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
+                    {busy === doc.key ? (
+                      'Uploading…'
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-upload" /> {existing ? 'Replace' : 'Upload'}
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept={doc.accept}
+                      style={{ display: 'none' }}
+                      disabled={busy === doc.key}
+                      onChange={(e) => {
+                        const input = e.currentTarget;
+                        const file = input.files?.[0];
+                        if (file) upload(doc.key, file);
+                        input.value = '';
+                      }}
+                    />
+                  </label>
+                )}
               </div>
             );
           })}
