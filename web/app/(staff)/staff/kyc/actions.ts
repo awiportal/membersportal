@@ -89,3 +89,73 @@ export async function setMemberKycStatus(formData: FormData): Promise<{ ok?: tru
   revalidatePath('/kyc');
   return { ok: true };
 }
+
+const KYC_BUCKET = 'kyc';
+const SAFE_KYC_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif', 'bmp', 'pdf']);
+
+/**
+ * Staff-only: mint a short-lived signed upload URL so a chair/admin can upload a
+ * KYC file ON BEHALF of a member. The file goes browser->Supabase directly (never
+ * through this server action), which sidesteps serverless body limits and needs
+ * no member-scoped storage RLS -- the signed URL authorises that one write.
+ */
+export async function createKycUploadUrl(
+  formData: FormData,
+): Promise<{ path?: string; token?: string; error?: string }> {
+  const gate = await requireStaff();
+  if ('error' in gate) return { error: gate.error };
+
+  const memberId = String(formData.get('member_id') || '').trim();
+  const docType = String(formData.get('doc_type') || '').trim();
+  const rawExt = String(formData.get('ext') || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (memberId === '' || docType === '') return { error: 'Missing member or document type.' };
+  const ext = SAFE_KYC_EXT.has(rawExt) ? rawExt : 'dat';
+
+  const admin = createAdminClient();
+  const path = `${memberId}/${docType}-${Date.now()}.${ext}`;
+  const { data, error } = await admin.storage.from(KYC_BUCKET).createSignedUploadUrl(path);
+  if (error || data?.token == null) {
+    return { error: `Could not start the upload: ${error?.message || 'no token returned'}` };
+  }
+  return { path, token: data.token };
+}
+
+/**
+ * Staff-only: after the on-behalf file lands in storage, record it. Mirrors the
+ * member flow -- the old row for this doc_type is replaced and the member returns
+ * to pending. This only ever downgrades; it can never approve a member.
+ */
+export async function recordKycDocOnBehalf(
+  formData: FormData,
+): Promise<{ ok?: true; error?: string }> {
+  const gate = await requireStaff();
+  if ('error' in gate) return { error: gate.error };
+
+  const memberId = String(formData.get('member_id') || '').trim();
+  const docType = String(formData.get('doc_type') || '').trim();
+  const filePath = String(formData.get('file_path') || '').trim();
+  if (memberId === '' || docType === '' || filePath === '') return { error: 'Missing upload details.' };
+  // The stored object must live in THIS member's own folder.
+  if (filePath.startsWith(memberId + '/') === false) return { error: 'Upload path did not match the member.' };
+
+  const admin = createAdminClient();
+  await admin.from('kyc_documents').delete().eq('member_id', memberId).eq('doc_type', docType);
+  const { error: insErr } = await admin
+    .from('kyc_documents')
+    .insert({ member_id: memberId, doc_type: docType, file_path: filePath, status: 'pending' });
+  if (insErr) return { error: `Could not save the document: ${insErr.message}` };
+
+  // A freshly uploaded file is unreviewed, so the member goes back to pending.
+  await admin.from('profiles').update({ kyc_status: 'pending' }).eq('id', memberId);
+
+  await admin.from('audit_log').insert({
+    actor_id: gate.userId,
+    member_id: memberId,
+    action: 'kyc_doc_uploaded_on_behalf',
+    meta: { doc_type: docType, file_path: filePath },
+  });
+
+  revalidatePath('/staff/kyc');
+  revalidatePath('/kyc');
+  return { ok: true };
+}

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { docsFor } from '@/lib/onboarding';
-import { getKycDocUrl, reviewKycDoc, setMemberKycStatus } from './actions';
+import { createClient } from '@/lib/supabase/client';
+import { getKycDocUrl, reviewKycDoc, setMemberKycStatus, createKycUploadUrl, recordKycDocOnBehalf } from './actions';
 
 type Doc = {
   id: string;
@@ -160,6 +161,47 @@ export default function KycReview({ groups }: { groups: Group[] }) {
     }
   }
 
+  async function uploadOnBehalf(memberId: string, docKey: string, file: File) {
+    const key = 'up:' + memberId + ':' + docKey;
+    setBusy(key);
+    setMsg(null);
+    try {
+      const MAX = 25 * 1024 * 1024;
+      if (file.size > MAX) {
+        setMsg('That file is larger than 25 MB. Please choose a smaller file.');
+        return;
+      }
+      const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
+      const fd = new FormData();
+      fd.set('member_id', memberId);
+      fd.set('doc_type', docKey);
+      fd.set('ext', ext);
+      const signed = await createKycUploadUrl(fd);
+      if (signed?.error || signed?.path == null || signed?.token == null) {
+        setMsg(signed?.error || 'Could not start the upload. Please try again.');
+        return;
+      }
+      const supabase = createClient();
+      const up = await supabase.storage.from('kyc').uploadToSignedUrl(signed.path, signed.token, file);
+      if (up.error) {
+        setMsg('The file could not be uploaded. Please try again.');
+        return;
+      }
+      const rec = new FormData();
+      rec.set('member_id', memberId);
+      rec.set('doc_type', docKey);
+      rec.set('file_path', signed.path);
+      const res = await recordKycDocOnBehalf(rec);
+      if (res?.error) {
+        setMsg(res.error);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const TILES: { id: Filter; label: string; value: number; icon: string; accent: string }[] = [
     { id: 'pending', label: 'Awaiting review', value: counts.awaiting, icon: 'fa-hourglass-half', accent: 'var(--lime2)' },
     { id: 'approved', label: 'Verified', value: counts.approved, icon: 'fa-circle-check', accent: 'var(--good)' },
@@ -241,7 +283,11 @@ export default function KycReview({ groups }: { groups: Group[] }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {visible.map(({ member, docs }) => {
-            const labels = new Map(docsFor(member.member_type).map((d) => [d.key, d.label]));
+            const checklist = docsFor(member.member_type);
+            const labels = new Map(checklist.map((d) => [d.key, d.label]));
+            const acceptByKey = new Map(checklist.map((d) => [d.key, d.accept]));
+            const present = new Set(docs.map((d) => d.doc_type));
+            const missing = checklist.filter((c) => present.has(c.key) === false);
             const status = member.kyc_status || 'pending';
             const approved = docs.filter((d) => d.status === 'approved').length;
             const pct = docs.length ? Math.round((approved / docs.length) * 100) : 0;
@@ -306,6 +352,27 @@ export default function KycReview({ groups }: { groups: Group[] }) {
                           >
                             <i className="fa-solid fa-xmark" /> Reject
                           </button>
+                          <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', margin: 0 }} title="Upload a replacement file on behalf of this member">
+                            {busy === 'up:' + member.id + ':' + d.doc_type ? (
+                              'Uploading…'
+                            ) : (
+                              <>
+                                <i className="fa-solid fa-arrows-rotate" /> Replace
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept={acceptByKey.get(d.doc_type) || 'image/*,application/pdf'}
+                              style={{ display: 'none' }}
+                              disabled={busy === 'up:' + member.id + ':' + d.doc_type}
+                              onChange={(e) => {
+                                const input = e.currentTarget;
+                                const f = input.files?.[0];
+                                if (f) uploadOnBehalf(member.id, d.doc_type, f);
+                                input.value = '';
+                              }}
+                            />
+                          </label>
                         </div>
 
                         {isRejecting ? (
@@ -333,6 +400,45 @@ export default function KycReview({ groups }: { groups: Group[] }) {
                       </div>
                     );
                   })}
+                  {missing.map((c) => (
+                    <div key={'missing-' + c.key} style={{ padding: 12, borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ width: 38, height: 38, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--surface)', color: 'var(--purple2)', flexShrink: 0 }}>
+                          <i className={`fa-solid ${docIcon(c.key)}`} />
+                        </span>
+                        <div style={{ flex: 1, minWidth: 160 }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {c.label}
+                            {c.required ? <span style={{ color: 'var(--lime2)' }}> *</span> : null}
+                          </div>
+                          <div style={{ marginTop: 3 }}>
+                            <span className="badge" style={{ fontSize: 10.5, opacity: 0.7 }}>Not uploaded</span>
+                          </div>
+                        </div>
+                        <label className="btn btn-lime btn-sm" style={{ cursor: 'pointer', margin: 0 }} title="Upload this document on behalf of the member">
+                          {busy === 'up:' + member.id + ':' + c.key ? (
+                            'Uploading…'
+                          ) : (
+                            <>
+                              <i className="fa-solid fa-upload" /> Upload
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept={c.accept}
+                            style={{ display: 'none' }}
+                            disabled={busy === 'up:' + member.id + ':' + c.key}
+                            onChange={(e) => {
+                              const input = e.currentTarget;
+                              const f = input.files?.[0];
+                              if (f) uploadOnBehalf(member.id, c.key, f);
+                              input.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Overall verification */}
