@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { roleLabel, isAdmin } from '@/lib/roles';
+import NotificationBell from './NotificationBell';
 
 // Shows the user's uploaded photo when present, otherwise their coloured
 // initials — same 40x40 rounded shape everywhere.
@@ -120,6 +121,7 @@ export default function StaffShell({
           <div style={{ fontWeight: 700 }}>Staff Console</div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="badge badge-purple hide-sm">{roleLabel(profile?.role)}</span>
+            <NotificationBell userId={profile?.id} />
             <Avatar url={profile?.avatar_url} initials={initials} title={name} />
           </div>
         </header>

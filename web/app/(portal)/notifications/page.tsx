@@ -6,10 +6,19 @@ export const dynamic = 'force-dynamic';
 const ICON: Record<string, { i: string; c: string }> = {
   approval: { i: 'fa-user-check', c: 'var(--good)' },
   onboarding: { i: 'fa-id-card-clip', c: 'var(--info)' },
+  kyc: { i: 'fa-id-card-clip', c: 'var(--info)' },
   agreement: { i: 'fa-file-contract', c: 'var(--lime2)' },
   payment: { i: 'fa-money-bill-trend-up', c: 'var(--lime2)' },
+  contribution: { i: 'fa-hand-holding-dollar', c: 'var(--lime2)' },
+  statement: { i: 'fa-file-invoice-dollar', c: 'var(--lime2)' },
   document: { i: 'fa-folder-open', c: 'var(--info)' },
   dividend: { i: 'fa-coins', c: 'var(--warn)' },
+  welfare: { i: 'fa-hand-holding-heart', c: 'var(--purple2)' },
+  withdrawal: { i: 'fa-money-bill-transfer', c: 'var(--warn)' },
+  event: { i: 'fa-calendar-day', c: 'var(--lime2)' },
+  news: { i: 'fa-newspaper', c: 'var(--info)' },
+  announcement: { i: 'fa-bullhorn', c: 'var(--purple2)' },
+  update: { i: 'fa-rotate', c: 'var(--info)' },
 };
 function iconFor(t?: string) {
   return ICON[t || ''] || { i: 'fa-bell', c: 'var(--muted2)' };

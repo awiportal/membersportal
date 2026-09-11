@@ -6,6 +6,7 @@ import { NAV } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/client";
 import { isStaff } from "@/lib/roles";
 import ThemeToggle from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
 
 // Sections a member can reach before their membership is approved (manual 3.7):
 // Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
@@ -232,7 +233,7 @@ export default function Shell({
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
             <span className={`badge ${isActive ? "badge-good" : "badge-warn"} hide-sm`}>{profile?.status ? String(profile.status)[0].toUpperCase() + String(profile.status).slice(1) : "Member"}</span>
             <ThemeToggle />
-            <button className="icon-btn" aria-label="Notifications"><i className="fa-solid fa-bell" /></button>
+            <NotificationBell userId={profile?.id} viewAllHref="/notifications" />
             <div ref={userMenuRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
