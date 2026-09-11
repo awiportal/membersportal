@@ -16,6 +16,15 @@ async function requireStaff() {
   return { supabase, uid: user.id };
 }
 
+// Only these transitions are legal. Guards against double-processing (e.g. two
+// staff clicking "Mark paid", or acting on a stale card): approve/return apply
+// only to a pending claim; mark-paid only to an approved one.
+const VALID_FROM: Record<'approved' | 'rejected' | 'paid', string[]> = {
+  approved: ['pending'],
+  rejected: ['pending'],
+  paid: ['approved'],
+};
+
 // Update a claim's status, notify the member, and write a best-effort audit row.
 // NOTE (Phase 2): marking a claim "paid" does not yet move any money/balance —
 // the balance-on-distribution rule is a deliberate, separate change.
@@ -31,6 +40,9 @@ async function decide(
     .eq('id', claimId)
     .single();
   if (!claim) return;
+
+  // Ignore illegal or duplicate transitions instead of silently re-writing state.
+  if (!VALID_FROM[status].includes(claim.status)) return;
 
   await supabase.from('welfare_claims').update({ status }).eq('id', claimId);
 
