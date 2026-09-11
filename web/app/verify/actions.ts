@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { issueTwoFactorToken, TWOFA_TTL_SECONDS } from '@/lib/twofa';
+import { rateLimitAllow } from '@/lib/rateLimit';
 
 // Email the member a one-time sign-in code. Uses Supabase's email OTP, which
 // reuses the project's existing auth email set-up.
@@ -13,18 +14,23 @@ export async function sendCode(): Promise<{ ok?: true; error?: string }> {
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: 'Your session has expired. Please sign in again.' };
 
+  // Cap code requests per account (email flooding / cost). Fail-open.
+  if (!(await rateLimitAllow(`2fa-send:${user.id}`, 5, 900))) {
+    return { error: 'Too many code requests. Please wait a few minutes before requesting another code.' };
+  }
+
   const { error } = await supabase.auth.signInWithOtp({
     email: user.email,
     options: { shouldCreateUser: false },
   });
   if (error) {
     console.error('sendCode failed:', error.message);
-    return { error: 'We could not email your code just now. Please wait a moment and tap “Resend code”.' };
+    return { error: 'We could not email your code just now. Please wait a moment and tap "Resend code".' };
   }
   return { ok: true };
 }
 
-// Verify the 6-digit code. On success, remember this device for 12 hours so the
+// Verify the emailed code. On success, remember this device for 12 hours so the
 // member isn't asked again on every visit.
 export async function verifyCode(token: string): Promise<{ ok?: true; error?: string }> {
   const supabase = createClient();
@@ -33,13 +39,18 @@ export async function verifyCode(token: string): Promise<{ ok?: true; error?: st
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: 'Your session has expired. Please sign in again.' };
 
+  // Cap verification attempts per account (OTP brute force). Fail-open.
+  if (!(await rateLimitAllow(`2fa-check:${user.id}`, 10, 900))) {
+    return { error: 'Too many attempts. Please wait a few minutes and try again.' };
+  }
+
   const clean = String(token || '').replace(/\D/g, '').slice(0, 8);
-  if (clean.length < 6) return { error: 'Please enter the 6-digit code from your email.' };
+  if (clean.length < 6) return { error: 'Please enter the code from your email.' };
 
   const { error } = await supabase.auth.verifyOtp({ email: user.email, token: clean, type: 'email' });
   if (error) {
     console.error('verifyCode failed:', error.message);
-    return { error: 'That code was not correct or has expired. Please try again, or tap “Resend code”.' };
+    return { error: 'That code was not correct or has expired. Please try again, or tap "Resend code".' };
   }
 
   // Signed, expiring token bound to this user — cannot be forged from the
