@@ -43,22 +43,33 @@ export default async function StaffReportsPage() {
     .order('current_balance', { ascending: false });
   const rows = (rowsData ?? []) as Row[];
 
+  // Two non-member fund accounts (Membership fees, Welfare) carry status
+  // 'account': they belong in the fund TOTAL but not in member counts, the
+  // member dropdowns or the exit logic. Members with status exiting/exited are
+  // excluded from the "Total excl. exits" figure.
+  const isAccount = (r: Row) => r.status === 'account';
+  const isExit = (r: Row) => r.status === 'exiting' || r.status === 'exited';
+  const members = rows.filter((r) => !isAccount(r));
+
   const sum = (f: (r: Row) => number) => rows.reduce((s, r) => s + f(r), 0);
-  const total = sum((r) => n(r.current_balance));
-  const active = rows.filter((r) => r.status === 'active').length;
-  const exiting = rows.filter((r) => r.status === 'exiting').length;
-  const exited = rows.filter((r) => r.status === 'exited').length;
-  const totalExclExits = sum((r) => (r.status === 'exited' ? 0 : n(r.current_balance)));
-  const opening = sum((r) => n(r.opening_balance_2025));
+  const total = sum((r) => n(r.current_balance)); // whole fund, incl. accounts
+  const totalExclExits = sum((r) => (isExit(r) ? 0 : n(r.current_balance)));
+  const active = members.filter((r) => r.status === 'active').length;
+  const exiting = members.filter((r) => r.status === 'exiting').length;
+  const exited = members.filter((r) => r.status === 'exited').length;
   const contributions = sum((r) => n(r.contributions_2026));
   const interest = sum((r) => n(r.total_interest_2026));
+  // Derive opening so the distribution always reconciles to the fund total,
+  // even where a withdrawal (e.g. AWI-007) sits between contributions+interest
+  // and the current balance.
+  const opening = total - contributions - interest;
   const britam = sum((r) => n(r.britam_interest_2026));
   const jubilee = sum((r) => n(r.jubilee_interest_2026));
   const withdrawals = sum((r) => n(r.refund_on_exit));
 
   const kpis = [
     { l: 'Fund under management', v: KES(total), i: 'fa-vault', a: true },
-    { l: 'Balance excl. exits', v: KES(totalExclExits), i: 'fa-scale-balanced' },
+    { l: 'Total excl. exits', v: KES(totalExclExits), i: 'fa-scale-balanced' },
     { l: '2026 contributions (YTD)', v: KES(contributions), i: 'fa-hand-holding-dollar' },
     { l: 'Interest earned 2026', v: KES(interest), i: 'fa-chart-line' },
   ];
@@ -80,7 +91,7 @@ export default async function StaffReportsPage() {
     Math.round(((opening + ((total - opening) * i) / (months - 1)) / 1_000_000) * 10) / 10
   );
 
-  const exportRows = rows.map((r) => ({
+  const exportRows = members.map((r) => ({
     member_no: r.member_no,
     full_name: r.full_name,
     status: r.status,
@@ -97,7 +108,7 @@ export default async function StaffReportsPage() {
           <div className="page-title">Reports &amp; fund distribution</div>
           <div className="sub">
             Live from the AWIVEST register (as at 31 Jul 2026, KES). <span className="badge badge-good">Live</span>{' '}
-            {active} active · {exiting} exiting · {exited} exited · {rows.length} members.
+            {active} active · {exiting} exiting · {exited} exited · {members.length} members.
           </div>
         </div>
         <ReportExport rows={exportRows} />
@@ -187,7 +198,7 @@ export default async function StaffReportsPage() {
         <div className="muted" style={{ fontSize: 13 }}>
           {exited + exiting === 0
             ? 'No members are currently exiting or exited — the full register is active.'
-            : `${exited} exited and ${exiting} exiting; refunds on exit total ${KES(withdrawals)}. Balance excluding exits is ${KES(
+            : `${exited} exited and ${exiting} exiting; refunds on exit total ${KES(withdrawals)}. Total excluding exits is ${KES(
                 totalExclExits
               )}. Exited members drop out of active reporting but remain in the audit trail.`}
         </div>
