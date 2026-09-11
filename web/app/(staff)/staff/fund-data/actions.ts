@@ -136,6 +136,7 @@ export async function settleExit(formData: FormData) {
   await supabase
     .from('member_finances')
     .update({
+      status: 'exited',
       withdrawal,
       refund_status: 'paid',
       current_balance: rc.current_balance,

@@ -147,7 +147,7 @@ export default function FundDataConsole({ members, flash }: { members: any[]; fl
 
             <form action={settleExit} className="card card-pad" style={{ display: 'grid', gap: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>Settle an exit (refund paid)</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>Posts the pending refund as a withdrawal and sets the net balance to TOTAL minus the amount paid.</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>Posts the pending refund as a withdrawal, sets the net balance to TOTAL minus the amount paid, and marks the member exited.</div>
               <div className="field">
                 <label>Member</label>
                 <select className="input" name="member_no" required defaultValue="">
@@ -188,7 +188,7 @@ export default function FundDataConsole({ members, flash }: { members: any[]; fl
               {members.map((m) => (
                 <tr key={m.member_no} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '7px 9px' }} className="num">{m.member_no}</td>
-                  <td style={{ padding: '7px 9px', fontWeight: 600 }}>{m.full_name}{m.status === 'exiting' ? ' (exiting)' : ''}</td>
+                  <td style={{ padding: '7px 9px', fontWeight: 600 }}>{m.full_name}{m.status === 'exiting' ? ' (exiting)' : m.status === 'exited' ? ' (exited)' : ''}</td>
                   <td style={{ padding: '7px 9px', textAlign: 'right' }} className="num">{kes(m.contributions_2026)}</td>
                   <td style={{ padding: '7px 9px', textAlign: 'right' }} className="num">{m.withdrawal ? kes(m.withdrawal) : '—'}</td>
                   <td style={{ padding: '7px 9px', textAlign: 'right', fontWeight: 700 }} className="num">{kes(m.current_balance)}</td>

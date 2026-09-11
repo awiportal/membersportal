@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { isStaff } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { addOpportunity, removeOpportunity } from './actions';
+import ConfirmSubmit from '@/components/ConfirmSubmit';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,9 +150,9 @@ export default async function StaffOpportunitiesPage({
                     <td style={{ padding: '9px 10px', textAlign: 'right' }}>
                       <form action={removeOpportunity} style={{ display: 'inline' }}>
                         <input type="hidden" name="id" value={o.id} />
-                        <button className="btn btn-ghost btn-sm" type="submit" style={{ color: 'var(--bad)' }} title="Remove opportunity">
+                        <ConfirmSubmit className="btn btn-ghost btn-sm" style={{ color: 'var(--bad)' }} ariaLabel="Remove opportunity" title="Remove this opportunity?" body="This permanently removes the opportunity and members can no longer see it. This can’t be undone." confirmLabel="Remove">
                           <i className="fa-solid fa-trash" />
-                        </button>
+                        </ConfirmSubmit>
                       </form>
                     </td>
                   </tr>

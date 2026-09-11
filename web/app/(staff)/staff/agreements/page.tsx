@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import AgreementAdder from './AgreementAdder';
 import { setAgreementActive, setAgreementRequired, deleteAgreement } from './actions';
+import ConfirmSubmit from '@/components/ConfirmSubmit';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export default async function StaffAgreements() {
                 </form>
                 <form action={deleteAgreement}>
                   <input type="hidden" name="id" value={d.id} />
-                  <button className="btn btn-ghost btn-sm" type="submit" style={{ color: '#ff8a8a' }}><i className="fa-solid fa-trash" /></button>
+                  <ConfirmSubmit className="btn btn-ghost btn-sm" style={{ color: '#ff8a8a' }} ariaLabel="Delete agreement" title="Delete this agreement?" body="This permanently removes the agreement and its file, and it disappears from onboarding. This can’t be undone." confirmLabel="Delete agreement"><i className="fa-solid fa-trash" /></ConfirmSubmit>
                 </form>
               </div>
             ))}

@@ -66,6 +66,8 @@ export default async function StaffReportsPage() {
   const britam = sum((r) => n(r.britam_interest_2026));
   const jubilee = sum((r) => n(r.jubilee_interest_2026));
   const withdrawals = sum((r) => n(r.refund_on_exit));
+  const accounts = rows.filter(isAccount);
+  const accountsTotal = accounts.reduce((s, r) => s + n(r.current_balance), 0);
 
   const kpis = [
     { l: 'Fund under management', v: KES(total), i: 'fa-vault', a: true },
@@ -130,6 +132,43 @@ export default async function StaffReportsPage() {
           </div>
         ))}
       </div>
+
+      {accounts.length > 0 && (
+        <div className="card card-pad" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ fontWeight: 700 }}>Fund accounts</div>
+            <span className="muted" style={{ fontSize: 12 }}>
+              Membership fees &amp; welfare held by the fund — inside the {KES(total)} total, outside member counts.
+            </span>
+          </div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', marginTop: 14 }}>
+            {accounts.map((a) => {
+              const isWelfare = String(a.member_no).toUpperCase().includes('WELFARE');
+              const meta = isWelfare
+                ? { icon: 'fa-hand-holding-heart', color: 'var(--purple2)', sub: 'Welfare fund' }
+                : { icon: 'fa-hand-holding-dollar', color: 'var(--lime2)', sub: 'Membership fees' };
+              return (
+                <div
+                  key={a.member_no}
+                  style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 14, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)' }}
+                >
+                  <span style={{ flex: 'none', width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--surface)', color: meta.color }}>
+                    <i className={`fa-solid ${meta.icon}`} />
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700 }}>{a.full_name || meta.sub}</div>
+                    <div className="muted" style={{ fontSize: 11.5 }}>{meta.sub} · {a.member_no}</div>
+                  </div>
+                  <div className="num" style={{ fontWeight: 800, fontSize: 16 }}>{KES(n(a.current_balance))}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+            Combined {KES(accountsTotal)} across {accounts.length} fund account{accounts.length === 1 ? '' : 's'}. Included in the fund total; excluded from member counts, dropdowns and exit logic.
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))' }}>
         <div className="card card-pad">

@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { createPost, updatePost, togglePublish, togglePin, deletePost } from './actions';
+import ConfirmSubmit from '@/components/ConfirmSubmit';
 
 const CATS = [
   { id: 'announcement', label: 'Announcement', icon: 'fa-bullhorn', cls: 'badge-purple' },
@@ -159,7 +160,7 @@ export default function InfoManager({ rows }: { rows: any[] }) {
                 </form>
                 <form action={deletePost}>
                   <input type="hidden" name="id" value={p.id} />
-                  <button type="submit" className="btn btn-ghost btn-sm" style={{ color: '#ef5a5a' }} aria-label="Delete"><i className="fa-solid fa-trash" /></button>
+                  <ConfirmSubmit className="btn btn-ghost btn-sm" style={{ color: '#ef5a5a' }} ariaLabel="Delete post" title="Delete this post?" body="This permanently removes the post — members will no longer see it. This can’t be undone." confirmLabel="Delete post"><i className="fa-solid fa-trash" /></ConfirmSubmit>
                 </form>
               </div>
             </div>
