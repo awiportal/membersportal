@@ -3,8 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isStaff } from '@/lib/roles';
 import DocumentManager from './DocumentManager';
-import { deleteDocument } from './actions';
-import ConfirmSubmit from '@/components/ConfirmSubmit';
+import PublishedDocuments from './PublishedDocuments';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +24,11 @@ export default async function StaffDocuments() {
 
   const memberMap = new Map(((members ?? []) as any[]).map((m) => [m.id, m]));
   const rows = ((docs ?? []) as any[]).map((d) => ({
-    ...d,
+    id: d.id as string,
+    title: (d.title || '') as string,
+    type: (d.type || 'other') as string,
+    member_id: (d.member_id ?? null) as string | null,
+    created_at: (d.created_at ?? null) as string | null,
     memberLabel: d.member_id
       ? memberMap.get(d.member_id)?.full_name || memberMap.get(d.member_id)?.investor_id || 'Member'
       : null,
@@ -36,70 +39,14 @@ export default async function StaffDocuments() {
       <div className="page-title">Document Centre</div>
       <div className="sub">
         Publish statements, certificates, policies and guides. Share with every member, or send a document to one
-        member's account. Members open these securely from their portal.
+        member&apos;s account. Members open these securely from their portal.
       </div>
 
       <div style={{ marginTop: 20 }}>
         <DocumentManager members={(members ?? []) as any} />
       </div>
 
-      <div className="card card-pad">
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Published documents</div>
-        {rows.length === 0 ? (
-          <div className="muted" style={{ fontSize: 13 }}>
-            No documents yet. Upload your first one above.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {rows.map((d) => (
-              <div
-                key={d.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: 14,
-                  borderRadius: 14,
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 11,
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: 'var(--surface)',
-                    color: 'var(--purple2)',
-                  }}
-                >
-                  <i className="fa-solid fa-folder-open" />
-                </div>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontWeight: 600 }}>{d.title}</div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                    <span className="badge badge-info" style={{ fontSize: 11 }}>
-                      {d.type}
-                    </span>
-                    <span className={`badge ${d.member_id ? 'badge-purple' : 'badge-good'}`} style={{ fontSize: 11 }}>
-                      {d.member_id ? `For ${d.memberLabel}` : 'All members'}
-                    </span>
-                  </div>
-                </div>
-                <form action={deleteDocument}>
-                  <input type="hidden" name="id" value={d.id} />
-                  <ConfirmSubmit className="btn btn-ghost btn-sm" style={{ color: '#ff8a8a' }} ariaLabel="Delete document" title="Delete this document?" body="This permanently removes the document and its file for members. This can’t be undone." confirmLabel="Delete document">
-                    <i className="fa-solid fa-trash" />
-                  </ConfirmSubmit>
-                </form>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <PublishedDocuments docs={rows} />
     </div>
   );
 }
