@@ -12,7 +12,7 @@ export const NOTIFICATION_PREFS: PrefDef[] = [
   { key: 'contribution_receipts', label: 'Contribution receipts', desc: 'When one of your contributions is confirmed', default: true },
   { key: 'welfare_updates', label: 'Welfare updates', desc: 'Enrollment and claim updates', default: true },
   { key: 'annual_review', label: 'Annual profile review', desc: 'A yearly nudge to refresh your financial profile', default: true },
-  { key: 'marketing', label: 'AWIVEST news & events', desc: 'Newsletters, summit invites and announcements', default: false },
+  { key: 'marketing', label: 'AWIVEST news & events', desc: 'Newsletters, summit invites, announcements and events. On by default — switch off to stop these.', default: true },
 ];
 
 export const CHANNEL_PREFS: PrefDef[] = [

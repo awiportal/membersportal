@@ -68,22 +68,30 @@ function announcementNotice(p: PostForNotice) {
   return { title, body };
 }
 
-// Fan a PUBLISHED post out to members who opted in to "AWIVEST news & events"
-// (profiles.notification_prefs.marketing === true). Deduped one-per-announcement
-// by the unique (member_id, announcement_id) index, so re-saving a published
-// post never double-notifies. Best-effort — never blocks the post itself.
+// Fan a PUBLISHED post out to every ACTIVE member. "AWIVEST news & events" is on
+// by default, so a member is notified unless they explicitly switched it off
+// (notification_prefs.marketing === false). The publishing staffer is skipped.
+// Deduped one-per-announcement by the unique (member_id, announcement_id) index,
+// so re-saving a published post never double-notifies. Best-effort — never
+// blocks the post itself.
 async function notifyMembersOfPost(
   supabase: ReturnType<typeof createClient>,
   post: PostForNotice,
   actorId?: string,
 ) {
   try {
-    let q = supabase.from('profiles').select('id').eq('notification_prefs->>marketing', 'true');
-    if (actorId) q = q.neq('id', actorId);
-    const { data: recips } = await q;
+    const { data: recips } = await supabase
+      .from('profiles')
+      .select('id, notification_prefs')
+      .eq('status', 'active');
     if (!recips?.length) return;
+    const targets = recips.filter(
+      (r: { id: string; notification_prefs: Record<string, unknown> | null }) =>
+        r.id !== actorId && (r.notification_prefs?.['marketing'] ?? true) !== false,
+    );
+    if (!targets.length) return;
     const { title, body } = announcementNotice(post);
-    const rows = recips.map((r: { id: string }) => ({
+    const rows = targets.map((r: { id: string }) => ({
       member_id: r.id,
       type: post.category,
       title,
