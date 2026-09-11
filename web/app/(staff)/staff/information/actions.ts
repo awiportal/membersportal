@@ -68,8 +68,8 @@ function announcementNotice(p: PostForNotice) {
   return { title, body };
 }
 
-// Fan a PUBLISHED post out to every ACTIVE member. "AWIVEST news & events" is on
-// by default, so a member is notified unless they explicitly switched it off
+// Fan a PUBLISHED post out to EVERY user. "AWIVEST news & events" is on by
+// default, so a user is notified unless they explicitly switched it off
 // (notification_prefs.marketing === false). The publishing staffer is skipped.
 // Deduped one-per-announcement by the unique (member_id, announcement_id) index,
 // so re-saving a published post never double-notifies. Best-effort — never
@@ -82,8 +82,7 @@ async function notifyMembersOfPost(
   try {
     const { data: recips } = await supabase
       .from('profiles')
-      .select('id, notification_prefs')
-      .eq('status', 'active');
+      .select('id, notification_prefs');
     if (!recips?.length) return;
     const targets = recips.filter(
       (r: { id: string; notification_prefs: Record<string, unknown> | null }) =>
