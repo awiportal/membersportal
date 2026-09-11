@@ -25,15 +25,16 @@ async function requireStaff(): Promise<{ userId: string } | { error: string }> {
   return { userId: user.id };
 }
 
-export async function getKycDocUrl(id: string): Promise<{ url?: string; error?: string }> {
+export async function getKycDocUrl(id: string): Promise<{ url?: string; ext?: string; error?: string }> {
   const gate = await requireStaff();
   if ('error' in gate) return { error: gate.error };
   const admin = createAdminClient();
   const { data: row } = await admin.from('kyc_documents').select('file_path').eq('id', id).maybeSingle();
   if (!row?.file_path) return { error: 'That document could not be found.' };
-  const { data: signed, error } = await admin.storage.from('kyc').createSignedUrl(row.file_path, 120);
+  const { data: signed, error } = await admin.storage.from('kyc').createSignedUrl(row.file_path, 300);
   if (error || !signed?.signedUrl) return { error: 'Could not prepare the file link. Please try again.' };
-  return { url: signed.signedUrl };
+  const ext = String(row.file_path).split('.').pop()?.toLowerCase() || '';
+  return { url: signed.signedUrl, ext };
 }
 
 export async function reviewKycDoc(formData: FormData): Promise<{ ok?: true; error?: string }> {

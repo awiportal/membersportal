@@ -23,7 +23,7 @@ export default async function StaffKyc() {
 
   const memberIds = Array.from(new Set(((docs ?? []) as any[]).map((d) => d.member_id)));
   const membersRes = memberIds.length
-    ? await admin.from('profiles').select('id, full_name, investor_id, member_type, kyc_status').in('id', memberIds)
+    ? await admin.from('profiles').select('id, full_name, investor_id, member_type, kyc_status, avatar_url, email').in('id', memberIds)
     : { data: [] as any[] };
   const members = (membersRes.data ?? []) as any[];
   const memberMap = new Map(members.map((m) => [m.id, m]));
