@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { roleLabel, statusLabel } from "@/lib/roles";
 import { approveMember } from "./actions";
@@ -33,9 +33,28 @@ function initials(name: string, email: string) {
   return base.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 }
 
+// Whole days a pack has waited since submission. Returns null when unknown, or
+// until the component has mounted — computing "days ago" on the server and again
+// on the client can disagree, so we hold off to avoid a hydration mismatch.
+function daysSince(iso: string | null, now: number | null): number | null {
+  if (!iso || now == null) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((now - t) / 86400000));
+}
+
+function WaitLabel({ days }: { days: number | null }) {
+  if (days == null) return <span className="muted">—</span>;
+  const text = days === 0 ? "Today" : days === 1 ? "1 day" : `${days} days`;
+  // A pack waiting a week or more gets an amber nudge so nothing sits forgotten.
+  return days >= 7 ? <span className="badge badge-warn">{text}</span> : <span className="muted">{text}</span>;
+}
+
 export default function MembersBrowser({ members }: { members: Row[] }) {
   const [filter, setFilter] = useState<Filter>("awaiting");
   const [q, setQ] = useState("");
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), []);
 
   const counts = useMemo(
     () => ({
@@ -46,6 +65,15 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
     }),
     [members]
   );
+
+  // Longest wait in the approval queue — used to warn when a pack is aging.
+  const oldestWait = useMemo(() => {
+    const waits = members
+      .filter(isAwaiting)
+      .map((m) => daysSince(m.submitted_at, now))
+      .filter((d): d is number => d != null);
+    return waits.length ? Math.max(...waits) : null;
+  }, [members, now]);
 
   const kpis: { key: Filter; label: string; icon: string; accent?: boolean; value: number }[] = [
     { key: "awaiting", label: "Awaiting approval", icon: "fa-user-clock", accent: true, value: counts.awaiting },
@@ -61,6 +89,14 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
     else if (filter === "pending") list = list.filter((m) => m.status === "pending");
     const term = q.trim().toLowerCase();
     if (term) list = list.filter((m) => `${m.full_name} ${m.email} ${m.investor_id}`.toLowerCase().includes(term));
+    // Fair queue: review the longest-waiting packs first.
+    if (filter === "awaiting") {
+      list = [...list].sort((a, b) => {
+        const ta = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+        const tb = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+        return ta - tb;
+      });
+    }
     return list;
   }, [members, filter, q]);
 
@@ -74,7 +110,7 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
       : "All members";
   const subtext =
     filter === "awaiting"
-      ? "Members who submitted a complete pack for committee approval."
+      ? "Complete packs submitted for committee approval — longest-waiting first."
       : filter === "all"
       ? "Everyone on the register."
       : `Members with ${statusLabel(filter).toLowerCase()} status.`;
@@ -119,7 +155,11 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
               </div>
               <div className="val num">{k.value}</div>
               <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600, color: selected ? "var(--lime2)" : "var(--muted)" }}>
-                {selected ? (
+                {k.key === "awaiting" && k.value > 0 && oldestWait != null && oldestWait >= 7 ? (
+                  <>
+                    <i className="fa-solid fa-triangle-exclamation" /> Oldest {oldestWait} days
+                  </>
+                ) : selected ? (
                   <>
                     <i className="fa-solid fa-circle-check" /> Showing below
                   </>
@@ -159,11 +199,12 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
               <thead>
                 <tr className="muted" style={{ textAlign: "left", fontSize: 12 }}>
-                  <th style={{ padding: "8px 10px" }}>Name</th>
-                  <th style={{ padding: "8px 10px" }}>Investor ID</th>
-                  <th style={{ padding: "8px 10px" }}>Role</th>
-                  <th style={{ padding: "8px 10px" }}>Status</th>
-                  <th style={{ padding: "8px 10px" }} />
+                  <th scope="col" style={{ padding: "8px 10px" }}>Name</th>
+                  <th scope="col" style={{ padding: "8px 10px" }}>Investor ID</th>
+                  <th scope="col" style={{ padding: "8px 10px" }}>Role</th>
+                  <th scope="col" style={{ padding: "8px 10px" }}>Status</th>
+                  <th scope="col" style={{ padding: "8px 10px" }}>Waiting</th>
+                  <th scope="col" style={{ padding: "8px 10px" }} />
                 </tr>
               </thead>
               <tbody>
@@ -181,6 +222,9 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
                     <td style={{ padding: "10px" }} className="num">{m.investor_id || "—"}</td>
                     <td style={{ padding: "10px" }}>{roleLabel(m.role)}</td>
                     <td style={{ padding: "10px" }}><StatusBadge s={m.status} /></td>
+                    <td style={{ padding: "10px" }}>
+                      <WaitLabel days={isAwaiting(m) ? daysSince(m.submitted_at, now) : null} />
+                    </td>
                     <td style={{ padding: "10px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {isAwaiting(m) ? (
                         <form action={approveMember} style={{ display: "inline" }}>
