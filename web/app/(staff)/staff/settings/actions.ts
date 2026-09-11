@@ -3,17 +3,17 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isStaff } from '@/lib/roles';
+import { canManageConfig } from '@/lib/roles';
 import { pandadocConfigured, ping, createFromTemplate, sendSilently, createSigningLink } from '@/lib/pandadoc';
 
-async function requireStaff() {
+async function requireConfigAdmin() {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not signed in');
   const { data: me } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single();
-  if (!isStaff(me?.role)) throw new Error('Not authorized');
+  if (!canManageConfig(me?.role)) throw new Error('Not authorized');
   return { user, me };
 }
 
@@ -25,7 +25,7 @@ async function readSettings() {
 
 export async function saveEsignSettings(formData: FormData): Promise<{ ok?: true; error?: string }> {
   try {
-    await requireStaff();
+    await requireConfigAdmin();
   } catch {
     return { error: 'Only staff can change settings.' };
   }
@@ -45,7 +45,7 @@ export async function saveEsignSettings(formData: FormData): Promise<{ ok?: true
 
 export async function testPandadoc(): Promise<{ ok?: true; error?: string }> {
   try {
-    await requireStaff();
+    await requireConfigAdmin();
   } catch {
     return { error: 'Only staff can run this.' };
   }
@@ -63,7 +63,7 @@ export async function testPandadoc(): Promise<{ ok?: true; error?: string }> {
 export async function previewOnboardingDoc(): Promise<{ ok?: true; url?: string; error?: string }> {
   let ctx;
   try {
-    ctx = await requireStaff();
+    ctx = await requireConfigAdmin();
   } catch {
     return { error: 'Only staff can run this.' };
   }

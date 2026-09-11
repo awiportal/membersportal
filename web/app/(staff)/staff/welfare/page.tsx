@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { KES } from '@/lib/format';
 import { approveClaim, rejectClaim, markClaimPaid } from './actions';
+import { canDisburseFunds } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,14 @@ const sumAmount = (rows: any[]) => rows.reduce((t, c) => t + Number(c.amount || 
 
 export default async function StaffWelfarePage() {
   const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null as any };
+  const canDisburse = canDisburseFunds(me?.role);
 
   const { data: claimRows } = await supabase
     .from('welfare_claims')
@@ -89,7 +98,7 @@ export default async function StaffWelfarePage() {
             </form>
           </div>
         )}
-        {c.status === 'approved' && (
+        {c.status === 'approved' && canDisburse && (
           <form action={markClaimPaid}>
             <input type="hidden" name="id" value={c.id} />
             <button className="btn btn-primary btn-sm" type="submit">

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { roleLabel, statusLabel } from '@/lib/roles';
+import { roleLabel, statusLabel, canApproveMembers, canDisburseFunds } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
@@ -19,6 +19,15 @@ const REL_LABEL: Record<string, string> = {
 export default async function MemberDetail({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const id = params.id;
+
+  // The signed-in staff member's own role gates which controls appear below.
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const { data: viewerProfile } = viewer
+    ? await supabase.from('profiles').select('role').eq('id', viewer.id).single()
+    : { data: null as any };
+  const viewerRole = viewerProfile?.role as string | undefined;
 
   const [{ data: m }, { data: relations }, { data: docs }, { data: agrDocs }, { data: acceptances }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).single(),
@@ -109,6 +118,10 @@ export default async function MemberDetail({ params }: { params: { id: string } 
       {/* Actions */}
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Decision</div>
+        {!canApproveMembers(viewerRole) ? (
+          <div className="muted" style={{ fontSize: 12.5 }}>Member approvals and status changes are handled by an Admin or the Chairlady.</div>
+        ) : (
+        <>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {m.status !== 'active' && (
             <form action={approveMember}>
@@ -139,6 +152,8 @@ export default async function MemberDetail({ params }: { params: { id: string } 
           </div>
           <button className="btn btn-ghost btn-sm" type="submit"><i className="fa-solid fa-rotate-left" /> Return for changes</button>
         </form>
+        </>
+        )}
       </div>
 
       {/* Fund record — map this login to its AWIVEST register position (member_finances). */}
@@ -181,7 +196,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
       </div>
 
       {/* Record a withdrawal — reduces the fund balance and shows on the statement. */}
-      {linkedFinance && (
+      {linkedFinance && canDisburseFunds(viewerRole) && (
         <div className="card card-pad" style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Record a withdrawal</div>
           <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>

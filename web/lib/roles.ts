@@ -32,6 +32,20 @@ export function canPayWithdrawal(role?: string | null) {
   return isAdmin(role);
 }
 
+// ---- System-wide staff capabilities (confirmed roles matrix) --------------
+// Secretary handles day-to-day operations (KYC, forms, content, fund-data entry,
+// review steps). Admin and Chairlady own member governance, money-out, and
+// configuration. These are the semantic gates enforced in the server actions.
+export function canApproveMembers(role?: string | null) {
+  return isAdmin(role); // approve/reject member applications + change member standing
+}
+export function canDisburseFunds(role?: string | null) {
+  return isAdmin(role); // record withdrawals, mark/settle exits, mark welfare/withdrawals paid
+}
+export function canManageConfig(role?: string | null) {
+  return isAdmin(role); // agreement templates + staff e-sign settings
+}
+
 export function roleLabel(role?: string | null) {
   switch (role) {
     case 'superadmin':

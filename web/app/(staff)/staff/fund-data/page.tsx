@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff } from '@/lib/roles';
+import { isStaff, canDisburseFunds } from '@/lib/roles';
 import FundDataConsole from './FundDataConsole';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +29,7 @@ export default async function FundDataPage({
   return (
     <FundDataConsole
       members={(rows ?? []) as any[]}
+      canDisburse={canDisburseFunds(me?.role)}
       flash={{ ok: searchParams?.ok, err: searchParams?.err, updated: searchParams?.updated, failed: searchParams?.failed }}
     />
   );

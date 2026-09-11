@@ -2,12 +2,21 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import AgreementAdder from './AgreementAdder';
 import { setAgreementActive, setAgreementRequired, deleteAgreement } from './actions';
+import { canManageConfig } from '@/lib/roles';
 import ConfirmSubmit from '@/components/ConfirmSubmit';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StaffAgreements() {
   const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null as any };
+  const canConfig = canManageConfig(me?.role);
 
   const { data: rows } = await supabase
     .from('agreement_documents')
@@ -33,9 +42,11 @@ export default async function StaffAgreements() {
         <Link href="/staff/agreements/signed" className="btn btn-ghost btn-sm"><i className="fa-solid fa-file-signature" /> View signed agreements</Link>
       </div>
 
+      {canConfig && (
       <div style={{ marginTop: 20 }}>
         <AgreementAdder />
       </div>
+      )}
 
       <div className="card card-pad">
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Published agreements</div>
@@ -57,6 +68,7 @@ export default async function StaffAgreements() {
                   </div>
                 </div>
                 <a href={d.url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">View</a>
+                {canConfig && (<>
                 <form action={setAgreementRequired}>
                   <input type="hidden" name="id" value={d.id} />
                   <input type="hidden" name="required" value={d.required ? 'false' : 'true'} />
@@ -71,6 +83,7 @@ export default async function StaffAgreements() {
                   <input type="hidden" name="id" value={d.id} />
                   <ConfirmSubmit className="btn btn-ghost btn-sm" style={{ color: '#ff8a8a' }} ariaLabel="Delete agreement" title="Delete this agreement?" body="This permanently removes the agreement and its file, and it disappears from onboarding. This can’t be undone." confirmLabel="Delete agreement"><i className="fa-solid fa-trash" /></ConfirmSubmit>
                 </form>
+                </>)}
               </div>
             ))}
           </div>
