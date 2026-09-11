@@ -108,8 +108,8 @@ export default function LoginForm() {
         const lm = raw.toLowerCase();
         const codeStr = String((error as any)?.code ?? '').trim();
         const statusStr = String((error as any)?.status ?? '').trim();
-        const refRaw = codeStr && codeStr \!== 'undefined' && codeStr \!== 'null' ? codeStr : statusStr;
-        const ref = refRaw && refRaw \!== 'undefined' && refRaw \!== 'null' ? ` (reference: ${refRaw})` : '';
+        const refRaw = codeStr && codeStr !== 'undefined' && codeStr !== 'null' ? codeStr : statusStr;
+        const ref = refRaw && refRaw !== 'undefined' && refRaw !== 'null' ? ` (reference: ${refRaw})` : '';
         let friendly: string;
         if (
           statusStr === '429' || codeStr === 'over_email_send_rate_limit' ||
