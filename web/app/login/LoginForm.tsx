@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { COUNTRIES } from '@/lib/countries';
+import { guardLogin } from './actions';
 
 type MemberType = 'individual' | 'group' | 'corporate' | 'other';
 
@@ -62,6 +63,12 @@ export default function LoginForm() {
     setLoading(true);
     setMsg(null);
     if (mode === 'login') {
+      const guard = await guardLogin();
+      if (!guard.ok) {
+        setMsg({ t: guard.error, kind: 'bad' });
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMsg({ t: error.message, kind: 'bad' });
       else {
