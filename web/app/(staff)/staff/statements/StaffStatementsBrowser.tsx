@@ -5,6 +5,10 @@ import StatementBody from './StatementBody';
 
 const kes = (v: any) => (v == null || isNaN(Number(v)) ? '—' : 'KES ' + Math.round(Number(v)).toLocaleString('en-KE'));
 
+function statusBadge(s?: string) {
+  return s === 'active' ? 'badge-good' : s === 'exiting' ? 'badge-warn' : s === 'exited' ? 'badge-purple' : 'badge-info';
+}
+
 export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<any | null>(null);
@@ -26,6 +30,18 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
   const total = rows.length;
   const linked = rows.filter((r) => r.member_id).length;
   const exiting = rows.filter((r) => r.status === 'exiting').length;
+  const totalBalance = rows.reduce((s, r) => s + Number(r.current_balance || 0), 0);
+  const filteredBalance = useMemo(
+    () => filtered.reduce((s, r) => s + Number(r.current_balance || 0), 0),
+    [filtered]
+  );
+
+  const kpis: { lbl: string; val: string; money?: boolean }[] = [
+    { lbl: 'Members', val: String(total) },
+    { lbl: 'Total balance', val: kes(totalBalance), money: true },
+    { lbl: 'Linked to a login', val: `${linked}/${total}` },
+    { lbl: 'Exiting', val: String(exiting) },
+  ];
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -33,9 +49,12 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
       <div className="sub">Open any member&apos;s full statement — opening balance, contributions, interest breakdown, withdrawals and total — in a side panel to review or resolve a query.</div>
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', margin: '22px 0 18px' }}>
-        <div className="card kpi hover-lift"><span className="lbl">Members</span><div className="val">{total}</div></div>
-        <div className="card kpi hover-lift"><span className="lbl">Linked to a login</span><div className="val">{linked}/{total}</div></div>
-        <div className="card kpi hover-lift"><span className="lbl">Exiting</span><div className="val">{exiting}</div></div>
+        {kpis.map((k) => (
+          <div key={k.lbl} className="card kpi hover-lift">
+            <span className="lbl">{k.lbl}</span>
+            <div className="val num" style={k.money ? { fontSize: 18 } : undefined}>{k.val}</div>
+          </div>
+        ))}
       </div>
 
       <div className="card card-pad">
@@ -47,11 +66,11 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr className="muted" style={{ textAlign: 'left', fontSize: 11.5 }}>
-                <th style={{ padding: '8px 10px' }}>Reg. no.</th>
-                <th style={{ padding: '8px 10px' }}>Name</th>
-                <th style={{ padding: '8px 10px' }}>Status</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Current balance</th>
-                <th style={{ padding: '8px 10px' }} />
+                <th scope="col" style={{ padding: '8px 10px' }}>Reg. no.</th>
+                <th scope="col" style={{ padding: '8px 10px' }}>Name</th>
+                <th scope="col" style={{ padding: '8px 10px' }}>Status</th>
+                <th scope="col" style={{ padding: '8px 10px', textAlign: 'right' }}>Current balance</th>
+                <th scope="col" style={{ padding: '8px 10px' }} />
               </tr>
             </thead>
             <tbody>
@@ -60,7 +79,7 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
                   <td style={{ padding: '9px 10px' }} className="num">{r.member_no}</td>
                   <td style={{ padding: '9px 10px', fontWeight: 600 }}>{r.full_name}</td>
                   <td style={{ padding: '9px 10px' }}>
-                    <span className={'badge ' + (r.status === 'active' ? 'badge-good' : r.status === 'exiting' ? 'badge-warn' : 'badge-info')} style={{ fontSize: 10.5 }}>{r.status || 'member'}</span>
+                    <span className={'badge ' + statusBadge(r.status)} style={{ fontSize: 10.5 }}>{r.status || 'member'}</span>
                   </td>
                   <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600 }} className="num">{kes(r.current_balance)}</td>
                   <td style={{ padding: '9px 10px', textAlign: 'right' }}>
@@ -72,6 +91,16 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
                 <tr><td colSpan={5} className="muted" style={{ padding: '14px 10px', fontSize: 13 }}>No members match your search.</td></tr>
               )}
             </tbody>
+            {filtered.length > 0 && (
+              <tfoot>
+                <tr style={{ borderTop: '2px solid var(--border)' }}>
+                  <td style={{ padding: '10px' }} />
+                  <td style={{ padding: '10px', fontWeight: 700 }} colSpan={2}>Total ({filtered.length})</td>
+                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700 }} className="num">{kes(filteredBalance)}</td>
+                  <td style={{ padding: '10px' }} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
