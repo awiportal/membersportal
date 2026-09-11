@@ -46,13 +46,17 @@ export default async function OnboardingPage({
   // otherwise the member sees the original typed-name agreements.
   const esignEnabled = pandadocConfigured() && !!(settings['pandadoc_onboarding_template_id'] || '').trim();
 
-  const agreements = ((agrDocs ?? []) as any[]).map((d) => ({
-    id: d.id,
-    title: d.title,
-    description: d.description,
-    required: d.required,
-    fileUrl: supabase.storage.from('agreements').getPublicUrl(d.file_path).data.publicUrl,
-  }));
+  const agreements = await Promise.all(
+    ((agrDocs ?? []) as any[]).map(async (d) => ({
+      id: d.id,
+      title: d.title,
+      description: d.description,
+      required: d.required,
+      fileUrl: d.file_path
+        ? (await supabase.storage.from('agreements').createSignedUrl(d.file_path, 3600)).data?.signedUrl ?? ''
+        : '',
+    }))
+  );
 
   return (
     <OnboardingClient

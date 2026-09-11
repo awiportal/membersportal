@@ -15,10 +15,14 @@ export default async function StaffAgreements() {
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
-  const docs = ((rows ?? []) as any[]).map((d) => ({
-    ...d,
-    url: supabase.storage.from('agreements').getPublicUrl(d.file_path).data.publicUrl,
-  }));
+  const docs = await Promise.all(
+    ((rows ?? []) as any[]).map(async (d) => ({
+      ...d,
+      url: d.file_path
+        ? (await supabase.storage.from('agreements').createSignedUrl(d.file_path, 600)).data?.signedUrl
+        : undefined,
+    }))
+  );
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
