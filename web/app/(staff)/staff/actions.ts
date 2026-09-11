@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isStaff, canApproveMembers, canDisburseFunds } from '@/lib/roles';
 import { sendMemberEmail } from '@/lib/email';
 import { pandadocConfigured, createFromTemplate, sendForSigning, listTemplates } from '@/lib/pandadoc';
@@ -130,7 +131,17 @@ export async function unlinkFundRecord(formData: FormData) {
   if (!id || !memberNo) return;
   const { supabase } = await requireStaff();
   const { error } = await supabase.rpc('staff_unlink_membership', { p_member_no: memberNo });
-  if (error) console.error('unlinkFundRecord failed:', error.message);
+  if (error) {
+    console.error('unlinkFundRecord failed:', error.message);
+  } else {
+    // Delinking must also drop the borrowed AWI register number from the
+    // profile, otherwise the member keeps another member's investor ID (it was
+    // written as investor_id on link). Service-role client so it works for
+    // every staff tier, independent of profile RLS.
+    const admin = createAdminClient();
+    const { error: profErr } = await admin.from('profiles').update({ investor_id: null }).eq('id', id);
+    if (profErr) console.error('unlinkFundRecord: clearing investor_id failed:', profErr.message);
+  }
   refresh(id);
 }
 
