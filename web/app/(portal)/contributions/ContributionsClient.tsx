@@ -24,7 +24,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
     return (
       <div>
         <div className="page-title">Contributions &amp; Earnings</div>
-        <div className="sub">Your personal fund statement \u2014 contributions, interest and balance.</div>
+        <div className="sub">Your personal fund statement — contributions, interest and balance.</div>
         <div className="card card-pad" style={{ marginTop: 20, textAlign: 'center', padding: '44px 24px' }}>
           <div style={{ fontSize: 34, color: 'var(--muted2)', marginBottom: 12 }}>
             <i className="fa-solid fa-file-circle-question" />
@@ -221,7 +221,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
                 <Row k="Britam interest" v={kes(num(fin.britam_interest_2026))} />
                 <Row k="Jubilee interest" v={kes(num(fin.jubilee_interest_2026))} />
                 <Row k="Total interest" v={kes(totalInterest)} strong />
-                <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>The full breakdown (2018\u20132023, Britam, Jubilee MMF &amp; FIF) appears once loaded.</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>The full breakdown (2018–2023, Britam, Jubilee MMF &amp; FIF) appears once loaded.</div>
               </div>
             )}
           </div>
