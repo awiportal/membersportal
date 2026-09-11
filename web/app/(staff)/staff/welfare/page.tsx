@@ -11,6 +11,8 @@ function Badge({ s }: { s?: string }) {
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 
+const sumAmount = (rows: any[]) => rows.reduce((t, c) => t + Number(c.amount || 0), 0);
+
 export default async function StaffWelfarePage() {
   const supabase = createClient();
 
@@ -31,7 +33,19 @@ export default async function StaffWelfarePage() {
   }
 
   const pending = claims.filter((c) => c.status === 'pending');
-  const decided = claims.filter((c) => c.status !== 'pending');
+  // Approved but not yet paid out — these still carry the "Mark paid" action and
+  // used to be buried in the Processed list, so we surface them on their own.
+  const awaiting = claims.filter((c) => c.status === 'approved');
+  const paid = claims.filter((c) => c.status === 'paid');
+  const rejected = claims.filter((c) => c.status === 'rejected');
+  const processed = claims.filter((c) => c.status === 'paid' || c.status === 'rejected');
+
+  const kpis: { label: string; value: string; sub: string; icon: string; accent?: boolean }[] = [
+    { label: 'Pending review', value: String(pending.length), sub: pending.length ? 'Awaiting a decision' : 'All caught up', icon: 'fa-inbox', accent: pending.length > 0 },
+    { label: 'Awaiting payment', value: String(awaiting.length), sub: awaiting.length ? `${KES(sumAmount(awaiting))} to pay` : 'Nothing to pay', icon: 'fa-money-bill-transfer', accent: awaiting.length > 0 },
+    { label: 'Paid', value: String(paid.length), sub: `${KES(sumAmount(paid))} disbursed`, icon: 'fa-circle-check' },
+    { label: 'Returned', value: String(rejected.length), sub: 'Not approved', icon: 'fa-rotate-left' },
+  ];
 
   const ClaimCard = ({ c }: { c: any }) => {
     const m = byId[c.member_id] || {};
@@ -55,9 +69,9 @@ export default async function StaffWelfarePage() {
           <div className="muted" style={{ fontSize: 12 }}>
             {m.investor_id ? `${m.investor_id} · ` : ''}
             Filed {c.filed_at ? new Date(c.filed_at).toLocaleDateString('en-GB') : ''}
-            {c.amount ? ` · ${KES(Number(c.amount))}` : ''}
           </div>
         </div>
+        <div className="num" style={{ fontWeight: 700, fontSize: 14 }}>{c.amount ? KES(Number(c.amount)) : '—'}</div>
         <Badge s={c.status} />
         {c.status === 'pending' && (
           <div style={{ display: 'flex', gap: 8 }}>
@@ -92,9 +106,29 @@ export default async function StaffWelfarePage() {
       <div className="page-title">Welfare claims</div>
       <div className="sub">Review member welfare claims, approve or return them, and mark funds paid.</div>
 
+      {/* Summary of where every claim stands and how much money is committed */}
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', margin: '18px 0 4px' }}>
+        {kpis.map((k) => (
+          <div key={k.label} className="card kpi">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span className="lbl">{k.label}</span>
+              <span
+                className={`ic ${k.accent ? 'grad-lime' : ''}`}
+                style={{ background: k.accent ? undefined : 'var(--surface2)', color: k.accent ? '#20260a' : 'var(--lime2)' }}
+              >
+                <i className={`fa-solid ${k.icon}`} />
+              </span>
+            </div>
+            <div className="val num">{k.value}</div>
+            <div style={{ fontSize: 11.5, marginTop: 4, fontWeight: 600, color: 'var(--muted)' }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pending review */}
       <div className="card card-pad" style={{ marginTop: 18 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>
-          Pending <span className="muted">({pending.length})</span>
+          Pending review <span className="muted">({pending.length})</span>
         </div>
         {pending.length === 0 ? (
           <div className="muted" style={{ fontSize: 13 }}>No claims awaiting review.</div>
@@ -107,15 +141,37 @@ export default async function StaffWelfarePage() {
         )}
       </div>
 
+      {/* Approved and waiting to be paid — the money-out queue */}
+      <div className="card card-pad" style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <div style={{ fontWeight: 700 }}>
+            Awaiting payment <span className="muted">({awaiting.length})</span>
+          </div>
+          {awaiting.length > 0 && (
+            <span className="badge badge-warn" style={{ marginLeft: 'auto' }}>{KES(sumAmount(awaiting))} to pay</span>
+          )}
+        </div>
+        {awaiting.length === 0 ? (
+          <div className="muted" style={{ fontSize: 13 }}>No approved claims waiting to be paid.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {awaiting.map((c) => (
+              <ClaimCard key={c.id} c={c} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Processed history (paid or returned) */}
       <div className="card card-pad" style={{ marginTop: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>
-          Processed <span className="muted">({decided.length})</span>
+          Processed <span className="muted">({processed.length})</span>
         </div>
-        {decided.length === 0 ? (
+        {processed.length === 0 ? (
           <div className="muted" style={{ fontSize: 13 }}>Nothing processed yet.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {decided.map((c) => (
+            {processed.map((c) => (
               <ClaimCard key={c.id} c={c} />
             ))}
           </div>

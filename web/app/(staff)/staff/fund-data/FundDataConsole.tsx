@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { postContribution, recordWithdrawal, markExit, settleExit, importSchedule, importCompiled } from './actions';
 
 const MONTHS: [string, string][] = [
@@ -12,12 +12,41 @@ const kes = (v: any) => (v == null || isNaN(Number(v)) ? '—' : 'KES ' + Math.r
 
 type TabId = 'post' | 'schedule' | 'compiled' | 'withdrawals' | 'download';
 
+function ExitTag({ status }: { status?: string }) {
+  if (status === 'exiting') return <span className="badge badge-warn" style={{ marginLeft: 6 }}>Exiting</span>;
+  if (status === 'exited') return <span className="badge badge-purple" style={{ marginLeft: 6 }}>Exited</span>;
+  return null;
+}
+
 export default function FundDataConsole({ members, flash }: { members: any[]; flash: any }) {
   const [tab, setTab] = useState<TabId>('post');
+  const [q, setQ] = useState('');
 
   const opts = members.map((m) => (
     <option key={m.member_no} value={m.member_no}>{m.member_no} - {m.full_name}</option>
   ));
+
+  // The balances table filters live by reg. no. or name; the totals row below
+  // always reflects exactly the rows on screen, so it doubles as a quick
+  // cross-check against the Reports page.
+  const visible = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return members;
+    return members.filter((m) => `${m.member_no} ${m.full_name}`.toLowerCase().includes(term));
+  }, [members, q]);
+
+  const totals = useMemo(
+    () =>
+      visible.reduce(
+        (t, m) => ({
+          contrib: t.contrib + Number(m.contributions_2026 || 0),
+          withdrawal: t.withdrawal + Number(m.withdrawal || 0),
+          balance: t.balance + Number(m.current_balance || 0),
+        }),
+        { contrib: 0, withdrawal: 0, balance: 0 }
+      ),
+    [visible]
+  );
 
   const TABS: [TabId, string, string][] = [
     ['post', 'Post contribution', 'fa-hand-holding-dollar'],
@@ -172,29 +201,59 @@ export default function FundDataConsole({ members, flash }: { members: any[]; fl
       </div>
 
       <div className="card card-pad" style={{ marginTop: 18 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Current balances</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Current balances</div>
+          <span className="badge badge-purple">{visible.length}{visible.length !== members.length ? ` of ${members.length}` : ''}</span>
+          <label className="search" style={{ marginLeft: 'auto', maxWidth: 260, flex: '1 1 180px' }}>
+            <i className="fa-solid fa-magnifying-glass" />
+            <input
+              placeholder="Search reg. no. or name…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Search balances"
+              style={{ background: 'transparent', border: 0, outline: 'none', color: 'inherit', width: '100%', fontFamily: 'inherit', fontSize: 13 }}
+            />
+          </label>
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead>
               <tr className="muted" style={{ textAlign: 'left', fontSize: 11 }}>
-                <th style={{ padding: '7px 9px' }}>Reg. no.</th>
-                <th style={{ padding: '7px 9px' }}>Name</th>
-                <th style={{ padding: '7px 9px', textAlign: 'right' }}>2026 contrib.</th>
-                <th style={{ padding: '7px 9px', textAlign: 'right' }}>Withdrawals</th>
-                <th style={{ padding: '7px 9px', textAlign: 'right' }}>TOTAL</th>
+                <th scope="col" style={{ padding: '7px 9px' }}>Reg. no.</th>
+                <th scope="col" style={{ padding: '7px 9px' }}>Name</th>
+                <th scope="col" style={{ padding: '7px 9px', textAlign: 'right' }}>2026 contrib.</th>
+                <th scope="col" style={{ padding: '7px 9px', textAlign: 'right' }}>Withdrawals</th>
+                <th scope="col" style={{ padding: '7px 9px', textAlign: 'right' }}>TOTAL</th>
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => (
-                <tr key={m.member_no} style={{ borderTop: '1px solid var(--border)' }}>
-                  <td style={{ padding: '7px 9px' }} className="num">{m.member_no}</td>
-                  <td style={{ padding: '7px 9px', fontWeight: 600 }}>{m.full_name}{m.status === 'exiting' ? ' (exiting)' : m.status === 'exited' ? ' (exited)' : ''}</td>
-                  <td style={{ padding: '7px 9px', textAlign: 'right' }} className="num">{kes(m.contributions_2026)}</td>
-                  <td style={{ padding: '7px 9px', textAlign: 'right' }} className="num">{m.withdrawal ? kes(m.withdrawal) : '—'}</td>
-                  <td style={{ padding: '7px 9px', textAlign: 'right', fontWeight: 700 }} className="num">{kes(m.current_balance)}</td>
+              {visible.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="muted" style={{ padding: '12px 9px', fontSize: 12.5 }}>No members match your search.</td>
                 </tr>
-              ))}
+              ) : (
+                visible.map((m) => (
+                  <tr key={m.member_no} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td style={{ padding: '7px 9px' }} className="num">{m.member_no}</td>
+                    <td style={{ padding: '7px 9px', fontWeight: 600 }}>{m.full_name}<ExitTag status={m.status} /></td>
+                    <td style={{ padding: '7px 9px', textAlign: 'right' }} className="num">{kes(m.contributions_2026)}</td>
+                    <td style={{ padding: '7px 9px', textAlign: 'right' }} className="num">{m.withdrawal ? kes(m.withdrawal) : '—'}</td>
+                    <td style={{ padding: '7px 9px', textAlign: 'right', fontWeight: 700 }} className="num">{kes(m.current_balance)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
+            {visible.length > 0 && (
+              <tfoot>
+                <tr style={{ borderTop: '2px solid var(--border)' }}>
+                  <td style={{ padding: '9px' }} className="num" />
+                  <td style={{ padding: '9px', fontWeight: 700 }}>Total ({visible.length})</td>
+                  <td style={{ padding: '9px', textAlign: 'right', fontWeight: 700 }} className="num">{kes(totals.contrib)}</td>
+                  <td style={{ padding: '9px', textAlign: 'right', fontWeight: 700 }} className="num">{totals.withdrawal ? kes(totals.withdrawal) : '—'}</td>
+                  <td style={{ padding: '9px', textAlign: 'right', fontWeight: 700 }} className="num">{kes(totals.balance)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
