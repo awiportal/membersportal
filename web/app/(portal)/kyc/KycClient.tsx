@@ -24,7 +24,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 // Uploads go straight to storage, so validate on the client before we ever hit
 // the network — otherwise an oversized phone photo or a wrong file type only
 // surfaces as a raw storage error. Mirrors the checklist's `accept` spec.
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 function fileMatchesAccept(file: File, accept: string): boolean {
   const type = (file.type || '').toLowerCase();
@@ -67,7 +67,7 @@ export default function KycClient({
       return;
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      setMsg('That file is larger than 15 MB. Please upload a smaller file — a clear phone photo is usually well under this.');
+      setMsg('That file is larger than 25 MB. Please upload a smaller file — a clear phone photo is usually well under this.');
       return;
     }
     setBusy(docKey);

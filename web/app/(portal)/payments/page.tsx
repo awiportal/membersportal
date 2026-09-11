@@ -28,8 +28,9 @@ export default async function PaymentsPage() {
   const fin = ((finRows ?? []) as any[])[0];
   const hist = (contribs ?? []) as any[];
   const contrib2026 = Number(fin?.contributions_2026 || 0);
-  const goal = Number(fin?.annual_goal || 0);
-  const goalPct = goal ? Math.min(100, Math.round((contrib2026 / goal) * 100)) : 0;
+  // Default annual goal (KES 300,000) when a member hasn't set one — matches Contributions.
+  const goal = Number(fin?.annual_goal) > 0 ? Number(fin?.annual_goal) : 300000;
+  const goalPct = Math.min(100, Math.round((contrib2026 / goal) * 100));
 
   return (
     <div>
@@ -63,7 +64,7 @@ export default async function PaymentsPage() {
           <div className="num" style={{ fontSize: 26, fontWeight: 800 }}>{KES(contrib2026)}</div>
           <div className="bar" style={{ marginTop: 12 }}><span style={{ width: `${goalPct}%` }} /></div>
           <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            {goal ? `${goalPct}% toward your ${KES(goal)} annual goal.` : 'Your annual goal has not been set yet.'}
+            {`${goalPct}% toward your ${KES(goal)} annual goal.`}
           </div>
         </div>
       </div>
