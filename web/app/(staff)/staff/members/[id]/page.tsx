@@ -5,7 +5,7 @@ import { roleLabel, statusLabel } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
-import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord } from '../../actions';
+import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord, recordWithdrawal } from '../../actions';
 import OneOffAgreement from './OneOffAgreement';
 
 export const dynamic = 'force-dynamic';
@@ -51,14 +51,16 @@ export default async function MemberDetail({ params }: { params: { id: string } 
 
   // Financial activity for this member — money in (contributions) and money out
   // (dividends declared, welfare claims). Staff read every row via RLS.
-  const [{ data: contribRows }, { data: dividendRows }, { data: welfareRows }] = await Promise.all([
+  const [{ data: contribRows }, { data: dividendRows }, { data: welfareRows }, { data: withdrawalRows }] = await Promise.all([
     supabase.from('contributions').select('*').eq('member_id', id).order('created_at', { ascending: false }).limit(10),
     supabase.from('dividends').select('*').eq('member_id', id).order('declared_at', { ascending: false }).limit(10),
     supabase.from('welfare_claims').select('*').eq('member_id', id).order('filed_at', { ascending: false }).limit(10),
+    supabase.from('withdrawals').select('*').eq('member_id', id).order('occurred_at', { ascending: false }).limit(10),
   ]);
   const contributions = (contribRows ?? []) as any[];
   const dividendsList = (dividendRows ?? []) as any[];
   const welfareClaims = (welfareRows ?? []) as any[];
+  const withdrawalsList = (withdrawalRows ?? []) as any[];
 
   const docsWithUrls = await Promise.all(
     ((docs ?? []) as any[]).map(async (d) => {
@@ -178,6 +180,45 @@ export default async function MemberDetail({ params }: { params: { id: string } 
         )}
       </div>
 
+      {/* Record a withdrawal — reduces the fund balance and shows on the statement. */}
+      {linkedFinance && (
+        <div className="card card-pad" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Record a withdrawal</div>
+          <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+            Records a payout against {linkedFinance.member_no} and reduces the fund balance (net balance and portfolio value). It appears on the member&apos;s statement, replacing the old hand-typed note.
+          </div>
+          <form action={recordWithdrawal} style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', alignItems: 'end' }}>
+            <input type="hidden" name="id" value={m.id} />
+            <input type="hidden" name="member_no" value={linkedFinance.member_no} />
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Amount (KES)</label>
+              <input className="input" name="amount" inputMode="numeric" placeholder="0" required />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Method</label>
+              <select className="input" name="method" defaultValue="mpesa">
+                <option value="mpesa">M-Pesa</option>
+                <option value="bank">Bank transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="cash">Cash</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Reference</label>
+              <input className="input" name="reference" placeholder="M-Pesa / bank ref" />
+            </div>
+            <div className="field" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+              <label>Note (optional)</label>
+              <input className="input" name="note" placeholder="e.g. partial exit refund" />
+            </div>
+            <button className="btn btn-primary" type="submit" style={{ gridColumn: '1 / -1', justifySelf: 'start' }}>
+              <i className="fa-solid fa-money-bill-transfer" /> Record withdrawal
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* Financial activity — money in (contributions) and out (dividends, welfare). */}
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Financial activity</div>
@@ -225,6 +266,21 @@ export default async function MemberDetail({ params }: { params: { id: string } 
                   <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
                     <span className="muted">{w.filed_at ? new Date(w.filed_at).toLocaleDateString('en-GB') : ''} · {w.claim_type} · {w.status}</span>
                     <span style={{ fontWeight: 600 }}>{w.amount ? KES(Number(w.amount)) : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Withdrawals</div>
+            {withdrawalsList.length === 0 ? (
+              <div className="muted" style={{ fontSize: 12.5 }}>None recorded.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {withdrawalsList.map((w) => (
+                  <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
+                    <span className="muted">{w.occurred_at ? new Date(w.occurred_at).toLocaleDateString('en-GB') : ''}{w.method ? ` · ${w.method}` : ''}{w.reference ? ` · ${w.reference}` : ''}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--bad)' }}>− {KES(Number(w.amount || 0))}</span>
                   </div>
                 ))}
               </div>
