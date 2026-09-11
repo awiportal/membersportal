@@ -24,6 +24,17 @@ export default async function AgreementsPage() {
   const esignDone = profile?.esign_status === 'completed';
   const esignDate = profile?.esign_signed_at ? new Date(profile.esign_signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
 
+  // Short-lived signed URLs for additional agreement documents. The 'agreements'
+  // bucket is private, so we mint per-request signed URLs rather than public ones.
+  const signedUrlByDoc: Record<string, string | undefined> = {};
+  await Promise.all(
+    docs.map(async (d) => {
+      if (!d.file_path) return;
+      const { data } = await supabase.storage.from('agreements').createSignedUrl(d.file_path, 3600);
+      signedUrlByDoc[d.id] = data?.signedUrl;
+    })
+  );
+
   return (
     <div>
       <div className="page-title">Agreements</div>

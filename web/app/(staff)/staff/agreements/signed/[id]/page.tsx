@@ -40,7 +40,7 @@ export default async function SignedAgreementCertificate({ params }: { params: {
   ]);
 
   const docUrl = agr?.file_path
-    ? supabase.storage.from("agreements").getPublicUrl(agr.file_path).data.publicUrl
+    ? (await supabase.storage.from("agreements").createSignedUrl(agr.file_path, 600)).data?.signedUrl ?? null
     : null;
   const signedOn = acc.signed_date || acc.signed_at;
   const memberName = member?.full_name || acc.signed_name || "Member";
