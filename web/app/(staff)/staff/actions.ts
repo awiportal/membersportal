@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isStaff } from '@/lib/roles';
+import { sendMemberEmail } from '@/lib/email';
 import { pandadocConfigured, createFromTemplate, sendForSigning, listTemplates } from '@/lib/pandadoc';
 
 async function requireStaff() {
@@ -27,7 +28,7 @@ export async function approveMember(formData: FormData) {
   if (!id) return;
   const { supabase } = await requireStaff();
 
-  const { data: p } = await supabase.from('profiles').select('joined_at').eq('id', id).single();
+  const { data: p } = await supabase.from('profiles').select('joined_at, email, full_name').eq('id', id).single();
   await supabase
     .from('profiles')
     .update({
@@ -43,6 +44,15 @@ export async function approveMember(formData: FormData) {
     type: 'approval',
     title: 'Membership approved',
     body: 'Welcome to AWIVEST. Your account is now active and your full portal is unlocked.',
+  });
+
+  await sendMemberEmail({
+    to: p?.email,
+    subject: 'Your AWIVEST membership is approved',
+    heading: 'Membership approved',
+    bodyHtml: `<p style="margin:0 0 12px;">Hi ${p?.full_name || 'there'},</p>
+<p style="margin:0 0 12px;">Welcome to AWIVEST. Your membership has been approved and your account is now active &mdash; your full investor portal is unlocked.</p>
+<p style="margin:0;">Sign in any time to view your statement, contributions and welfare.</p>`,
   });
 
   refresh(id);
@@ -201,4 +211,51 @@ export async function sendOneOffAgreement(
   } catch (e: any) {
     return { error: e?.message || 'Could not send the agreement. Please try again.' };
   }
+}
+
+// Record a member withdrawal against their linked AWIVEST fund position. Reduces
+// net_balance + current_balance (portfolio value) and appears on the statement,
+// replacing the old hand-typed "absorbed into opening" note. Staff-only; the
+// atomic write is the is_staff()-gated SECURITY DEFINER RPC staff_record_withdrawal.
+export async function recordWithdrawal(formData: FormData) {
+  const id = String(formData.get('id') || '');
+  const memberNo = String(formData.get('member_no') || '').trim();
+  const amount = Number(String(formData.get('amount') || '').replace(/[^0-9.]/g, ''));
+  const method = String(formData.get('method') || '').trim() || null;
+  const reference = String(formData.get('reference') || '').trim() || null;
+  const note = String(formData.get('note') || '').trim() || null;
+  if (!memberNo || !amount || amount <= 0) return;
+  const { supabase } = await requireStaff();
+
+  const { error } = await supabase.rpc('staff_record_withdrawal', {
+    p_member_no: memberNo,
+    p_amount: amount,
+    p_method: method,
+    p_reference: reference,
+    p_note: note,
+  });
+  if (error) {
+    console.error('recordWithdrawal failed:', error.message);
+    return;
+  }
+
+  if (id) {
+    const { data: prof } = await supabase.from('profiles').select('email, full_name').eq('id', id).single();
+    await supabase.from('notifications').insert({
+      member_id: id,
+      type: 'withdrawal',
+      title: 'Withdrawal processed',
+      body: `A withdrawal of KES ${amount.toLocaleString()} has been recorded on your AWIVEST account${reference ? ` (ref ${reference})` : ''}. Your updated balance is reflected in your statement.`,
+    });
+    await sendMemberEmail({
+      to: prof?.email,
+      subject: 'AWIVEST withdrawal processed',
+      heading: 'Withdrawal processed',
+      bodyHtml: `<p style="margin:0 0 12px;">Hi ${prof?.full_name || 'there'},</p>
+<p style="margin:0 0 12px;">A withdrawal of <strong>KES ${amount.toLocaleString()}</strong> has been recorded on your AWIVEST account${reference ? ` (reference ${reference})` : ''}.</p>
+<p style="margin:0;">Your updated portfolio value is shown on your latest statement in the portal. If you did not expect this, please contact the AWIVEST office.</p>`,
+    });
+  }
+
+  refresh(id);
 }
