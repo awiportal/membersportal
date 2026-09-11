@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff } from '@/lib/roles';
+import { isStaff, canApproveMembers, canDisburseFunds } from '@/lib/roles';
 import { sendMemberEmail } from '@/lib/email';
 import { pandadocConfigured, createFromTemplate, sendForSigning, listTemplates } from '@/lib/pandadoc';
 
@@ -17,6 +17,19 @@ async function requireStaff() {
   return { supabase, uid: user.id };
 }
 
+// Elevated guard: run only when the caller's role satisfies `check`
+// (e.g. canApproveMembers / canDisburseFunds). Admin-tier per the roles matrix.
+async function requireCap(check: (r?: string | null) => boolean) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (!check(me?.role)) throw new Error('Not authorized');
+  return { supabase, uid: user.id };
+}
+
 function refresh(id: string) {
   revalidatePath('/staff');
   revalidatePath(`/staff/members/${id}`);
@@ -26,7 +39,7 @@ function refresh(id: string) {
 export async function approveMember(formData: FormData) {
   const id = String(formData.get('id') || '');
   if (!id) return;
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireCap(canApproveMembers);
 
   const { data: p } = await supabase.from('profiles').select('joined_at, email, full_name').eq('id', id).single();
   await supabase
@@ -63,7 +76,7 @@ export async function rejectMember(formData: FormData) {
   const id = String(formData.get('id') || '');
   const reason = String(formData.get('reason') || '').trim();
   if (!id) return;
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireCap(canApproveMembers);
 
   await supabase
     .from('profiles')
@@ -87,7 +100,7 @@ export async function setMemberStatus(formData: FormData) {
   const id = String(formData.get('id') || '');
   const status = String(formData.get('status') || '');
   if (!id || !['active', 'inactive', 'archived', 'pending'].includes(status)) return;
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireCap(canApproveMembers);
   await supabase.from('profiles').update({ status }).eq('id', id);
   refresh(id);
 }
@@ -225,7 +238,7 @@ export async function recordWithdrawal(formData: FormData) {
   const reference = String(formData.get('reference') || '').trim() || null;
   const note = String(formData.get('note') || '').trim() || null;
   if (!memberNo || !amount || amount <= 0) return;
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireCap(canDisburseFunds);
 
   const { error } = await supabase.rpc('staff_record_withdrawal', {
     p_member_no: memberNo,

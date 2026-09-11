@@ -18,7 +18,7 @@ function ExitTag({ status }: { status?: string }) {
   return null;
 }
 
-export default function FundDataConsole({ members, flash }: { members: any[]; flash: any }) {
+export default function FundDataConsole({ members, flash, canDisburse }: { members: any[]; flash: any; canDisburse?: boolean }) {
   const [tab, setTab] = useState<TabId>('post');
   const [q, setQ] = useState('');
 
@@ -139,7 +139,12 @@ export default function FundDataConsole({ members, flash }: { members: any[]; fl
           </form>
         )}
 
-        {tab === 'withdrawals' && (
+        {tab === 'withdrawals' && !canDisburse && (
+          <div className="card card-pad muted" style={{ fontSize: 13 }}>
+            Recording withdrawals and processing exits is handled by an Admin or the Chairlady.
+          </div>
+        )}
+        {tab === 'withdrawals' && canDisburse && (
           <div style={{ display: 'grid', gap: 16 }}>
             <form action={recordWithdrawal} className="card card-pad" style={{ display: 'grid', gap: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>Record a withdrawal</div>

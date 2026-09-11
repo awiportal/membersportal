@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, describeServiceKey } from '@/lib/supabase/admin';
-import { isStaff } from '@/lib/roles';
+import { canManageConfig } from '@/lib/roles';
 
 const ALLOWED_AGREEMENT_EXT = new Set(['pdf', 'doc', 'docx']);
 const MAX_AGREEMENT_BYTES = 15 * 1024 * 1024; // 15 MB
@@ -11,7 +11,7 @@ const MAX_AGREEMENT_BYTES = 15 * 1024 * 1024; // 15 MB
 /**
  * Confirm the caller is a signed-in staff member, then hand back an admin
  * (service-role) client for the privileged write. The admin client bypasses
- * row-level security — the staff check here is the security boundary.
+ * row-level security — the admin check here is the security boundary.
  */
 async function requireStaffAdmin() {
   const supabase = createClient();
@@ -20,7 +20,7 @@ async function requireStaffAdmin() {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not signed in');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) throw new Error('Not authorized');
+  if (!canManageConfig(me?.role)) throw new Error('Not authorized');
   return { admin: createAdminClient(), userId: user.id };
 }
 
@@ -34,8 +34,8 @@ export async function addAgreement(
   } = await supabase.auth.getUser();
   if (!user) return { error: 'Your session has expired. Please sign in again and retry.' };
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) {
-    return { error: 'You need a staff role to add agreements.' };
+  if (!canManageConfig(me?.role)) {
+    return { error: 'You need an Admin or Chairlady role to add agreements.' };
   }
 
   // 2) Validate input.

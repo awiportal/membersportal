@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff } from '@/lib/roles';
+import { isStaff, canDisburseFunds } from '@/lib/roles';
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
@@ -26,6 +26,18 @@ async function staffClient() {
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (!isStaff(me?.role)) redirect('/staff');
+  return supabase;
+}
+
+// Money-out actions (record withdrawal, mark/settle exit) require Admin tier.
+async function disburseClient() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (!canDisburseFunds(me?.role)) redirect('/staff');
   return supabase;
 }
 
@@ -75,7 +87,7 @@ export async function postContribution(formData: FormData) {
 
 // Record a withdrawal (adds to any prior withdrawal); reflects across balances.
 export async function recordWithdrawal(formData: FormData) {
-  const supabase = await staffClient();
+  const supabase = await disburseClient();
   const memberNo = normMemberNo(String(formData.get('member_no') || ''));
   const amount = n(formData.get('amount'));
   const note = String(formData.get('note') || '').trim();
@@ -105,7 +117,7 @@ export async function recordWithdrawal(formData: FormData) {
 
 // Mark a member exiting and record the refund amount requested (pending, not yet paid).
 export async function markExit(formData: FormData) {
-  const supabase = await staffClient();
+  const supabase = await disburseClient();
   const memberNo = normMemberNo(String(formData.get('member_no') || ''));
   const refund = n(formData.get('refund'));
   if (!memberNo) redirect('/staff/fund-data?err=1');
@@ -125,7 +137,7 @@ export async function markExit(formData: FormData) {
 
 // Settle an exit: post the pending refund as a withdrawal; net balance = TOTAL - amount paid.
 export async function settleExit(formData: FormData) {
-  const supabase = await staffClient();
+  const supabase = await disburseClient();
   const memberNo = normMemberNo(String(formData.get('member_no') || ''));
   if (!memberNo) redirect('/staff/fund-data?err=1');
   const row = await loadRow(supabase, memberNo!);
