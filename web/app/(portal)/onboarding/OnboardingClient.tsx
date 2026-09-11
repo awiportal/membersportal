@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { RELATION_KINDS, memberTypeLabel, docsFor, GENDER_OPTIONS } from '@/lib/onboarding';
 import CountrySelect from '@/components/CountrySelect';
+import DateSelect from '@/components/DateSelect';
 import FancySelect from '@/components/FancySelect';
 import SignaturePad from '@/components/SignaturePad';
 import { savePersonalData, continueFromDocuments, signAgreement, continueFromAgreements, submitForApproval, startEsign, refreshEsignStatus } from './actions';
@@ -335,10 +336,15 @@ function PersonalStep({ profile, relMap, email, err }: { profile: any; relMap: R
             </div>
             <div className="field">
               <label>Gender <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
-              <select className="input" name="gender" value={f.gender} onChange={set('gender')}>
-                <option value="">Select</option>
-                {GENDER_OPTIONS.map((g) => (<option key={g} value={g}>{g}</option>))}
-              </select>
+              <FancySelect
+                ariaLabel="Gender"
+                placeholder="Select"
+                searchable={false}
+                name="gender"
+                value={f.gender}
+                onChange={setV('gender')}
+                options={GENDER_OPTIONS.map((g) => ({ value: g, label: g }))}
+              />
             </div>
           </div>
           <div className="grid2">
@@ -777,7 +783,7 @@ function AgreementsStep({ agreements, acceptances, memberName, err }: { agreemen
                       </div>
                       <div className="field" style={{ margin: 0 }}>
                         <label>Date</label>
-                        <input className="input" name="signed_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} max={new Date().toISOString().slice(0, 10)} />
+                        <DateSelect name="signed_date" defaultValue={new Date().toISOString().slice(0, 10)} />
                       </div>
                     </div>
                     <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
