@@ -127,6 +127,37 @@ export default function StatementSheet({ fin }: { fin: any }) {
         </div>
       </div>
 
+      {/* ---- Portfolio composition (same motif as the Dashboard / Reports) ---- */}
+      {(() => {
+        const contribAmt = lifetime ?? 0;
+        const intAmt = totalInterest ?? 0;
+        const base = contribAmt + intAmt;
+        if (base <= 0) return null;
+        const cPct = (contribAmt / base) * 100;
+        const iPct = (intAmt / base) * 100;
+        const fmtPct = (n: number) => n.toFixed(1) + '%';
+        return (
+          <section className="stmt-block" style={{ marginTop: 16 }}>
+            <h3 className="stmt-h">How your portfolio is built</h3>
+            <div style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden', background: 'var(--surface2)', border: '1px solid var(--border)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              {cPct > 0 && <div style={{ width: cPct + '%', background: 'var(--purple2, #a6398f)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />}
+              {iPct > 0 && <div style={{ width: iPct + '%', background: 'var(--lime2, #c3e05f)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />}
+            </div>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 10, fontSize: 12 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--purple2, #a6398f)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
+                Contributions&nbsp;<strong className="num">{kes(contribAmt)}</strong>&nbsp;&middot;&nbsp;{fmtPct(cPct)}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--lime2, #c3e05f)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
+                Interest&nbsp;<strong className="num">{kes(intAmt)}</strong>&nbsp;&middot;&nbsp;{fmtPct(iPct)}
+              </span>
+            </div>
+            <div className="stmt-fine" style={{ marginTop: 8 }}>Your lifetime contributions and the total interest earned on them make up your holdings.</div>
+          </section>
+        );
+      })()}
+
       {/* ---- Exit settlement (members leaving / with a payout in progress) ---- */}
       {isExiting && (
         <section className="stmt-block" style={{ marginTop: 14, borderLeft: '3px solid var(--warn, #f2b23b)', paddingLeft: 14 }}>
