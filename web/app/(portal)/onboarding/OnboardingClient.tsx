@@ -729,9 +729,9 @@ function AgreementsStep({ agreements, acceptances, memberName, err }: { agreemen
 
   return (
     <div className="card card-pad">
-      <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Open each document to read it, then sign it with your name, the date, and your drawn signature." />
+      <SectionTitle icon="fa-file-contract" title="Membership agreements" desc="Open each document to read it, then sign it with your name, the date, and your signature — sign online or upload a photo or scan." />
       {err === 'agreements' && <ErrorBanner text="Please sign all required agreements before continuing." />}
-      {err === 'sign' && <ErrorBanner text="Please add your drawn signature and your full name to sign." />}
+      {err === 'sign' && <ErrorBanner text="Please add your full name and your signature (sign online or upload) to sign." />}
 
       {agreements.length === 0 ? (
         <div className="muted" style={{ padding: 16, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', fontSize: 13.5 }}>
