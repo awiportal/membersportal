@@ -16,11 +16,19 @@ function signingKey(): string {
   // Prefer a dedicated secret; fall back to the server-only service-role key so
   // the cookie is always signed with a value the browser never sees. Never
   // expose either to the client. In production, set AWI_2FA_SECRET.
-  return (
-    process.env.AWI_2FA_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    'awi-2fa-dev-only-secret-change-me'
-  );
+  const configured = process.env.AWI_2FA_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (configured) return configured;
+  // No secret configured. NEVER sign with a hardcoded constant in production: a
+  // publicly-known secret lets anyone forge the awi_2fa_ok cookie and skip the
+  // emailed code. Fail CLOSED so a misconfigured deploy denies rather than
+  // silently downgrading the second factor.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'AWI_2FA_SECRET is not configured. Set a strong, random AWI_2FA_SECRET (or ensure SUPABASE_SERVICE_ROLE_KEY is present) before serving 2FA.'
+    );
+  }
+  // Local-development convenience only; never reached in production.
+  return 'awi-2fa-dev-only-secret-change-me';
 }
 
 export const TWOFA_TTL_SECONDS = 60 * 60 * 12; // 12 hours
