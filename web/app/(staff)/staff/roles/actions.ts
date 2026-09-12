@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/roles';
 
-const VALID_ROLES = new Set(['member', 'secretary', 'admin', 'superadmin']);
+const VALID_ROLES = new Set(['member', 'secretary', 'treasurer', 'auditor', 'admin', 'superadmin']);
 const isAdminTier = (r?: string | null) => r === 'admin' || r === 'superadmin';
 
 // Change a member's role. Admin / Chairlady only — mirrored here and hard-enforced
