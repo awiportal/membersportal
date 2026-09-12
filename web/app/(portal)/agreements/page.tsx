@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { signAgreementDoc } from './actions';
+import AgreementSigner from './AgreementSigner';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +94,7 @@ export default async function AgreementsPage() {
                     <span className="badge badge-warn">Not signed</span>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 9, marginTop: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 9, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
                   {acc ? (
                     <>
                       <a href={`/agreements/download/${acc.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-lime btn-sm">
@@ -109,17 +109,20 @@ export default async function AgreementsPage() {
                       <i className="fa-solid fa-arrow-up-right-from-square" /> View document
                     </a>
                   ) : null}
-                  {!acc && (
-                    <form action={signAgreementDoc} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1, minWidth: 240 }}>
-                      <input type="hidden" name="agreement_id" value={d.id} />
-                      <div className="field" style={{ flex: 1, minWidth: 180, marginBottom: 0 }}>
-                        <label>Sign by typing your full name</label>
-                        <input className="input" name="signed_name" placeholder="Your full name" required />
-                      </div>
-                      <button className="btn btn-lime btn-sm" type="submit"><i className="fa-solid fa-signature" /> Sign</button>
-                    </form>
-                  )}
                 </div>
+
+                {!acc && <AgreementSigner agreementId={d.id} />}
+
+                {acc && acc.signature_image && (
+                  <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={acc.signature_image} alt="Signature" style={{ height: 56, maxWidth: 220, background: '#ffffff', borderRadius: 8, padding: 6, border: '1px solid var(--border)' }} />
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Signed by <strong style={{ color: 'var(--text)' }}>{acc.signed_name}</strong>
+                      {acc.signed_at ? ' on ' + new Date(acc.signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })
