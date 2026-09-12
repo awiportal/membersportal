@@ -84,10 +84,16 @@ export default function StatementSheet({ fin }: { fin: any }) {
       {/* ---- Letterhead ---- */}
       <header className="stmt-head">
         <div className="stmt-brand">
-          <div className="stmt-monogram" aria-hidden="true">{monogram(fin.full_name)}</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/awi-logo.png" alt="AWIVEST — African Women Investors" width={56} height={56} style={{ display: 'block', borderRadius: 13, flex: 'none' }} />
           <div>
             <div className="stmt-brand-name">AWIVEST LTD</div>
             <div className="stmt-brand-tag">African Women Investors</div>
+            <div className="stmt-doc-meta" style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px', marginTop: 6 }}>
+              <span><i className="fa-solid fa-globe" style={{ marginRight: 5, opacity: 0.65 }} />awivest.com</span>
+              <span><i className="fa-solid fa-envelope" style={{ marginRight: 5, opacity: 0.65 }} />info@awivest.com</span>
+              <span><i className="fa-solid fa-phone" style={{ marginRight: 5, opacity: 0.65 }} />+254 748 475 347</span>
+            </div>
           </div>
         </div>
         <div className="stmt-doc">
@@ -237,12 +243,12 @@ export default function StatementSheet({ fin }: { fin: any }) {
       {/* ---- Footer ---- */}
       <footer className="stmt-foot">
         <div className="stmt-foot-line">
-          This is a computer-generated statement issued by AWIVEST LTD and is valid without a signature.
-          Figures reflect the member register{asOf ? ' as at ' + asOf : ''}. For any query, please contact the AWIVEST office.
+          This is a computer-generated statement issued by AWIVEST LTD (African Women Investors) and is valid without a signature.
+          Figures reflect the member register{asOf ? ' as at ' + asOf : ''}. For any query, contact the AWIVEST office at info@awivest.com or +254 748 475 347.
         </div>
         <div className="stmt-foot-meta">
-          <span>{ref}</span>
-          <span>Generated {issued}</span>
+          <span>awivest.com&nbsp;&middot;&nbsp;info@awivest.com&nbsp;&middot;&nbsp;+254&nbsp;748&nbsp;475&nbsp;347</span>
+          <span>{ref}&nbsp;&middot;&nbsp;Generated {issued}</span>
         </div>
       </footer>
     </div>
