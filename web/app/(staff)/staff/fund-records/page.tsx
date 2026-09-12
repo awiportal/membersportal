@@ -29,9 +29,11 @@ export default async function FundRecordsPage({
 
   const { data: rows } = await supabase
     .from('member_finances')
-    .select('member_no, full_name, national_id, phone, member_id, current_balance')
+    .select('member_no, full_name, national_id, phone, member_id, current_balance, status')
     .order('member_no', { ascending: true });
-  const list = (rows ?? []) as any[];
+  // Exclude sample/preview member rows (status 'sample') from the register
+  // counts so they never inflate the real member/linked totals.
+  const list = ((rows ?? []) as any[]).filter((r) => r.status !== 'sample');
 
   const total = list.length;
   const withId = list.filter((r) => r.national_id).length;

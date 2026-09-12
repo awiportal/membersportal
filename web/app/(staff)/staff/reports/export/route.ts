@@ -18,7 +18,9 @@ export async function GET() {
   if (!isStaff(me?.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const { data: rows } = await supabase.from('member_finances').select('*').order('member_no', { ascending: true });
-  const buf = await buildFundWorkbook((rows ?? []) as any[]);
+  // Exclude sample/preview member rows (status 'sample') so they never affect
+  // the register, member counts or fund totals in the exported workbook.
+  const buf = await buildFundWorkbook(((rows ?? []) as any[]).filter((r) => r.status !== 'sample'));
   const today = new Date().toISOString().slice(0, 10);
 
   return new NextResponse(new Uint8Array(buf), {
