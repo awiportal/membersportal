@@ -1,7 +1,30 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { KES, KESc } from '@/lib/format';
 import MemberStatement from './MemberStatement';
 
 export const dynamic = 'force-dynamic';
+
+const n = (v: any) => Number(v || 0);
+
+const NAV = [
+  { href: '/dashboard', icon: 'fa-gauge-high', label: 'Dashboard', id: 'dashboard' },
+  { href: '/portfolio', icon: 'fa-chart-pie', label: 'Portfolio', id: 'portfolio' },
+  { href: '/contributions', icon: 'fa-hand-holding-dollar', label: 'Contributions', id: 'contributions' },
+  { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
+];
+
+function PageNav({ here }: { here: string }) {
+  return (
+    <nav className="pagenav">
+      {NAV.map((it) => (
+        <Link key={it.id} href={it.href} className={it.id === here ? 'is-here' : undefined}>
+          <i className={`fa-solid ${it.icon}`} /> {it.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 export default async function StatementsPage() {
   const supabase = createClient();
@@ -29,13 +52,53 @@ export default async function StatementsPage() {
     })
   );
 
+  const current = fin ? n(fin.current_balance) : 0;
+  const interest = fin ? n(fin.total_interest_2026) : 0;
+  const lifetime = fin ? n(fin.lifetime_contributions) || n(fin.opening_balance_2025) + n(fin.contributions_2026) : 0;
+  const asOf = fin?.as_of
+    ? new Date(fin.as_of).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+
   return (
     <div>
-      <div className="page-title">Statements</div>
-      <div className="sub">Your official AWIVEST statement, plus any reports the office publishes to you.</div>
+      <PageNav here="statements" />
 
       {fin ? (
-        <div style={{ marginTop: 20 }}>
+        <section className="hero rise">
+          <div className="hero-grid">
+            <div>
+              <div className="hero-eyebrow">Official Statement{fin.member_no ? ' \u00b7 ' + fin.member_no : ''}</div>
+              <div className="hero-value">
+                <span className="cur">KES</span>
+                {Math.round(current).toLocaleString('en-KE')}
+              </div>
+              <div className="hero-line">
+                Your official AWIVEST fund statement{asOf ? ', as at ' + asOf : ''}. Print it or save it as a PDF straight from the statement sheet below.
+              </div>
+              <div className="hero-pills">
+                <div className="hero-pill"><div className="k">Contributions</div><div className="v num">{KESc(lifetime)}</div></div>
+                <div className="hero-pill"><div className="k">Interest</div><div className="v num">{KESc(interest)}</div></div>
+                <div className="hero-pill"><div className="k">Balance</div><div className="v num">{KESc(current)}</div></div>
+              </div>
+            </div>
+            <div className="hero-spark">
+              <div className="hero-spark-lbl">Explore your account</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <Link href="/portfolio" className="hero-cta" style={{ justifyContent: 'center' }}><i className="fa-solid fa-chart-pie" /> Portfolio</Link>
+                <Link href="/contributions" className="hero-cta" style={{ justifyContent: 'center' }}><i className="fa-solid fa-hand-holding-dollar" /> Contributions</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <>
+          <div className="page-title">Statements</div>
+          <div className="sub">Your official AWIVEST statement, plus any reports the office publishes to you.</div>
+        </>
+      )}
+
+      {fin ? (
+        <div className="rise-2" style={{ marginTop: 16 }}>
           <MemberStatement fin={fin} />
         </div>
       ) : (
@@ -46,11 +109,13 @@ export default async function StatementsPage() {
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontWeight: 700, fontSize: 16 }}>Published documents</div>
-      <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-        Statements and reports shared with you. Files open via short-lived, signed links — never public.
+      <div className="section-head rise-3" style={{ marginTop: 26 }}>
+        <div>
+          <div className="section-title">Published documents</div>
+          <div className="section-sub">Statements and reports shared with you. Files open via short-lived, signed links &mdash; never public.</div>
+        </div>
       </div>
-      <div className="card card-pad" style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="card card-pad rise-3" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {withUrls.length === 0 ? (
           <div className="muted" style={{ fontSize: 13 }}>No documents have been published to you yet.</div>
         ) : (
