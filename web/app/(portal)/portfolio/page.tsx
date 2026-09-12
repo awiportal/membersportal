@@ -15,7 +15,7 @@ const NAV = [
   { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
 ];
 
-export function PortfolioPageNav({ here }: { here: string }) {
+function PortfolioPageNav({ here }: { here: string }) {
   return (
     <nav className="pagenav">
       {NAV.map((it) => (
