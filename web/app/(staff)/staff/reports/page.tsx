@@ -19,6 +19,7 @@ type Row = {
   total_interest_2026: number;
   current_balance: number;
   refund_on_exit: number;
+  withdrawal: number | null;
   britam_interest_life: number;
   jubilee_mmf: number;
   jubilee_fif: number;
@@ -40,7 +41,7 @@ export default async function StaffReportsPage() {
   const { data: rowsData } = await supabase
     .from('member_finances')
     .select(
-      'member_no, full_name, status, opening_balance_2025, contributions_2026, total_interest_2026, current_balance, refund_on_exit, britam_interest_life, jubilee_mmf, jubilee_fif, jubilee_fif_apr_jul'
+      'member_no, full_name, status, opening_balance_2025, contributions_2026, total_interest_2026, current_balance, refund_on_exit, withdrawal, britam_interest_life, jubilee_mmf, jubilee_fif, jubilee_fif_apr_jul'
     )
     .order('current_balance', { ascending: false });
   const rows = (rowsData ?? []) as Row[];
@@ -67,7 +68,10 @@ export default async function StaffReportsPage() {
   const opening = total - contributions - interest;
   const britam = sum((r) => n(r.britam_interest_life));
   const jubilee = sum((r) => n(r.jubilee_mmf) + n(r.jubilee_fif) + n(r.jubilee_fif_apr_jul));
-  const withdrawals = sum((r) => n(r.refund_on_exit));
+  // "Paid out to exits" is cash already disbursed to exiting/exited members,
+  // which lives in member_finances.withdrawal (e.g. AWI-007 Lydia = 1,455,000),
+  // not in refund_on_exit (a deduction field that is 0 across the register).
+  const withdrawals = sum((r) => (isExit(r) ? n(r.withdrawal) : 0));
   const accounts = rows.filter(isAccount);
   const accountsTotal = accounts.reduce((s, r) => s + n(r.current_balance), 0);
 
