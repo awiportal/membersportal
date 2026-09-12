@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getSessionProfile } from '@/lib/session';
 import { roleLabel, statusLabel, canApproveMembers, canDisburseFunds, canMapMembership } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
@@ -21,12 +22,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
   const id = params.id;
 
   // The signed-in staff member's own role gates which controls appear below.
-  const {
-    data: { user: viewer },
-  } = await supabase.auth.getUser();
-  const { data: viewerProfile } = viewer
-    ? await supabase.from('profiles').select('role').eq('id', viewer.id).single()
-    : { data: null as any };
+  const viewerProfile = await getSessionProfile();
   const viewerRole = viewerProfile?.role as string | undefined;
 
   const [{ data: m }, { data: relations }, { data: docs }, { data: agrDocs }, { data: acceptances }] = await Promise.all([

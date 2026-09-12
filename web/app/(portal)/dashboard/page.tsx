@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getSessionUser, getSessionProfile } from '@/lib/session';
 import { KES, KESc, pct } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
@@ -10,14 +11,12 @@ const COLORS = ['#a6398f', '#a6cd35', '#5aa9f0', '#f2b23b', '#ef7fd8', '#37c98a'
 
 export default async function DashboardPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   const uid = user!.id;
 
   const [{ data: profile }, { data: holdings }, { data: goals }, { data: contribs }, { data: divs }, { data: fps }, { data: finRows }] =
     await Promise.all([
-      supabase.from('profiles').select('*').eq('id', uid).single(),
+      getSessionProfile().then((data) => ({ data })),
       supabase.from('holdings').select('*').eq('member_id', uid),
       supabase.from('goals').select('*').eq('member_id', uid),
       supabase.from('contributions').select('amount,status').eq('member_id', uid),
