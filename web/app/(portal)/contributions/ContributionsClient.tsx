@@ -76,6 +76,8 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
   const net = num(fin.net_balance);
   const goal = num(fin.annual_goal) ?? 300000;
   const withdrawal = num(fin.withdrawal) ?? num(fin.refund_on_exit);
+  const paidOut = withdrawal != null && withdrawal > 0 ? withdrawal : 0;
+  const grossEntitlement = (current ?? 0) + paidOut;
   const asOf = fin.as_of
     ? new Date(fin.as_of).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : null;
@@ -296,9 +298,24 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
             <div className="section-title" style={{ marginBottom: 12 }}>Withdrawals</div>
             {(withdrawal != null && withdrawal > 0) || fin.refund_status ? (
               <div>
-                {withdrawal != null && withdrawal > 0 && <Row k="Amount withdrawn / refunded" v={kes(withdrawal)} />}
-                {fin.refund_status && <Row k="Refund status" v={String(fin.refund_status).replace('_', ' ')} />}
-                {fin.status === 'exiting' && <Row k="Membership" v="Exiting (refund in process)" />}
+                {fin.status === 'exiting' ? (
+                  <>
+                    <Row k="Gross entitlement (contributions + interest)" v={kes(grossEntitlement)} />
+                    {paidOut > 0 && <Row k="Amount already paid out" v={'\u2212 ' + kes(paidOut)} neg />}
+                    <Row k="Balance pending refund" v={kes(current)} strong />
+                    {fin.refund_status && <Row k="Refund status" v={String(fin.refund_status).replace('_', ' ')} />}
+                    <div className="muted" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
+                      {paidOut > 0
+                        ? kes(paidOut) + ' has already been paid out. The remaining ' + kes(current) + ' is pending refund by the office.'
+                        : 'Your full balance of ' + kes(current) + ' is pending refund by the office.'}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {paidOut > 0 && <Row k="Amount already paid out" v={kes(paidOut)} />}
+                    {fin.refund_status && <Row k="Refund status" v={String(fin.refund_status).replace('_', ' ')} />}
+                  </>
+                )}
                 {fin.notes && (
                   <div className="muted" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
                     <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }} />{fin.notes}
