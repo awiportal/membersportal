@@ -721,6 +721,41 @@ function EsignStep({ profile, err }: { profile: any; err?: string }) {
 }
 
 /* --------------------------- Step 3: Agreements ---------------------------- */
+// One agreement's sign form. Keeps its own "has signature" state so Sign & stamp
+// stays disabled until a signature (drawn or uploaded) is actually captured.
+// This prevents submitting before a mobile upload has finished decoding, which
+// previously produced a false "add your full name and your signature" error.
+function AgreementSignForm({ agreementId, memberName }: { agreementId: string; memberName: string }) {
+  const [hasSig, setHasSig] = useState(false);
+  return (
+    <form action={signAgreement} style={{ marginTop: 12 }}>
+      <input type="hidden" name="agreement_id" value={agreementId} />
+      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Full name <span style={{ color: 'var(--lime2)' }}>*</span></label>
+          <input className="input" name="signed_name" defaultValue={memberName} placeholder="e.g. Jane Wanjiru" required />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Date</label>
+          <DateSelect name="signed_date" defaultValue={new Date().toISOString().slice(0, 10)} />
+        </div>
+      </div>
+      <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
+        <label>Your signature <span style={{ color: 'var(--lime2)' }}>*</span> <span className="muted" style={{ fontWeight: 400 }}>— sign online or upload a photo/scan</span></label>
+        <SignaturePad name="signature_image" onCapture={setHasSig} />
+      </div>
+      <SubmitButton className="btn btn-lime" pendingText="Signing…" style={{ marginTop: 12 }} disabled={!hasSig}>
+        <i className="fa-solid fa-pen-nib" /> Sign &amp; stamp
+      </SubmitButton>
+      {!hasSig && (
+        <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+          Draw or upload your signature above to enable signing.
+        </div>
+      )}
+    </form>
+  );
+}
+
 function AgreementsStep({ agreements, acceptances, memberName, err }: { agreements: Agreement[]; acceptances: Acceptance[]; memberName: string; err?: string }) {
   const accByAgr: Record<string, Acceptance> = {};
   acceptances.forEach((a) => (accByAgr[a.agreement_id] = a));
@@ -774,26 +809,7 @@ function AgreementsStep({ agreements, acceptances, memberName, err }: { agreemen
                     </div>
                   </div>
                 ) : (
-                  <form action={signAgreement} style={{ marginTop: 12 }}>
-                    <input type="hidden" name="agreement_id" value={a.id} />
-                    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label>Full name <span style={{ color: 'var(--lime2)' }}>*</span></label>
-                        <input className="input" name="signed_name" defaultValue={memberName} placeholder="e.g. Jane Wanjiru" required />
-                      </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label>Date</label>
-                        <DateSelect name="signed_date" defaultValue={new Date().toISOString().slice(0, 10)} />
-                      </div>
-                    </div>
-                    <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
-                      <label>Draw your signature <span style={{ color: 'var(--lime2)' }}>*</span></label>
-                      <SignaturePad name="signature_image" />
-                    </div>
-                    <SubmitButton className="btn btn-lime" pendingText="Signing…" style={{ marginTop: 12 }}>
-                      <i className="fa-solid fa-pen-nib" /> Sign &amp; stamp
-                    </SubmitButton>
-                  </form>
+                  <AgreementSignForm agreementId={a.id} memberName={memberName} />
                 )}
               </div>
             );
