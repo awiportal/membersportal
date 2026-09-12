@@ -5,7 +5,7 @@ import StatementView from './StatementView';
 
 export const dynamic = 'force-dynamic';
 
-export default async function StaffMemberStatement({ params }: { params: { member_no: string } }) {
+export default async function StaffMemberStatement({ params, searchParams }: { params: { member_no: string }; searchParams: { print?: string } }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -18,5 +18,5 @@ export default async function StaffMemberStatement({ params }: { params: { membe
   const { data: fin } = await supabase.from('member_finances').select('*').eq('member_no', memberNo).maybeSingle();
   if (!fin) notFound();
 
-  return <StatementView fin={fin as any} />;
+  return <StatementView fin={fin as any} autoPrint={searchParams?.print === '1'} />;
 }

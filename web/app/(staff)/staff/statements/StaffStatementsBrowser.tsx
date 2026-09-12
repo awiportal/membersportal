@@ -82,8 +82,9 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
                     <span className={'badge ' + statusBadge(r.status)} style={{ fontSize: 10.5 }}>{r.status || 'member'}</span>
                   </td>
                   <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600 }} className="num">{kes(r.current_balance)}</td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right' }}>
+                  <td style={{ padding: '9px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setSel(r); }}><i className="fa-solid fa-eye" /> View</button>
+                    <Link href={'/staff/statements/' + encodeURIComponent(r.member_no) + '?print=1'} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={(e) => e.stopPropagation()} title="Open a print-ready statement and save it as PDF"><i className="fa-solid fa-file-pdf" /> PDF</Link>
                   </td>
                 </tr>
               ))}
@@ -121,7 +122,8 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
             </div>
             <div className="drawer-foot">
               <button className="btn btn-ghost btn-sm" type="button" onClick={() => setSel(null)}>Close</button>
-              <Link href={'/staff/statements/' + encodeURIComponent(sel.member_no)} className="btn btn-lime btn-sm"><i className="fa-solid fa-up-right-from-square" /> Open full &amp; print</Link>
+              <Link href={'/staff/statements/' + encodeURIComponent(sel.member_no) + '?print=1'} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm"><i className="fa-solid fa-file-pdf" /> Download PDF</Link>
+              <Link href={'/staff/statements/' + encodeURIComponent(sel.member_no)} className="btn btn-lime btn-sm"><i className="fa-solid fa-up-right-from-square" /> Open full</Link>
             </div>
           </aside>
         </>
