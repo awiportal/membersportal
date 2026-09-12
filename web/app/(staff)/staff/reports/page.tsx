@@ -44,7 +44,9 @@ export default async function StaffReportsPage() {
       'member_no, full_name, status, opening_balance_2025, contributions_2026, total_interest_2026, current_balance, refund_on_exit, withdrawal, britam_interest_life, jubilee_mmf, jubilee_fif, jubilee_fif_apr_jul'
     )
     .order('current_balance', { ascending: false });
-  const rows = (rowsData ?? []) as Row[];
+  // Exclude sample/preview member rows (status 'sample') so they never affect
+  // the register, member counts or fund totals.
+  const rows = ((rowsData ?? []) as Row[]).filter((r) => r.status !== 'sample');
 
   // Two non-member fund accounts (Membership fees, Welfare) carry status
   // 'account': they belong in the fund TOTAL but not in member counts, the

@@ -51,7 +51,9 @@ export default async function DashboardPage() {
       .from('member_finances')
       .select('member_no, full_name, status, opening_balance_2025, contributions_2026, total_interest_2026, current_balance, member_id')
       .order('current_balance', { ascending: false });
-    const rows = (fundRows ?? []) as any[];
+    // Exclude sample/preview member rows (status 'sample') from the fund
+    // overview so they never affect member counts or fund totals.
+    const rows = ((fundRows ?? []) as any[]).filter((r) => r.status !== 'sample');
     const nn = (v: any) => Number(v || 0);
     const sum = (f: (r: any) => number) => rows.reduce((s, r) => s + f(r), 0);
     // Reconcile exactly with Reports & distribution. The two non-member fund

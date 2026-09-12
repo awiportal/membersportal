@@ -24,6 +24,7 @@ export default async function FundDataPage({
     .from('member_finances')
     .select('member_no, full_name, status, refund_status, refund_on_exit, current_balance, contributions_2026, withdrawal')
     .neq('status', 'account')
+    .neq('status', 'sample')
     .order('member_no', { ascending: true });
 
   // The two pooled fund accounts (Membership fees, Welfare). Membership/welfare
