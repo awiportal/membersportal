@@ -320,6 +320,20 @@ export default async function DashboardPage() {
     ? new Date(fin.as_of).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
 
+  // Compact sparkline path for the Portfolio KPI, built from the value trend.
+  const sparkPts = (() => {
+    const n = trend.length;
+    if (n < 2) return '';
+    const mn = Math.min(...trend);
+    const mx = Math.max(...trend);
+    const rng = mx - mn || 1;
+    return trend
+      .map((v, i) => `${((i / (n - 1)) * 116).toFixed(1)},${(32 - ((v - mn) / rng) * 26 - 3).toFixed(1)}`)
+      .join(' ');
+  })();
+  // Interest as a share of the current balance (the real growth the fund earned).
+  const interestShare = portfolioValue > 0 ? Math.round((dividendsValue / portfolioValue) * 100) : 0;
+
   return (
     <div>
       <MoneyNav />
@@ -380,6 +394,7 @@ export default async function DashboardPage() {
                   <div className="hero-pill"><div className="k">Contributions</div><div className="v num">{KESc(contribValue)}</div></div>
                   <div className="hero-pill"><div className="k">Interest</div><div className="v num">{KESc(dividendsValue)}</div></div>
                   {fp?.wellness_score ? <div className="hero-pill"><div className="k">Wellness</div><div className="v num">{fp.wellness_score}/100</div></div> : null}
+                  {fin && asOf ? <div className="hero-pill"><div className="k">As at</div><div className="v num">{asOf}</div></div> : null}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
                   <Link href="/portfolio" className="hero-cta"><i className="fa-solid fa-chart-pie" /> Portfolio</Link>
@@ -401,22 +416,37 @@ export default async function DashboardPage() {
             <div className="stat">
               <div className="stat-top"><span className="stat-lbl">Portfolio value</span><span className="stat-ic grad-purple" style={{ color: '#fff' }}><i className="fa-solid fa-wallet" /></span></div>
               <div className="stat-val num">{KESc(portfolioValue)}</div>
-              <div className="stat-sub">{fin ? 'Live fund balance' : 'Sample preview'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+                <span className="stat-sub" style={{ marginTop: 0 }}>{fin ? 'Live fund balance' : 'Sample preview'}</span>
+                {sparkPts && (
+                  <svg viewBox="0 0 116 32" width="82" height="24" preserveAspectRatio="none" aria-hidden="true" style={{ overflow: 'visible', flexShrink: 0 }}>
+                    <polyline points={sparkPts} fill="none" stroke="var(--lime2)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
             </div>
             <div className="stat">
               <div className="stat-top"><span className="stat-lbl">Contributions</span><span className="stat-ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-piggy-bank" /></span></div>
               <div className="stat-val num">{KESc(contribValue)}</div>
-              <div className="stat-sub">Lifetime paid in</div>
+              <div style={{ marginTop: 9 }}><span className="badge badge-purple"><i className="fa-solid fa-hand-holding-dollar" /> Principal paid in</span></div>
             </div>
             <div className="stat">
               <div className="stat-top"><span className="stat-lbl">Interest earned</span><span className="stat-ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-coins" /></span></div>
               <div className="stat-val num">{KESc(dividendsValue)}</div>
-              <div className="stat-sub">{portfolioValue > 0 ? Math.round((dividendsValue / portfolioValue) * 100) + '% of balance' : 'Interest to date'}</div>
+              <div style={{ marginTop: 9 }}>
+                {dividendsValue > 0
+                  ? <span className="badge badge-good"><i className="fa-solid fa-arrow-trend-up" /> {interestShare}% of balance</span>
+                  : <span className="badge badge-lime">Interest to date</span>}
+              </div>
             </div>
             <div className="stat">
               <div className="stat-top"><span className="stat-lbl">Financial wellness</span><span className="stat-ic" style={{ background: 'var(--surface2)', color: 'var(--purple2)' }}><i className="fa-solid fa-heart-pulse" /></span></div>
               <div className="stat-val num">{fp?.wellness_score ?? '\u2014'}{fp?.wellness_score ? <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>/100</span> : null}</div>
-              <div className="stat-sub">{fp?.wellness_score ? 'Your profile score' : 'Complete your profile'}</div>
+              <div style={{ marginTop: 9 }}>
+                {fp?.wellness_score
+                  ? <span className={`badge ${fp.wellness_score >= 67 ? 'badge-good' : fp.wellness_score >= 34 ? 'badge-warn' : 'badge-bad'}`}>{fp.wellness_score >= 67 ? 'Strong' : fp.wellness_score >= 34 ? 'Building' : 'Needs attention'}</span>
+                  : <span className="badge badge-lime">Complete your profile</span>}
+              </div>
             </div>
           </div>
 
@@ -449,6 +479,22 @@ export default async function DashboardPage() {
                   <Donut segments={segments} />
                 </div>
               </div>
+              {fin && segments.length > 0 && (
+                <div className="muted" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)', fontSize: 12.5 }}>
+                  {segments.map((x, i) => (
+                    <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      {i > 0 && <span style={{ color: 'var(--muted2)' }}>+</span>}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span className="dotc" style={{ width: 9, height: 9, borderRadius: 3, background: x.color, display: 'inline-block' }} />
+                        <span className="num" style={{ color: 'var(--text)', fontWeight: 700 }}>{KESc(x.value)}</span>
+                      </span>
+                    </span>
+                  ))}
+                  <span style={{ color: 'var(--muted2)' }}>=</span>
+                  <span className="num" style={{ color: 'var(--lime2)', fontWeight: 800, fontSize: 13.5 }}>{KESc(portfolioValue)}</span>
+                  <span>current balance</span>
+                </div>
+              )}
             </div>
           )}
 
