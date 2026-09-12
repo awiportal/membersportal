@@ -52,8 +52,8 @@ export default function StatementSheet({ fin }: { fin: any }) {
 
   const interestParts: [string, number | null][] = [
     ['Interest 2018\u20132023', num(fin.interest_2018_2023)],
-    ['Britam Interest', num(fin.britam_interest_life) ?? num(fin.britam_interest_2026)],
-    ['Jubilee MMF Interest', num(fin.jubilee_mmf) ?? num(fin.jubilee_interest_2026)],
+    ['Britam Interest', num(fin.britam_interest_life)],
+    ['Jubilee MMF Interest', num(fin.jubilee_mmf)],
     ['Jubilee FIF', num(fin.jubilee_fif)],
     ['Jubilee FIF (Apr\u2013Jul 2026)', num(fin.jubilee_fif_apr_jul)],
   ];
@@ -148,8 +148,6 @@ export default function StatementSheet({ fin }: { fin: any }) {
             </>
           ) : (
             <>
-              <Row k="Britam interest" v={kes(num(fin.britam_interest_2026))} />
-              <Row k="Jubilee interest" v={kes(num(fin.jubilee_interest_2026))} />
               <Row k="Total interest" v={kes(totalInterest)} strong total />
               <div className="stmt-fine">Full interest split appears once the breakdown is loaded.</div>
             </>

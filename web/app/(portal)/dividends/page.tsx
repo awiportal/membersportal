@@ -31,8 +31,8 @@ export default async function DividendsPage() {
   const parts: [string, number][] = fin
     ? ([
         ['Interest 2018-2023', n(fin.interest_2018_2023)],
-        ['Britam interest', n(fin.britam_interest_life) || n(fin.britam_interest_2026)],
-        ['Jubilee MMF interest', n(fin.jubilee_mmf) || n(fin.jubilee_interest_2026)],
+        ['Britam interest', n(fin.britam_interest_life)],
+        ['Jubilee MMF interest', n(fin.jubilee_mmf)],
         ['Jubilee FIF', n(fin.jubilee_fif)],
         ['Jubilee FIF (Apr-Jul 2026)', n(fin.jubilee_fif_apr_jul)],
       ].filter((p) => (p[1] as number) > 0) as [string, number][])

@@ -54,8 +54,8 @@ export default async function PortfolioPage() {
 
   const sources = [
     { label: 'Interest 2018-2023', value: n(fin.interest_2018_2023), color: '#a6398f' },
-    { label: 'Britam Money Market', value: n(fin.britam_interest_life) || n(fin.britam_interest_2026), color: '#7e2674' },
-    { label: 'Jubilee MMF', value: n(fin.jubilee_mmf) || n(fin.jubilee_interest_2026), color: '#5aa9f0' },
+    { label: 'Britam Money Market', value: n(fin.britam_interest_life), color: '#7e2674' },
+    { label: 'Jubilee MMF', value: n(fin.jubilee_mmf), color: '#5aa9f0' },
     { label: 'Jubilee FIF', value: n(fin.jubilee_fif), color: '#37c98a' },
     { label: 'Jubilee FIF (Apr-Jul 2026)', value: n(fin.jubilee_fif_apr_jul), color: '#f2b23b' },
   ].filter((x) => x.value > 0);
