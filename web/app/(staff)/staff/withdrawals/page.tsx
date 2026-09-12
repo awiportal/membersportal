@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getSessionProfile } from '@/lib/session';
 import { KES } from '@/lib/format';
 import { isAdmin, isChairlady } from '@/lib/roles';
 import { reviewWithdrawal, approveWithdrawal, rejectWithdrawal, markWithdrawalPaid } from './actions';
@@ -33,12 +34,7 @@ function fmtDate(s?: string | null) {
 export default async function StaffWithdrawalsPage() {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: me } = user
-    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
-    : { data: null as any };
+  const me = await getSessionProfile();
   const role = me?.role as string | undefined;
   const canDecide = isChairlady(role);
   const canPay = isAdmin(role);

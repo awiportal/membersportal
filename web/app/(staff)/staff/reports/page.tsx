@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getSessionUser, getSessionProfile } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { isStaff } from '@/lib/roles';
 import { KES } from '@/lib/format';
@@ -30,11 +31,9 @@ const n = (v: unknown) => Number(v || 0);
 // all rows), so it tracks the real 48-member workbook rather than a fixed seed.
 export default async function StaffReportsPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect('/login');
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const me = await getSessionProfile();
   if (!isStaff(me?.role)) redirect('/staff');
 
   const { data: rowsData } = await supabase

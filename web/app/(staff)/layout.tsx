@@ -1,19 +1,16 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { requireTwoFactor } from '@/lib/twofaGate';
+import { getSessionUser, getSessionProfile } from '@/lib/session';
 import StaffShell from '@/components/StaffShell';
 import { isStaff } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  const profile = await getSessionProfile();
   if (!isStaff(profile?.role)) redirect('/dashboard');
 
   // Staff hold the highest privilege (every member's financial data), so the
