@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { isStaff, isAdmin, roleLabel } from '@/lib/roles';
+import { isStaff, isAdmin, displayRole } from '@/lib/roles';
 import { setRole } from './actions';
 import InvestorRoleTable from './InvestorRoleTable';
 
@@ -62,7 +62,7 @@ export default async function StaffRolesPage({ searchParams }: { searchParams: {
 
   const { data: profs } = await supabase
     .from('profiles')
-    .select('id, full_name, email, investor_id, role')
+    .select('*')
     .order('full_name', { ascending: true });
   const people = (profs ?? []) as any[];
   const staff = people.filter((p) => p.role && p.role !== 'member');
@@ -111,7 +111,7 @@ export default async function StaffRolesPage({ searchParams }: { searchParams: {
                     </td>
                     <td style={{ padding: '9px 10px' }} className="num muted">{p.investor_id || '—'}</td>
                     <td style={{ padding: '9px 10px' }}>
-                      <span className="badge badge-purple">{roleLabel(p.role)}</span>
+                      <span className="badge badge-purple">{displayRole(p.role, p.title)}</span>
                     </td>
                     <td style={{ padding: '9px 10px', textAlign: 'right' }}>
                       <RoleSelect id={p.id} role={p.role} self={p.id === me?.id} />

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getSessionProfile } from '@/lib/session';
-import { roleLabel, statusLabel, canApproveMembers, canDisburseFunds, canMapMembership } from '@/lib/roles';
+import { displayRole, statusLabel, canApproveMembers, canDisburseFunds, canMapMembership } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
@@ -106,7 +106,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
           <div className="sub">{m.investor_id || 'No Investor ID yet'} · {m.email}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span className="badge badge-info">{roleLabel(m.role)}</span>
+          <span className="badge badge-info">{displayRole(m.role, m.title)}</span>
           <span className={`badge ${statusCls}`}>{statusLabel(m.status)}</span>
         </div>
       </div>

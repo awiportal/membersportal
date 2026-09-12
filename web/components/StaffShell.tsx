@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { roleLabel, isAdmin } from '@/lib/roles';
+import { displayRole, isAdmin } from '@/lib/roles';
 import NotificationBell from './NotificationBell';
 
 // Shows the user's uploaded photo when present, otherwise their coloured
@@ -112,7 +112,7 @@ export default function StaffShell({
             <Avatar url={profile?.avatar_url} initials={initials} title={name} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
-              <div className="muted" style={{ fontSize: 11.5 }}>{roleLabel(profile?.role)}</div>
+              <div className="muted" style={{ fontSize: 11.5 }}>{displayRole(profile?.role, profile?.title)}</div>
             </div>
             <button className="icon-btn" style={{ marginLeft: 'auto', width: 34, height: 34 }} onClick={signOut} title="Sign out">
               <i className="fa-solid fa-arrow-right-from-bracket" style={{ fontSize: 13 }} />
@@ -126,7 +126,7 @@ export default function StaffShell({
           <button className="icon-btn menu-btn" onClick={() => setOpen(true)} aria-label="Open menu"><i className="fa-solid fa-bars" /></button>
           <div style={{ fontWeight: 700 }}>Staff Console</div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="badge badge-purple hide-sm">{roleLabel(profile?.role)}</span>
+            <span className="badge badge-purple hide-sm">{displayRole(profile?.role, profile?.title)}</span>
             <NotificationBell userId={profile?.id} />
             <Avatar url={profile?.avatar_url} initials={initials} title={name} />
           </div>
