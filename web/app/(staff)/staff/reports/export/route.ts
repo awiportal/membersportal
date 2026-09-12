@@ -5,9 +5,9 @@ import { buildFundWorkbook } from '@/lib/fundWorkbook';
 
 export const dynamic = 'force-dynamic';
 
-// Fund records export — the same full workbook as the Reports export, built live
-// from member_finances (Member Register, Member Statements, Summary, Compiled
-// 2018-Jul 2026, 2026 Contribution Schedule).
+// Full AWIVEST fund workbook (Member Register, Member Statements, Summary,
+// Compiled 2018-Jul 2026, 2026 Contribution Schedule) built live from
+// member_finances. Mirrors the "AWI_Member_Contributions_Earnings" spreadsheet.
 export async function GET() {
   const supabase = createClient();
   const {
@@ -25,7 +25,7 @@ export async function GET() {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="AWI_Member_Contributions_Earnings_' + today + '.xlsx"',
+      'Content-Disposition': 'attachment; filename="AWIVEST_Fund_Report_' + today + '.xlsx"',
       'Cache-Control': 'no-store',
     },
   });

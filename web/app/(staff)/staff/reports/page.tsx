@@ -126,6 +126,20 @@ export default async function StaffReportsPage() {
     current: n(r.current_balance),
   }));
 
+  // Per-member register table (ordered by member number), with a totals footer
+  // that reconciles to the member figures. Fund accounts are shown separately.
+  const register = [...members].sort((a, b) =>
+    String(a.member_no).localeCompare(String(b.member_no), undefined, { numeric: true })
+  );
+  const regTotals = {
+    opening: register.reduce((s, r) => s + n(r.opening_balance_2025), 0),
+    contributions: register.reduce((s, r) => s + n(r.contributions_2026), 0),
+    interest: register.reduce((s, r) => s + n(r.total_interest_2026), 0),
+    current: register.reduce((s, r) => s + n(r.current_balance), 0),
+  };
+  const statusBadge = (s: string) =>
+    s === 'active' ? 'badge-good' : s === 'exiting' ? 'badge-warn' : s === 'exited' ? 'badge-bad' : 'badge-info';
+
   return (
     <div className="rpt">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
@@ -341,6 +355,56 @@ export default async function StaffReportsPage() {
           {exited + exiting === 0
             ? 'No members are currently exiting or exited — the full register is active.'
             : `Total excluding exits is ${KES(totalExclExits)}.`}
+        </div>
+      </div>
+
+      <div className="card card-pad" style={{ marginTop: 16 }}>
+        <div className="section-head">
+          <div>
+            <div className="section-title">Member register</div>
+            <div className="section-sub">Per-member breakdown, ordered by member number. Totals reconcile to the member figures; the two fund accounts are shown separately above.</div>
+          </div>
+          <span className="badge badge-info">{members.length} members</span>
+        </div>
+        <div style={{ overflowX: 'auto', maxHeight: 460, overflowY: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr className="muted" style={{ textAlign: 'left', fontSize: 11 }}>
+                <th style={{ padding: '9px 10px', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>No.</th>
+                <th style={{ padding: '9px 10px', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>Member</th>
+                <th style={{ padding: '9px 10px', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>Status</th>
+                <th style={{ padding: '9px 10px', textAlign: 'right', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>Opening 2025</th>
+                <th style={{ padding: '9px 10px', textAlign: 'right', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>Contributions 2026</th>
+                <th style={{ padding: '9px 10px', textAlign: 'right', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>Interest</th>
+                <th style={{ padding: '9px 10px', textAlign: 'right', position: 'sticky', top: 0, background: 'var(--surface2)', zIndex: 1 }}>Current balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {register.map((r) => (
+                <tr key={r.member_no} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td style={{ padding: '9px 10px', whiteSpace: 'nowrap' }} className="num muted">{r.member_no}</td>
+                  <td style={{ padding: '9px 10px' }}>{r.full_name}</td>
+                  <td style={{ padding: '9px 10px' }}><span className={`badge ${statusBadge(r.status)}`}>{r.status}</span></td>
+                  <td style={{ padding: '9px 10px', textAlign: 'right' }} className="num">{KES(n(r.opening_balance_2025))}</td>
+                  <td style={{ padding: '9px 10px', textAlign: 'right' }} className="num">{KES(n(r.contributions_2026))}</td>
+                  <td style={{ padding: '9px 10px', textAlign: 'right' }} className="num">{KES(n(r.total_interest_2026))}</td>
+                  <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700 }} className="num">{KES(n(r.current_balance))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)', background: 'var(--surface2)' }}>
+                <td style={{ padding: '10px' }} colSpan={3}>Member totals</td>
+                <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(regTotals.opening)}</td>
+                <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(regTotals.contributions)}</td>
+                <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(regTotals.interest)}</td>
+                <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(regTotals.current)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+          Download the full workbook (register, statements, summary, compiled 2018-Jul 2026 and the 2026 contribution schedule) with <strong>Export Excel</strong> above.
         </div>
       </div>
 
