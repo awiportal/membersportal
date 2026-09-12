@@ -7,6 +7,10 @@ export default function LoadDemoData() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  // Development-only affordance. The 'Load sample portfolio' button writes
+  // demo holdings/goals into the member's own account; it must NEVER reach
+  // real members in production.
+  if (process.env.NODE_ENV === 'production') return null;
 
   async function load() {
     setLoading(true);
