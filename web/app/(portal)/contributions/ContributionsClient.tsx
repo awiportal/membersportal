@@ -284,8 +284,6 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
               </div>
             ) : (
               <div>
-                <Row k="Britam interest" v={kes(num(fin.britam_interest_2026))} />
-                <Row k="Jubilee interest" v={kes(num(fin.jubilee_interest_2026))} />
                 <Row k="Total interest" v={kes(totalInterest)} strong />
                 <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>The full breakdown (2018&ndash;2023, Britam, Jubilee MMF &amp; FIF) appears once loaded.</div>
               </div>
