@@ -8,6 +8,7 @@ import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
 import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord, recordWithdrawal } from '../../actions';
 import OneOffAgreement from './OneOffAgreement';
+import RelationsEditor from './RelationsEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -301,6 +302,8 @@ export default async function MemberDetail({ params }: { params: { id: string } 
           </div>
         </div>
       </div>
+
+      <RelationsEditor memberId={m.id} relations={relations ?? []} />
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
         {/* Personal */}
