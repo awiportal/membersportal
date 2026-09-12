@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import AgreementSigner from './AgreementSigner';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,15 +25,19 @@ export default async function AgreementsPage() {
   const esignDone = profile?.esign_status === 'completed';
   const esignDate = profile?.esign_signed_at ? new Date(profile.esign_signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
 
-  // Public URLs for additional agreement documents. The 'agreements' bucket is
-  // PUBLIC (blank templates, no member data). createSignedUrl() needs a storage
-  // SELECT policy that members do not have and returned nothing for them, so we
-  // build public URLs instead — consistent with onboarding and signedPdf.ts.
-  const publicUrlByDoc: Record<string, string | undefined> = {};
-  docs.forEach((d) => {
-    if (!d.file_path) return;
-    publicUrlByDoc[d.id] = supabase.storage.from('agreements').getPublicUrl(d.file_path).data.publicUrl;
-  });
+  // Signed URLs for additional agreement documents, minted with the service-role
+  // client so they resolve on the now-private 'agreements' bucket without a
+  // per-member storage policy (#94). Short-lived; the bucket holds blank templates.
+  const admin = createAdminClient();
+  const signedUrlByDoc: Record<string, string | undefined> = {};
+  await Promise.all(
+    docs.map(async (d) => {
+      if (d.file_path) {
+        const { data } = await admin.storage.from('agreements').createSignedUrl(d.file_path, 3600);
+        signedUrlByDoc[d.id] = data?.signedUrl ?? undefined;
+      }
+    })
+  );
 
   return (
     <div>
@@ -71,9 +76,9 @@ export default async function AgreementsPage() {
         ) : (
           docs.map((d) => {
             const acc = accByDoc[d.id];
-            // The 'agreements' bucket is public, so a public URL opens the
-            // unsigned document reliably (no per-member storage policy needed).
-            const viewUrl = publicUrlByDoc[d.id];
+            // Short-lived signed URL (minted server-side) opens the unsigned
+            // template on the private bucket.
+            const viewUrl = signedUrlByDoc[d.id];
             return (
               <div key={d.id} className="card card-pad">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>

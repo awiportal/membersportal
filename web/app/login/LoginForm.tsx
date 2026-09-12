@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { COUNTRIES } from '@/lib/countries';
 import { guardLogin } from './actions';
 import FancySelect from '@/components/FancySelect';
+import { validatePassword } from '@/lib/password';
 
 type MemberType = 'individual' | 'group' | 'corporate' | 'other';
 
@@ -77,6 +78,12 @@ export default function LoginForm() {
         router.refresh();
       }
     } else {
+      const pwError = validatePassword(password);
+      if (pwError) {
+        setMsg({ t: pwError, kind: 'bad' });
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -120,7 +127,7 @@ export default function LoginForm() {
         } else if (lm.includes('already') || lm.includes('registered') || (lm.includes('user') && lm.includes('exists'))) {
           friendly = 'That email address is already in use. Please sign in instead, or use a different email.';
         } else if (lm.includes('password')) {
-          friendly = raw || 'That password does not meet the requirements. Please use at least 8 characters.';
+          friendly = raw || 'That password does not meet the requirements. Use at least 10 characters with upper- and lower-case letters and a number.';
         } else if (
           lm.includes('database error') || lm.includes('saving new user') ||
           lm.includes('duplicate') || lm.includes('unique')
@@ -354,9 +361,9 @@ export default function LoginForm() {
                       type={showPw ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="8+ characters"
+                      placeholder={mode === 'register' ? 'At least 10 characters' : 'Your password'}
                       required
-                      minLength={8}
+                      minLength={mode === 'register' ? 10 : 8}
                       autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                       style={{ paddingRight: 44 }}
                     />
