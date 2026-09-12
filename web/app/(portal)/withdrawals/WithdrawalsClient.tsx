@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { KES } from '@/lib/format';
 import { createClient } from '@/lib/supabase/client';
 import { submitWithdrawal, cancelWithdrawal } from './actions';
+import MoneyNav from '@/components/MoneyNav';
 
 type WReq = {
   id: string;
@@ -78,6 +79,8 @@ export default function WithdrawalsClient({
   const amountNum = useMemo(() => Number(String(amount).replace(/[^0-9.]/g, '')) || 0, [amount]);
   const overBalance = netBalance != null && amountNum > netBalance;
   const pendingExists = requests.some((r) => ['submitted', 'under_review', 'approved'].includes(r.status));
+  const inProgress = requests.filter((r) => ['submitted', 'under_review', 'approved'].includes(r.status)).length;
+  const paidCount = requests.filter((r) => r.status === 'paid').length;
 
   async function submit() {
     setMsg(null);
@@ -159,147 +162,178 @@ export default function WithdrawalsClient({
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div className="page-title">Withdrawals</div>
-      <div className="sub">Request a withdrawal from your AWIVEST balance, attach your signed letter, and track its progress.</div>
+    <div>
+      <MoneyNav />
 
       {notReady ? (
-        <div className="card card-pad" style={{ marginTop: 20 }}>
-          <div className="badge badge-warn"><i className="fa-solid fa-screwdriver-wrench" /> Being set up</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 10 }}>
-            Withdrawal requests are being enabled for your account. Please check back shortly, or contact the AWIVEST office.
+        <>
+          <div className="page-title">Withdrawals</div>
+          <div className="sub">Request a withdrawal from your AWIVEST balance.</div>
+          <div className="card card-pad" style={{ marginTop: 20 }}>
+            <div className="badge badge-warn"><i className="fa-solid fa-screwdriver-wrench" /> Being set up</div>
+            <div className="muted" style={{ fontSize: 13, marginTop: 10 }}>
+              Withdrawal requests are being enabled for your account. Please check back shortly, or contact the AWIVEST office.
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         <>
-          {/* Balance + request form */}
-          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', marginTop: 20 }}>
-            <div className="card card-pad">
-              <div className="muted" style={{ fontSize: 12.5, fontWeight: 500 }}>Available to withdraw</div>
-              <div className="num" style={{ fontWeight: 800, fontSize: 26, marginTop: 6 }}>
-                {netBalance != null ? KES(netBalance) : '—'}
+          <section className="hero rise">
+            <div className="hero-grid">
+              <div>
+                <div className="hero-eyebrow">Withdrawals{!active ? ' \u00b7 pending approval' : ''}</div>
+                <div className="hero-value">
+                  <span className="cur">KES</span>
+                  {netBalance != null
+                    ? netBalance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : '\u2014'}
+                </div>
+                <div className="hero-line">
+                  {netBalance != null
+                    ? 'Available to withdraw from your AWIVEST balance. Requests are reviewed by the office before any payout.'
+                    : 'Your fund record is not linked yet. You can still request a withdrawal and the office will verify the amount.'}
+                </div>
+                <div className="hero-pills">
+                  <div className="hero-pill"><div className="k">Available</div><div className="v num">{netBalance != null ? KES(netBalance) : '\u2014'}</div></div>
+                  <div className="hero-pill"><div className="k">In progress</div><div className="v num">{inProgress}</div></div>
+                  <div className="hero-pill"><div className="k">Paid</div><div className="v num">{paidCount}</div></div>
+                </div>
               </div>
-              <div className="muted2" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-                {netBalance != null
-                  ? 'Your current net balance. Withdrawals cannot exceed this amount.'
-                  : 'Your fund record is not linked yet. You can still request — the office will verify the amount.'}
+              <div className="hero-spark">
+                <div className="hero-spark-lbl">How it works</div>
+                <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
+                  {['Enter the amount and where to send it', 'Attach your signed request letter', 'The office reviews and pays out'].map((t, i) => (
+                    <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{ width: 22, height: 22, borderRadius: 999, background: 'rgba(166,205,53,0.25)', color: '#fff', fontSize: 11, fontWeight: 800, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>{i + 1}</span>
+                      <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.86)', lineHeight: 1.4 }}>{t}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          </section>
+
+          <div className="card card-pad rise-2" style={{ marginTop: 16 }}>
+            <div className="section-head">
+              <div>
+                <div className="section-title">Request a withdrawal</div>
+                <div className="section-sub">Complete the details below and attach your signed letter.</div>
               </div>
             </div>
 
-            <div className="card card-pad" style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontWeight: 700, marginBottom: 12 }}>Request a withdrawal</div>
+            {!active && (
+              <div className="badge badge-warn" style={{ marginBottom: 12 }}>
+                <i className="fa-solid fa-lock" /> Available once your membership is approved.
+              </div>
+            )}
 
-              {!active && (
-                <div className="badge badge-warn" style={{ marginBottom: 12 }}>
-                  <i className="fa-solid fa-lock" /> Available once your membership is approved.
-                </div>
-              )}
+            {msg && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  borderRadius: 12,
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: '11px 14px',
+                  border: `1px solid ${msg.kind === 'ok' ? 'rgba(166,205,53,0.4)' : 'rgba(239,90,90,0.4)'}`,
+                  color: msg.kind === 'ok' ? 'var(--lime2)' : '#ef7f7f',
+                  background: msg.kind === 'ok' ? 'rgba(166,205,53,0.08)' : 'rgba(239,90,90,0.08)',
+                }}
+              >
+                <i className={`fa-solid ${msg.kind === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} /> {msg.text}
+              </div>
+            )}
 
-              {msg && (
-                <div
-                  className="card-pad"
-                  style={{
-                    marginBottom: 12,
-                    borderRadius: 12,
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    padding: '11px 14px',
-                    border: `1px solid ${msg.kind === 'ok' ? 'rgba(166,205,53,0.4)' : 'rgba(239,90,90,0.4)'}`,
-                    color: msg.kind === 'ok' ? 'var(--lime2)' : '#ef7f7f',
-                    background: msg.kind === 'ok' ? 'rgba(166,205,53,0.08)' : 'rgba(239,90,90,0.08)',
-                  }}
-                >
-                  <i className={`fa-solid ${msg.kind === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} /> {msg.text}
-                </div>
-              )}
+            {pendingExists && (
+              <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+                You already have a withdrawal in progress. You can submit another, but the office processes them in turn.
+              </div>
+            )}
 
-              {pendingExists && (
-                <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-                  You already have a withdrawal in progress. You can submit another, but the office processes them in turn.
-                </div>
-              )}
-
-              <fieldset disabled={!active || busy} style={{ border: 0, padding: 0, margin: 0 }}>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-                  <div className="field">
-                    <label>Amount to withdraw (KES)</label>
-                    <input
-                      className="input"
-                      inputMode="numeric"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0"
-                    />
-                    {overBalance && (
-                      <div className="muted2" style={{ fontSize: 11.5, marginTop: 5, color: '#ef7f7f' }}>
-                        Exceeds your available balance.
-                      </div>
-                    )}
-                  </div>
-                  <div className="field">
-                    <label>Pay out via</label>
-                    <select className="input" value={method} onChange={(e) => setMethod(e.target.value as 'bank' | 'mpesa')}>
-                      <option value="bank">Bank transfer</option>
-                      <option value="mpesa">M-Pesa</option>
-                    </select>
-                  </div>
-                </div>
-
+            <fieldset disabled={!active || busy} style={{ border: 0, padding: 0, margin: 0 }}>
+              <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
                 <div className="field">
-                  <label>Reason for withdrawal</label>
-                  <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. school fees, medical, personal" />
-                </div>
-
-                {method === 'bank' ? (
-                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-                    <div className="field">
-                      <label>Bank name</label>
-                      <input className="input" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. Equity Bank" />
-                    </div>
-                    <div className="field">
-                      <label>Account name</label>
-                      <input className="input" value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Name on the account" />
-                    </div>
-                    <div className="field">
-                      <label>Account number</label>
-                      <input className="input" inputMode="numeric" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="field">
-                    <label>M-Pesa phone number</label>
-                    <input className="input" inputMode="tel" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} placeholder="e.g. +254 712 345678" />
-                  </div>
-                )}
-
-                <div className="field">
-                  <label>Signed withdrawal letter</label>
+                  <label>Amount to withdraw (KES)</label>
                   <input
-                    ref={fileRef}
                     className="input"
-                    type="file"
-                    accept={LETTER_ACCEPT}
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
                   />
-                  <div className="muted2" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.5 }}>
-                    Attach a signed letter requesting this withdrawal. PDF, JPG or PNG, up to 25 MB.
+                  {overBalance && (
+                    <div className="muted2" style={{ fontSize: 11.5, marginTop: 5, color: '#ef7f7f' }}>
+                      Exceeds your available balance.
+                    </div>
+                  )}
+                </div>
+                <div className="field">
+                  <label>Pay out via</label>
+                  <select className="input" value={method} onChange={(e) => setMethod(e.target.value as 'bank' | 'mpesa')}>
+                    <option value="bank">Bank transfer</option>
+                    <option value="mpesa">M-Pesa</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Reason for withdrawal</label>
+                <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. school fees, medical, personal" />
+              </div>
+
+              {method === 'bank' ? (
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+                  <div className="field">
+                    <label>Bank name</label>
+                    <input className="input" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. Equity Bank" />
+                  </div>
+                  <div className="field">
+                    <label>Account name</label>
+                    <input className="input" value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Name on the account" />
+                  </div>
+                  <div className="field">
+                    <label>Account number</label>
+                    <input className="input" inputMode="numeric" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" />
                   </div>
                 </div>
+              ) : (
+                <div className="field">
+                  <label>M-Pesa phone number</label>
+                  <input className="input" inputMode="tel" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} placeholder="e.g. +254 712 345678" />
+                </div>
+              )}
 
-                <button className="btn btn-lime" style={{ marginTop: 6 }} type="button" onClick={submit} disabled={!active || busy}>
-                  {busy ? (
-                    <><i className="fa-solid fa-spinner fa-spin" /> Submitting…</>
-                  ) : (
-                    <><i className="fa-solid fa-paper-plane" /> Submit request</>
-                  )}
-                </button>
-              </fieldset>
-            </div>
+              <div className="field">
+                <label>Signed withdrawal letter</label>
+                <input
+                  ref={fileRef}
+                  className="input"
+                  type="file"
+                  accept={LETTER_ACCEPT}
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+                <div className="muted2" style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.5 }}>
+                  Attach a signed letter requesting this withdrawal. PDF, JPG or PNG, up to 25 MB.
+                </div>
+              </div>
+
+              <button className="btn btn-lime" style={{ marginTop: 6 }} type="button" onClick={submit} disabled={!active || busy}>
+                {busy ? (
+                  <><i className="fa-solid fa-spinner fa-spin" /> Submitting…</>
+                ) : (
+                  <><i className="fa-solid fa-paper-plane" /> Submit request</>
+                )}
+              </button>
+            </fieldset>
           </div>
 
-          {/* History */}
-          <div className="card card-pad" style={{ marginTop: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 12 }}>Your requests</div>
+          <div className="card card-pad rise-3" style={{ marginTop: 16 }}>
+            <div className="section-head">
+              <div>
+                <div className="section-title">Your requests</div>
+                <div className="section-sub">{requests.length > 0 ? `${requests.length} request${requests.length === 1 ? '' : 's'} on record.` : 'Requests you make will appear here.'}</div>
+              </div>
+            </div>
             {requests.length === 0 ? (
               <div className="muted" style={{ fontSize: 13 }}>No withdrawal requests yet.</div>
             ) : (
@@ -308,23 +342,26 @@ export default function WithdrawalsClient({
                   const st = STATUS_META[r.status] ?? STATUS_META.submitted;
                   const canCancel = r.status === 'submitted' || r.status === 'under_review';
                   return (
-                    <div key={r.id} style={{ padding: 12, borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                    <div key={r.id} style={{ padding: 14, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <span className="stat-ic" style={{ background: 'var(--surface)', color: 'var(--lime2)', flex: '0 0 auto', width: 40, height: 40 }}>
+                          <i className={`fa-solid ${r.method === 'mpesa' ? 'fa-mobile-screen-button' : 'fa-building-columns'}`} />
+                        </span>
                         <div style={{ flex: 1, minWidth: 180 }}>
-                          <div className="num" style={{ fontWeight: 700, fontSize: 15 }}>{KES(Number(r.amount || 0))}</div>
+                          <div className="num" style={{ fontWeight: 800, fontSize: 16 }}>{KES(Number(r.amount || 0))}</div>
                           <div className="muted" style={{ fontSize: 12 }}>
-                            {r.method === 'mpesa' ? 'M-Pesa' : 'Bank transfer'} · Requested {fmtDate(r.created_at)}
+                            {r.method === 'mpesa' ? 'M-Pesa' : 'Bank transfer'} \u00b7 Requested {fmtDate(r.created_at)}
                           </div>
                         </div>
                         <span className={`badge ${st.cls}`}>{st.label}</span>
                       </div>
-                      {r.reason && <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>{r.reason}</div>}
+                      {r.reason && <div className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>{r.reason}</div>}
                       {r.status === 'rejected' && r.decision_note && (
                         <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
                           <i className="fa-solid fa-circle-info" /> {r.decision_note}
                         </div>
                       )}
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                         {r.letter_path && (
                           <a href={`/withdrawals/letter/${r.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
                             <i className="fa-solid fa-file-arrow-down" /> View letter
