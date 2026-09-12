@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { postContribution, recordWithdrawal, markExit, settleExit, importSchedule, importCompiled } from './actions';
+import { postFunds, recordWithdrawal, markExit, settleExit, importSchedule, importCompiled } from './actions';
 
 const MONTHS: [string, string][] = [
   ['jan', 'January'], ['feb', 'February'], ['mar', 'March'], ['apr', 'April'], ['may', 'May'], ['jun', 'June'],
@@ -34,9 +34,10 @@ function FormHead({ icon, title, desc }: { icon: string; title: string; desc: Re
   );
 }
 
-export default function FundDataConsole({ members, flash, canDisburse }: { members: any[]; flash: any; canDisburse?: boolean }) {
+export default function FundDataConsole({ members, accounts = [], flash, canDisburse }: { members: any[]; accounts?: any[]; flash: any; canDisburse?: boolean }) {
   const [tab, setTab] = useState<TabId>('post');
   const [q, setQ] = useState('');
+  const [fundType, setFundType] = useState<'contribution' | 'membership' | 'welfare'>('contribution');
 
   const opts = members.map((m) => (
     <option key={m.member_no} value={m.member_no}>{m.member_no} - {m.full_name}</option>
@@ -92,6 +93,8 @@ export default function FundDataConsole({ members, flash, canDisburse }: { membe
   if (flash?.ok) {
     const map: Record<string, string> = {
       posted: 'Contribution posted. The member statement now reflects it.',
+      membership: 'Membership fee posted to the pooled Membership fees account.',
+      welfare: 'Welfare payment posted to the pooled Welfare account.',
       withdrawal: 'Withdrawal recorded and balances updated.',
       exit: 'Member marked as exiting; refund recorded as pending.',
       settled: 'Exit settled: refund posted as a withdrawal and net balance updated.',
@@ -146,15 +149,35 @@ export default function FundDataConsole({ members, flash, canDisburse }: { membe
 
       <div style={{ marginTop: 18 }}>
         {tab === 'post' && (
-          <form action={postContribution} className="card card-pad" style={{ display: 'grid', gap: 14 }}>
-            <FormHead icon="fa-hand-holding-dollar" title="Post a contribution" desc="Enter one member's contribution for a month. The 2026 total and balance recompute, and the posting date is saved." />
+          <form action={postFunds} className="card card-pad" style={{ display: 'grid', gap: 14 }}>
+            <FormHead
+              icon="fa-hand-holding-dollar"
+              title="Add funds"
+              desc="Choose what the money is for. It posts to the matching place, the total re-sums automatically and the balance recomputes."
+            />
+
             <div className="field" style={{ margin: 0 }}>
-              <label>Member</label>
-              <select className="input" name="member_no" required defaultValue="">
-                <option value="" disabled>Select a member</option>
+              <label>Fund type</label>
+              <select
+                className="input"
+                name="fund_type"
+                value={fundType}
+                onChange={(e) => setFundType(e.target.value as 'contribution' | 'membership' | 'welfare')}
+              >
+                <option value="contribution">Contribution (to a member)</option>
+                <option value="membership">Membership fee (pooled account)</option>
+                <option value="welfare">Welfare (pooled account)</option>
+              </select>
+            </div>
+
+            <div className="field" style={{ margin: 0 }}>
+              <label>{fundType === 'contribution' ? 'Member' : 'Paid by (optional)'}</label>
+              <select className="input" name="member_no" required={fundType === 'contribution'} defaultValue="">
+                <option value="">{fundType === 'contribution' ? 'Select a member' : 'Not linked to a member'}</option>
                 {opts}
               </select>
             </div>
+
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
               <div className="field" style={{ margin: 0 }}>
                 <label>Month</label>
@@ -165,10 +188,24 @@ export default function FundDataConsole({ members, flash, canDisburse }: { membe
               </div>
               <div className="field" style={{ margin: 0 }}>
                 <label>Amount (KES)</label>
-                <input className="input" name="amount" type="number" min="0" step="1" required placeholder="e.g. 50000" />
+                <input className="input" name="amount" type="number" min="1" step="1" required placeholder="e.g. 50000" />
               </div>
             </div>
-            <div><button className="btn btn-lime" type="submit"><i className="fa-solid fa-check" /> Post contribution</button></div>
+
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+              {fundType === 'contribution'
+                ? 'Sets the member\u2019s contribution for the chosen month and recomputes their 2026 total and balance.'
+                : fundType === 'membership'
+                ? 'Adds to the pooled Membership fees account for the chosen month. A payer, if chosen, is kept in the account\u2019s audit note.'
+                : 'Adds to the pooled Welfare account for the chosen month. A payer, if chosen, is kept in the account\u2019s audit note.'}
+            </div>
+
+            <div>
+              <button className="btn btn-lime" type="submit">
+                <i className="fa-solid fa-check" />{' '}
+                {fundType === 'contribution' ? 'Post contribution' : fundType === 'membership' ? 'Post membership fee' : 'Post welfare'}
+              </button>
+            </div>
           </form>
         )}
 
@@ -249,6 +286,32 @@ export default function FundDataConsole({ members, flash, canDisburse }: { membe
           </div>
         )}
       </div>
+
+      {accounts.length > 0 && (
+        <div className="card card-pad" style={{ marginTop: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Fund accounts</div>
+            <span className="muted" style={{ fontSize: 12 }}>Pooled Membership fees &amp; Welfare — membership/welfare payments post here and are included in the fund total.</span>
+          </div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
+            {accounts.map((a) => {
+              const isWelfare = String(a.member_no).toUpperCase().includes('WELFARE') || /welfare/i.test(String(a.full_name));
+              return (
+                <div key={a.member_no} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 14, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <span style={{ flex: 'none', width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--surface)', color: isWelfare ? 'var(--purple2)' : 'var(--lime2)' }}>
+                    <i className={'fa-solid ' + (isWelfare ? 'fa-hand-holding-heart' : 'fa-hand-holding-dollar')} />
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700 }}>{a.full_name || (isWelfare ? 'Welfare' : 'Membership fees')}</div>
+                    <div className="muted" style={{ fontSize: 11.5 }}>{a.member_no} · 2026 in {kes(a.contributions_2026)}</div>
+                  </div>
+                  <div className="num" style={{ fontWeight: 800, fontSize: 16 }}>{kes(a.current_balance)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="card card-pad" style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
