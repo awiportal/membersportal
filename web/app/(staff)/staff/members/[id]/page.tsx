@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { roleLabel, statusLabel, canApproveMembers, canDisburseFunds } from '@/lib/roles';
+import { roleLabel, statusLabel, canApproveMembers, canDisburseFunds, canMapMembership } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
@@ -160,7 +160,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Fund record (AWIVEST register)</div>
         <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-          The member self-links by National ID / Passport (or registered phone) at onboarding. Confirm or fix the match here. On file for this login: <strong>{m.full_name || '—'}</strong> · ID <strong>{m.national_id || '—'}</strong> · Phone <strong>{m.phone || '—'}</strong>
+          An Admin maps this login to its AWIVEST register position. National ID / Passport and phone are captured at onboarding to help match; only an Admin can link or unlink. On file for this login: <strong>{m.full_name || '—'}</strong> · ID <strong>{m.national_id || '—'}</strong> · Phone <strong>{m.phone || '—'}</strong>
         </div>
         {linkedFinance ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -168,13 +168,15 @@ export default async function MemberDetail({ params }: { params: { id: string } 
               <span className="badge badge-good" style={{ fontSize: 11 }}><i className="fa-solid fa-link" /> Linked to {linkedFinance.member_no}</span>
               <span style={{ fontSize: 13 }}>{linkedFinance.full_name} · Current balance KES {Number(linkedFinance.current_balance || 0).toLocaleString()}</span>
             </div>
+            {canMapMembership(viewerRole) && (
             <form action={unlinkFundRecord}>
               <input type="hidden" name="id" value={m.id} />
               <input type="hidden" name="member_no" value={linkedFinance.member_no} />
               <button className="btn btn-ghost btn-sm" type="submit"><i className="fa-solid fa-link-slash" /> Unlink</button>
             </form>
+            )}
           </div>
-        ) : (unlinkedFinance && unlinkedFinance.length > 0) ? (
+        ) : canMapMembership(viewerRole) && unlinkedFinance && unlinkedFinance.length > 0 ? (
           <form action={linkFundRecord} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <input type="hidden" name="id" value={m.id} />
             <div className="field" style={{ flex: 1, minWidth: 260, marginBottom: 0 }}>
@@ -191,7 +193,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
             <button className="btn btn-lime" type="submit"><i className="fa-solid fa-link" /> Link record</button>
           </form>
         ) : (
-          <div className="muted" style={{ fontSize: 12.5 }}>Every register record is already linked to a login.</div>
+          <div className="muted" style={{ fontSize: 12.5 }}>{canMapMembership(viewerRole) ? 'Every register record is already linked to a login.' : 'This login is not yet linked to a fund record. Only an Admin can map it.'}</div>
         )}
       </div>
 

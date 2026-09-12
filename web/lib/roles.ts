@@ -46,6 +46,12 @@ export function canManageConfig(role?: string | null) {
   return isAdmin(role); // agreement templates + staff e-sign settings
 }
 
+// Mapping a login to its AWIVEST fund record (member_finances) is Admin-only.
+// Members never self-link; an Admin verifies identity and maps them.
+export function canMapMembership(role?: string | null) {
+  return isAdmin(role);
+}
+
 export function roleLabel(role?: string | null) {
   switch (role) {
     case 'superadmin':
