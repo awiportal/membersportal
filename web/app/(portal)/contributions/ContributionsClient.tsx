@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import MoneyNav from '@/components/MoneyNav';
+import { interestTotal } from '@/lib/format';
 
 type Fin = Record<string, any> | null;
 
@@ -70,7 +71,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
   const opening = num(fin.opening_balance_2025);
   const c2026 = num(fin.contributions_2026);
   const lifetime = num(fin.lifetime_contributions) ?? ((opening ?? 0) + (c2026 ?? 0));
-  const totalInterest = num(fin.total_interest_2026);
+  const totalInterest = interestTotal(fin);
   const current = num(fin.current_balance);
   const net = num(fin.net_balance);
   const goal = num(fin.annual_goal) ?? 300000;

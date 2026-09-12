@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import StatementBody from './StatementBody';
 
-const kes = (v: any) => (v == null || isNaN(Number(v)) ? '—' : 'KES ' + Math.round(Number(v)).toLocaleString('en-KE'));
+const kes = (v: any) => (v == null || isNaN(Number(v)) ? '—' : 'KES ' + Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 function statusBadge(s?: string) {
   return s === 'active' ? 'badge-good' : s === 'exiting' ? 'badge-warn' : s === 'exited' ? 'badge-purple' : 'badge-info';

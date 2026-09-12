@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { KES, KESc } from '@/lib/format';
+import { KES, KESc, interestTotal } from '@/lib/format';
 import MemberStatement from './MemberStatement';
 import MoneyNav from '@/components/MoneyNav';
 
@@ -36,7 +36,7 @@ export default async function StatementsPage() {
   );
 
   const current = fin ? n(fin.current_balance) : 0;
-  const interest = fin ? n(fin.total_interest_2026) : 0;
+  const interest = fin ? interestTotal(fin) : 0;
   const lifetime = fin ? n(fin.lifetime_contributions) || n(fin.opening_balance_2025) + n(fin.contributions_2026) : 0;
   const asOf = fin?.as_of
     ? new Date(fin.as_of).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })

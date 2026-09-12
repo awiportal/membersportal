@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { KES, KESc } from '@/lib/format';
+import { KES, KESc, interestTotal } from '@/lib/format';
 import Donut, { Segment } from '@/components/Donut';
 import MoneyNav from '@/components/MoneyNav';
 
@@ -27,7 +27,7 @@ export default async function DividendsPage() {
   const paid = divs.filter((d) => d.status === 'paid').reduce((s, d) => s + n(d.amount), 0);
   const declared = divs.filter((d) => d.status === 'declared').reduce((s, d) => s + n(d.amount), 0);
 
-  const totalInterest = fin ? n(fin.total_interest_2026) : 0;
+  const totalInterest = fin ? interestTotal(fin) : 0;
   const parts: [string, number][] = fin
     ? ([
         ['Interest 2018-2023', n(fin.interest_2018_2023)],

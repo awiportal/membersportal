@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { KES, KESc } from '@/lib/format';
+import { KES, KESc, interestTotal } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
 import MoneyNav from '@/components/MoneyNav';
@@ -39,7 +39,7 @@ export default async function PortfolioPage() {
   const opening = n(fin.opening_balance_2025);
   const c2026 = n(fin.contributions_2026);
   const lifetime = n(fin.lifetime_contributions) || opening + c2026;
-  const interest = n(fin.total_interest_2026);
+  const interest = interestTotal(fin);
   const current = n(fin.current_balance);
   const asOf = fin.as_of
     ? new Date(fin.as_of).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })

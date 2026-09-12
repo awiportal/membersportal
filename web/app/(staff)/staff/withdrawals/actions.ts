@@ -36,7 +36,7 @@ async function requireCap(need: 'review' | 'decide' | 'pay') {
   return { supabase, uid: user.id, role };
 }
 
-const kes = (v: any) => `KES ${Math.round(n(v)).toLocaleString('en-KE')}`;
+const kes = (v: any) => `KES ${n(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // Legal transitions only — guards against double-processing and stale cards.
 const VALID_FROM: Record<'under_review' | 'approved' | 'rejected' | 'paid', string[]> = {
@@ -183,7 +183,7 @@ export async function markWithdrawalPaid(formData: FormData) {
     const withdrawal = n(fin.withdrawal) + amount;
     const rc = recompute({ ...fin, withdrawal });
     const stamp = new Date().toLocaleDateString('en-GB');
-    const line = `${stamp}: withdrawal ${Math.round(amount).toLocaleString('en-KE')} - request payout`;
+    const line = `${stamp}: withdrawal ${Number(amount).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - request payout`;
     const notes = fin.notes ? `${fin.notes} | ${line}` : line;
     await supabase
       .from('member_finances')

@@ -8,7 +8,7 @@ const MONTHS: [string, string][] = [
   ['jul', 'July'], ['aug', 'August'], ['sep', 'September'], ['oct', 'October'], ['nov', 'November'], ['dec', 'December'],
 ];
 
-const kes = (v: any) => (v == null || isNaN(Number(v)) ? '—' : 'KES ' + Math.round(Number(v)).toLocaleString('en-KE'));
+const kes = (v: any) => (v == null || isNaN(Number(v)) ? '—' : 'KES ' + Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 type TabId = 'post' | 'schedule' | 'compiled' | 'withdrawals' | 'download';
 
