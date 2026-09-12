@@ -85,6 +85,85 @@ export async function postContribution(formData: FormData) {
   redirect('/staff/fund-data?ok=posted');
 }
 
+// The two pooled fund accounts (non-member rows carrying status 'account').
+const ACCOUNT_NO: Record<string, string> = { membership: 'ACC-FEES', welfare: 'ACC-WELFARE' };
+
+// Unified "add funds" posting. A fund_type routes the money to the right place,
+// the total re-sums automatically and the balance recomputes:
+//   - contribution -> the selected member's monthly contribution (sets that month)
+//   - membership   -> the pooled Membership fees account (ACC-FEES), accumulates
+//   - welfare      -> the pooled Welfare account (ACC-WELFARE), accumulates
+// Membership/welfare payments accumulate into the chosen month so many small
+// receipts add up rather than overwrite; the payer (if given) is kept in the note.
+export async function postFunds(formData: FormData) {
+  const supabase = await staffClient();
+  const fundType = String(formData.get('fund_type') || 'contribution').toLowerCase();
+  const month = String(formData.get('month') || '').toLowerCase();
+  const amount = n(formData.get('amount'));
+  if (!MONTHS.includes(month) || amount <= 0) redirect('/staff/fund-data?err=1');
+
+  // ---- Membership fee / Welfare -> pooled account (accumulate) ----
+  if (fundType === 'membership' || fundType === 'welfare') {
+    const accNo = ACCOUNT_NO[fundType];
+    const row = await loadRow(supabase, accNo);
+    if (!row) redirect('/staff/fund-data?err=1');
+    const sched = row.sched_2026 && typeof row.sched_2026 === 'object' ? { ...row.sched_2026 } : {};
+    sched[month] = n(sched[month]) + amount; // pooled inflows accumulate
+    const posted = row.sched_2026_posted && typeof row.sched_2026_posted === 'object' ? { ...row.sched_2026_posted } : {};
+    posted[month] = new Date().toISOString();
+    const contributions2026 = MONTHS.reduce((s, m) => s + n(sched[m]), 0);
+    const rc = recompute({ ...row, contributions_2026: contributions2026 });
+    const paidBy = normMemberNo(String(formData.get('member_no') || ''));
+    const label = fundType === 'membership' ? 'membership fee' : 'welfare';
+    const stamp = new Date().toLocaleDateString('en-GB');
+    const line = stamp + ': ' + label + ' ' + Number(amount).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (paidBy ? ' - paid by ' + paidBy : '');
+    const notes = row.notes ? row.notes + ' | ' + line : line;
+    await supabase
+      .from('member_finances')
+      .update({
+        sched_2026: sched,
+        sched_2026_posted: posted,
+        contributions_2026: contributions2026,
+        current_balance: rc.current_balance,
+        net_balance: rc.net_balance,
+        notes,
+        last_posted_at: new Date().toISOString(),
+      })
+      .eq('member_no', accNo);
+    revalidatePath('/staff/fund-data');
+    revalidatePath('/staff/reports');
+    revalidatePath('/staff/statements');
+    redirect('/staff/fund-data?ok=' + fundType);
+  }
+
+  // ---- Contribution -> member (sets that month, same as postContribution) ----
+  const memberNo = normMemberNo(String(formData.get('member_no') || ''));
+  if (!memberNo) redirect('/staff/fund-data?err=1');
+  const row = await loadRow(supabase, memberNo!);
+  if (!row || row.status === 'account') redirect('/staff/fund-data?err=1');
+  const sched = row.sched_2026 && typeof row.sched_2026 === 'object' ? { ...row.sched_2026 } : {};
+  sched[month] = amount;
+  const posted = row.sched_2026_posted && typeof row.sched_2026_posted === 'object' ? { ...row.sched_2026_posted } : {};
+  posted[month] = new Date().toISOString();
+  const contributions2026 = MONTHS.reduce((s, m) => s + n(sched[m]), 0);
+  const rc = recompute({ ...row, contributions_2026: contributions2026 });
+  await supabase
+    .from('member_finances')
+    .update({
+      sched_2026: sched,
+      sched_2026_posted: posted,
+      contributions_2026: contributions2026,
+      current_balance: rc.current_balance,
+      net_balance: rc.net_balance,
+      last_posted_at: new Date().toISOString(),
+    })
+    .eq('member_no', memberNo);
+  revalidatePath('/staff/fund-data');
+  revalidatePath('/staff/reports');
+  revalidatePath('/staff/statements');
+  redirect('/staff/fund-data?ok=posted');
+}
+
 // Record a withdrawal (adds to any prior withdrawal); reflects across balances.
 export async function recordWithdrawal(formData: FormData) {
   const supabase = await disburseClient();
