@@ -59,6 +59,12 @@ export default function StatementSheet({ fin }: { fin: any }) {
   ];
   const shownParts = interestParts.filter((p) => p[1] != null);
 
+  // Exit / partial-payout settlement. `current_balance` is the authoritative balance
+  // still owed to the member; `withdrawal` is what has already been paid out. Anchoring
+  // the gross to (pending + paid) guarantees the settlement reconciles to the cent.
+  const paidOut = withdrawal != null && withdrawal > 0 ? withdrawal : 0;
+  const grossEntitlement = (current ?? 0) + paidOut;
+
   const statusLabel =
     fin.status === 'exiting' ? 'Exiting'
     : fin.status === 'active' ? 'Active'
@@ -107,9 +113,9 @@ export default function StatementSheet({ fin }: { fin: any }) {
       {/* ---- Summary band ---- */}
       <div className="stmt-summary">
         <div className="stmt-summary-hero">
-          <div className="stmt-summary-lbl">Portfolio value</div>
+          <div className="stmt-summary-lbl">{isExiting ? 'Balance pending refund' : 'Portfolio value'}</div>
           <div className="stmt-summary-val num">{kes(current)}</div>
-          {asOf && <div className="stmt-summary-note">as at {asOf}</div>}
+          {asOf && <div className="stmt-summary-note">{isExiting ? 'pending refund \u00b7 as at ' + asOf : 'as at ' + asOf}</div>}
         </div>
         <div className="stmt-summary-stat">
           <div className="stmt-summary-lbl">Lifetime contributions</div>
@@ -121,6 +127,21 @@ export default function StatementSheet({ fin }: { fin: any }) {
         </div>
       </div>
 
+      {/* ---- Exit settlement (members leaving / with a payout in progress) ---- */}
+      {isExiting && (
+        <section className="stmt-block" style={{ marginTop: 14, borderLeft: '3px solid var(--warn, #f2b23b)', paddingLeft: 14 }}>
+          <h3 className="stmt-h">Exit settlement</h3>
+          <Row k="Gross entitlement (contributions + interest)" v={kes(grossEntitlement)} />
+          {paidOut > 0 && <Row k="Amount already paid out" v={'\u2212 ' + kes(paidOut)} neg />}
+          <Row k="Balance pending refund" v={kes(current)} strong total />
+          <div className="stmt-fine">
+            {paidOut > 0
+              ? kes(paidOut) + ' has already been paid out. The remaining ' + kes(current) + ' is pending refund by the AWIVEST office.'
+              : 'The full balance of ' + kes(current) + ' is pending refund by the AWIVEST office.'}
+          </div>
+        </section>
+      )}
+
       {/* ---- Ledger ---- */}
       <div className="stmt-cols">
         <section className="stmt-block">
@@ -128,9 +149,9 @@ export default function StatementSheet({ fin }: { fin: any }) {
           <Row k="Opening balance (31 Dec 2025)" v={kes(opening)} />
           <Row k="Contributions (2026 YTD)" v={kes(schedTotal)} />
           <Row k="Total interest" v={kes(totalInterest)} />
-          {withdrawal != null && withdrawal > 0 && <Row k="Withdrawals" v={'\u2212 ' + kes(withdrawal)} neg />}
-          {isExiting && refundExit != null && <Row k="Refund on exit" v={kes(refundExit)} />}
-          <Row k="Total portfolio value" v={kes(current)} strong total />
+          {paidOut > 0 && <Row k="Amount already paid out" v={'\u2212 ' + kes(paidOut)} neg />}
+          {refundExit != null && refundExit > 0 && <Row k="Deduction on exit" v={'\u2212 ' + kes(refundExit)} neg />}
+          <Row k={isExiting ? 'Balance pending refund' : 'Total portfolio value'} v={kes(current)} strong total />
           {net != null && net !== current && <Row k="Net balance in fund" v={kes(net)} />}
 
           <h3 className="stmt-h" style={{ marginTop: 22 }}>Contributions</h3>
