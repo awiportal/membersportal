@@ -18,7 +18,7 @@ export async function GET() {
   if (!isStaff(me?.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const { data: rows } = await supabase.from('member_finances').select('*').order('member_no', { ascending: true });
-  const buf = buildFundWorkbook((rows ?? []) as any[]);
+  const buf = await buildFundWorkbook((rows ?? []) as any[]);
   const today = new Date().toISOString().slice(0, 10);
 
   return new NextResponse(new Uint8Array(buf), {
