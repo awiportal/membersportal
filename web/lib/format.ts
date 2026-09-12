@@ -4,9 +4,8 @@ export const KES = (n: number) =>
   'KES ' +
   (Number(n) || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Compact variant for big headline KPI cards only (approximate, in millions).
-// Falls back to the exact KES() formatter below KES 1M.
-export const KESc = (n: number) =>
-  (n || 0) >= 1_000_000 ? 'KES ' + ((n || 0) / 1_000_000).toFixed(2) + 'M' : KES(n);
+// Cents are authoritative for AWIVEST: KESc no longer compacts to millions
+// (which dropped cents). It now renders EXACT cents, identical to KES().
+export const KESc = (n: number) => KES(n);
 
 export const pct = (a: number, b: number) => (b ? Math.min(100, Math.round((a / b) * 100)) : 0);

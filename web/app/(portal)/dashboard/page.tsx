@@ -4,6 +4,7 @@ import { getSessionUser, getSessionProfile } from '@/lib/session';
 import { KES, KESc, pct } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
+import MoneyNav from '@/components/MoneyNav';
 import LoadDemoData from '@/components/LoadDemoData';
 import { isStaff, roleLabel } from '@/lib/roles';
 
@@ -321,12 +322,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <nav className="pagenav">
-        <Link href="/dashboard" className="is-here"><i className="fa-solid fa-gauge-high" /> Dashboard</Link>
-        <Link href="/portfolio"><i className="fa-solid fa-chart-pie" /> Portfolio</Link>
-        <Link href="/contributions"><i className="fa-solid fa-hand-holding-dollar" /> Contributions</Link>
-        <Link href="/statements"><i className="fa-solid fa-file-invoice-dollar" /> Statement</Link>
-      </nav>
+      <MoneyNav />
 
       {notActive && (
         <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', border: '1px solid rgba(166,205,53,0.3)' }}>
@@ -374,7 +370,7 @@ export default async function DashboardPage() {
                   Welcome back, {firstName}{fin?.member_no ? ' \u00b7 ' + fin.member_no : ''}
                   {fin?.status === 'exiting' && <span className="badge badge-warn" style={{ marginLeft: 10 }}>Exiting</span>}
                 </div>
-                <div className="hero-value"><span className="cur">KES</span>{Math.round(portfolioValue || 0).toLocaleString('en-KE')}</div>
+                <div className="hero-value"><span className="cur">KES</span>{(Number(portfolioValue || 0) || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <div className="hero-line">
                   {fin
                     ? `Your live AWIVEST fund position${asOf ? ', as at ' + asOf : ''}.${dividendsValue > 0 ? ' ' + KES(dividendsValue) + ' of your balance is interest earned for you.' : ''}`

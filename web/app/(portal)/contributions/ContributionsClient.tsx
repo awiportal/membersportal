@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import MoneyNav from '@/components/MoneyNav';
 
 type Fin = Record<string, any> | null;
 
@@ -11,13 +11,11 @@ const MONTHS: [string, string][] = [
 ];
 
 const kes = (v?: number | null) =>
-  v == null || isNaN(Number(v)) ? '\u2014' : 'KES ' + Math.round(Number(v)).toLocaleString('en-KE');
+  v == null || isNaN(Number(v)) ? '\u2014' : 'KES ' + Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kesc = (v?: number | null) => {
   if (v == null || isNaN(Number(v))) return '\u2014';
   const nn = Number(v);
-  if (Math.abs(nn) >= 1000000) return 'KES ' + (nn / 1000000).toFixed(2) + 'M';
-  if (Math.abs(nn) >= 1000) return 'KES ' + Math.round(nn / 1000) + 'K';
-  return 'KES ' + Math.round(nn).toLocaleString('en-KE');
+  return 'KES ' + Number(nn).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const num = (v: any): number | null =>
@@ -25,24 +23,6 @@ const num = (v: any): number | null =>
 
 type TabId = 'overview' | 'contributions' | 'interest' | 'withdrawals';
 
-const NAV = [
-  { href: '/dashboard', icon: 'fa-gauge-high', label: 'Dashboard', id: 'dashboard' },
-  { href: '/portfolio', icon: 'fa-chart-pie', label: 'Portfolio', id: 'portfolio' },
-  { href: '/contributions', icon: 'fa-hand-holding-dollar', label: 'Contributions', id: 'contributions' },
-  { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
-];
-
-function PageNav({ here }: { here: string }) {
-  return (
-    <nav className="pagenav">
-      {NAV.map((it) => (
-        <Link key={it.id} href={it.href} className={it.id === here ? 'is-here' : undefined}>
-          <i className={`fa-solid ${it.icon}`} /> {it.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 function Ring({ pct, label }: { pct: number; label: string }) {
   const r = 52;
@@ -70,7 +50,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
   if (!fin) {
     return (
       <div>
-        <PageNav here="contributions" />
+        <MoneyNav />
         <div className="page-title">Contributions &amp; Earnings</div>
         <div className="sub">Your personal fund statement &mdash; contributions, interest and balance.</div>
         <div className="card card-pad" style={{ marginTop: 20, textAlign: 'center', padding: '44px 24px' }}>
@@ -152,7 +132,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
 
   return (
     <div>
-      <PageNav here="contributions" />
+      <MoneyNav />
 
       <section className="hero rise">
         <div className="hero-grid">
@@ -163,7 +143,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
             </div>
             <div className="hero-value">
               <span className="cur">KES</span>
-              {current != null ? Math.round(current).toLocaleString('en-KE') : '\u2014'}
+              {current != null ? (Number(current) || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '\u2014'}
             </div>
             <div className="hero-line">
               You have contributed {kes(lifetime)} over your membership and earned {kes(totalInterest)} in interest{asOf ? '. Figures as at ' + asOf : ''}.
@@ -259,7 +239,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
                     return (
                       <div key={k} className={`monthchip ${v ? 'on' : 'off'}`}>
                         <div className="m">{label}</div>
-                        <div className="a num">{v ? Math.round(v).toLocaleString('en-KE') : '\u2014'}</div>
+                        <div className="a num">{v ? Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '\u2014'}</div>
                       </div>
                     );
                   })}

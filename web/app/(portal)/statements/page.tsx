@@ -2,29 +2,12 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { KES, KESc } from '@/lib/format';
 import MemberStatement from './MemberStatement';
+import MoneyNav from '@/components/MoneyNav';
 
 export const dynamic = 'force-dynamic';
 
 const n = (v: any) => Number(v || 0);
 
-const NAV = [
-  { href: '/dashboard', icon: 'fa-gauge-high', label: 'Dashboard', id: 'dashboard' },
-  { href: '/portfolio', icon: 'fa-chart-pie', label: 'Portfolio', id: 'portfolio' },
-  { href: '/contributions', icon: 'fa-hand-holding-dollar', label: 'Contributions', id: 'contributions' },
-  { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
-];
-
-function PageNav({ here }: { here: string }) {
-  return (
-    <nav className="pagenav">
-      {NAV.map((it) => (
-        <Link key={it.id} href={it.href} className={it.id === here ? 'is-here' : undefined}>
-          <i className={`fa-solid ${it.icon}`} /> {it.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 export default async function StatementsPage() {
   const supabase = createClient();
@@ -61,7 +44,7 @@ export default async function StatementsPage() {
 
   return (
     <div>
-      <PageNav here="statements" />
+      <MoneyNav />
 
       {fin ? (
         <section className="hero rise">
@@ -70,7 +53,7 @@ export default async function StatementsPage() {
               <div className="hero-eyebrow">Official Statement{fin.member_no ? ' \u00b7 ' + fin.member_no : ''}</div>
               <div className="hero-value">
                 <span className="cur">KES</span>
-                {Math.round(current).toLocaleString('en-KE')}
+                {(Number(current) || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="hero-line">
                 Your official AWIVEST fund statement{asOf ? ', as at ' + asOf : ''}. Print it or save it as a PDF straight from the statement sheet below.

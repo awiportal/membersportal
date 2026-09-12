@@ -3,29 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { KES, KESc } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
+import MoneyNav from '@/components/MoneyNav';
 
 export const dynamic = 'force-dynamic';
 
 const n = (v: any) => Number(v || 0);
 
-const NAV = [
-  { href: '/dashboard', icon: 'fa-gauge-high', label: 'Dashboard', id: 'dashboard' },
-  { href: '/portfolio', icon: 'fa-chart-pie', label: 'Portfolio', id: 'portfolio' },
-  { href: '/contributions', icon: 'fa-hand-holding-dollar', label: 'Contributions', id: 'contributions' },
-  { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
-];
-
-function PortfolioPageNav({ here }: { here: string }) {
-  return (
-    <nav className="pagenav">
-      {NAV.map((it) => (
-        <Link key={it.id} href={it.href} className={it.id === here ? 'is-here' : undefined}>
-          <i className={`fa-solid ${it.icon}`} /> {it.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 export default async function PortfolioPage() {
   const supabase = createClient();
@@ -41,7 +24,7 @@ export default async function PortfolioPage() {
   if (!fin) {
     return (
       <div>
-        <PortfolioPageNav here="portfolio" />
+        <MoneyNav />
         <div className="page-title">Investment Portfolio</div>
         <div className="sub">Your position in the AWIVEST fund.</div>
         <div className="card card-pad" style={{ marginTop: 20 }}>
@@ -90,7 +73,7 @@ export default async function PortfolioPage() {
 
   return (
     <div>
-      <PortfolioPageNav here="portfolio" />
+      <MoneyNav />
 
       <section className="hero rise">
         <div className="hero-grid">
@@ -98,7 +81,7 @@ export default async function PortfolioPage() {
             <div className="hero-eyebrow">Investment Portfolio{fin.member_no ? ' \u00b7 ' + fin.member_no : ''}</div>
             <div className="hero-value">
               <span className="cur">KES</span>
-              {Math.round(current).toLocaleString('en-KE')}
+              {(Number(current) || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="hero-line">
               Your live position in the AWIVEST fund{asOf ? ', as at ' + asOf : ''}. A principal of {KES(lifetime)} has earned{' '}
