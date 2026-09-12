@@ -242,19 +242,26 @@ export async function setWithdrawalWindow(formData: FormData) {
   const open = String(formData.get('open') || '') === 'true';
   const { supabase, uid } = await requireCap('pay');
 
-  await supabase
+  const { error: upsertError } = await supabase
     .from('app_settings')
     .upsert(
       { key: 'withdrawals_open', value: open ? 'true' : 'false', updated_by: uid, updated_at: new Date().toISOString() },
       { onConflict: 'key' },
     );
+  if (upsertError) {
+    console.error('setWithdrawalWindow upsert failed:', upsertError.message);
+  }
 
-  await supabase.from('audit_log').insert({
-    actor_id: uid,
-    member_id: uid,
-    action: open ? 'withdrawals_window_opened' : 'withdrawals_window_closed',
-    meta: {},
-  });
+  try {
+    await supabase.from('audit_log').insert({
+      actor_id: uid,
+      member_id: uid,
+      action: open ? 'withdrawals_window_opened' : 'withdrawals_window_closed',
+      meta: {},
+    });
+  } catch (e) {
+    console.error('setWithdrawalWindow audit failed:', e);
+  }
 
   revalidatePath('/staff/withdrawals');
   revalidatePath('/withdrawals');

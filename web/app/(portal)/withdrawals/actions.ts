@@ -42,17 +42,8 @@ export async function submitWithdrawal(input: WithdrawalInput): Promise<{ ok?: t
   // Every payout request records WHY: 'exit' (leaving the fund) or 'other'.
   const reason_type = input?.reason_type === 'exit' ? 'exit' : 'other';
 
-  // AWIVEST is a long-term fund: "other" (non-exit) payouts are only accepted
-  // while an Admin has opened the payout window. Exit requests are always allowed.
-  if (reason_type === 'other') {
-    const open = await getWithdrawalsOpen();
-    if (!open) {
-      return {
-        error:
-          'Payout requests are currently closed by the office. Only exit requests are being accepted right now.',
-      };
-    }
-  }
+  // Window enforcement (long-term fund) happens after we load the member's fund
+  // record below, so members who are exiting are always allowed to request.
 
   const letter_path = String(input?.letter_path || '').trim();
   // Only accept a letter uploaded into the member's own folder of the bucket.
@@ -71,12 +62,26 @@ export async function submitWithdrawal(input: WithdrawalInput): Promise<{ ok?: t
     return { error: 'Please enter the M-Pesa phone number to send funds to.' };
   }
 
-  // Cap at the available net balance when a fund record exists.
+  // Load the member's fund record: it gives both the available balance and
+  // whether they are leaving the fund.
   const { data: fin } = await supabase
     .from('member_finances')
-    .select('net_balance, current_balance')
+    .select('net_balance, current_balance, status')
     .eq('member_id', uid)
     .maybeSingle();
+
+  // AWIVEST is a long-term fund: while the Admin has the payout window closed,
+  // only members who are exiting the fund may request. Everyone may request
+  // while the window is open.
+  const windowOpen = await getWithdrawalsOpen();
+  const memberExiting = fin?.status === 'exiting';
+  if (!windowOpen && !memberExiting) {
+    return {
+      error:
+        'Payout requests are currently closed by the office. Your funds remain invested — you can request when the window reopens.',
+    };
+  }
+
   if (fin) {
     const available = Number(fin.net_balance ?? fin.current_balance ?? 0);
     if (amount > available) {

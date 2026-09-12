@@ -24,7 +24,7 @@ export default async function WithdrawalsPage() {
   // verifies), so a missing row is not an error.
   const { data: fin } = await supabase
     .from('member_finances')
-    .select('net_balance, current_balance, member_no, status')
+    .select('net_balance, current_balance, member_no, status, withdrawal')
     .eq('member_id', uid)
     .maybeSingle();
 
@@ -38,15 +38,21 @@ export default async function WithdrawalsPage() {
 
   const notReady = !!error;
   const windowOpen = await getWithdrawalsOpen();
+  // A member who is leaving the fund (fund status "exiting") can always request
+  // their refund, even when the general payout window is closed.
+  const isExiting = fin?.status === 'exiting' || profile?.status === 'exiting';
+  const paidOut = fin ? Number(fin.withdrawal ?? 0) : 0;
 
   return (
     <WithdrawalsClient
       uid={uid}
-      active={profile?.status === 'active'}
+      active={profile?.status === 'active' || !!isExiting}
       netBalance={fin ? Number(fin.net_balance ?? fin.current_balance ?? 0) : null}
       requests={(rows ?? []) as any[]}
       notReady={notReady}
       windowOpen={windowOpen}
+      isExiting={!!isExiting}
+      paidOut={paidOut}
     />
   );
 }
