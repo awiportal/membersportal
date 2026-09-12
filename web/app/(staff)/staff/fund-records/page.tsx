@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import { importFundIdentifiers } from './actions';
 import RegisterStatus from './RegisterStatus';
 
@@ -25,7 +25,7 @@ export default async function FundRecordsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
 
   const { data: rows } = await supabase
     .from('member_finances')

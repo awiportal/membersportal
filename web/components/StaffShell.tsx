@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { displayRole, isAdmin } from '@/lib/roles';
+import { displayRole, isAdmin, isAuditor } from '@/lib/roles';
 import NotificationBell from './NotificationBell';
 
 // Shows the user's uploaded photo when present, otherwise their coloured
@@ -102,7 +102,7 @@ export default function StaffShell({
               <i className="fa-solid fa-lock" style={{ marginLeft: 'auto', fontSize: 11 }} />
             </div>
           )}
-          {isAdmin(profile?.role) ? (
+          {(isAdmin(profile?.role) || isAuditor(profile?.role)) ? (
             <Link href="/staff/audit" className={`nav-item ${pathname.startsWith('/staff/audit') ? 'active' : ''}`} onClick={() => setOpen(false)}>
               <i className="fa-solid fa-clipboard-list" /><span>Audit log</span>
             </Link>
@@ -144,7 +144,15 @@ export default function StaffShell({
             <Avatar url={profile?.avatar_url} initials={initials} title={name} />
           </div>
         </header>
-        <main className="view">{children}</main>
+        <main className={`view ${isAuditor(profile?.role) ? 'ro-console' : ''}`}>
+          {isAuditor(profile?.role) && (
+            <div className="ro-banner">
+              <i className="fa-solid fa-eye" aria-hidden="true" />
+              <span>Read-only access — you are signed in as an Auditor. You can view every record, but changes are disabled.</span>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

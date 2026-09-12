@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff, canDisburseFunds } from '@/lib/roles';
+import { canDisburseFunds, canViewStaffConsole } from '@/lib/roles';
 import FundDataConsole from './FundDataConsole';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export default async function FundDataPage({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
 
   // Members (excludes the two pooled fund accounts) — contributions and
   // withdrawals post against members here.

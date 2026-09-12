@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import { buildFundWorkbook } from '@/lib/fundWorkbook';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!canViewStaffConsole(me?.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const { data: rows } = await supabase.from('member_finances').select('*').order('member_no', { ascending: true });
   // Exclude sample/preview member rows (status 'sample') so they never affect

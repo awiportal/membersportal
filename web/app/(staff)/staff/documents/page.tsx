@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import DocumentManager from './DocumentManager';
 import PublishedDocuments from './PublishedDocuments';
 
@@ -14,7 +14,7 @@ export default async function StaffDocuments() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/dashboard');
+  if (!canViewStaffConsole(me?.role)) redirect('/dashboard');
 
   const admin = createAdminClient();
   const [{ data: docs }, { data: members }] = await Promise.all([

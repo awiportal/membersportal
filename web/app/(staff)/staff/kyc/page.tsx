@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import KycReview from './KycReview';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export default async function StaffKyc() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/dashboard');
+  if (!canViewStaffConsole(me?.role)) redirect('/dashboard');
 
   const admin = createAdminClient();
   const { data: docs } = await admin

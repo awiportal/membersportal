@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import { addOpportunity, removeOpportunity } from './actions';
 import ConfirmSubmit from '@/components/ConfirmSubmit';
@@ -28,7 +28,7 @@ export default async function StaffOpportunitiesPage({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
 
   const [{ data: oppData }, { data: interestData }] = await Promise.all([
     supabase.from('opportunities').select('*').order('closes_at', { ascending: true }),
