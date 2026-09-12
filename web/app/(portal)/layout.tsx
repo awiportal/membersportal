@@ -1,20 +1,13 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { requireTwoFactor } from '@/lib/twofaGate';
+import { getSessionUser, getSessionProfile } from '@/lib/session';
 import Shell from '@/components/Shell';
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const profile = await getSessionProfile();
 
   // Mandatory emailed sign-in code for every member — no longer opt-in
   // (see lib/twofaGate). Sends the member to /verify until this device has
