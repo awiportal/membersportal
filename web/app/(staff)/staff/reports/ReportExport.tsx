@@ -1,8 +1,9 @@
 'use client';
 
-// Client-side CSV export of the fund report. Builds the file in the browser and
-// triggers a download — no server round-trip, no PII identifiers (names + the
-// financial columns only; National ID / phone never leave the Fund records tool).
+// Downloads for the fund report. "Export Excel" streams the full multi-tab
+// workbook (Member Register, Member Statements, Summary, Compiled 2018-Jul 2026,
+// 2026 Contribution Schedule) from the server route — matching the AWIVEST
+// spreadsheet. "Export CSV" is a quick client-side single-table fallback.
 type Row = {
   member_no: string;
   full_name: string;
@@ -14,7 +15,7 @@ type Row = {
 };
 
 export default function ReportExport({ rows }: { rows: Row[] }) {
-  function download() {
+  function downloadCsv() {
     const header = ['Register No', 'Name', 'Status', 'Opening 2025', 'Contributions 2026', 'Interest 2026', 'Current Balance'];
     const esc = (v: string | number) => {
       const s = String(v ?? '');
@@ -37,8 +38,13 @@ export default function ReportExport({ rows }: { rows: Row[] }) {
   }
 
   return (
-    <button className="btn btn-ghost btn-sm" onClick={download} type="button">
-      <i className="fa-solid fa-file-csv" /> Export CSV
-    </button>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <a className="btn btn-primary btn-sm" href="/staff/reports/export" target="_blank" rel="noopener noreferrer">
+        <i className="fa-solid fa-file-excel" /> Export Excel
+      </a>
+      <button className="btn btn-ghost btn-sm" onClick={downloadCsv} type="button">
+        <i className="fa-solid fa-file-csv" /> Export CSV
+      </button>
+    </div>
   );
 }
