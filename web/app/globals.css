@@ -485,3 +485,33 @@ html[data-theme="light"] .glass,html[data-theme="light"] .card{
 .tile-d{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
 .tile-arrow{margin-left:auto;align-self:center;color:var(--muted2);transition:transform .18s ease,color .18s ease}
 .tile:hover .tile-arrow{transform:translateX(3px);color:var(--lime2)}
+
+
+
+/* ============================================================================
+   Mobile best-practices layer  (appended — responsive UX pass)
+   Additive, small-screen-scoped enhancements. These sit later in the cascade
+   than every rule above, so they win where they overlap. Desktop is untouched.
+   ========================================================================== */
+
+/* Keep text stable in iOS landscape and stop any stray wide element from
+   creating a horizontal scrollbar. `clip` (not `hidden`) does NOT turn the
+   root into a scroll container, so the sticky topbar keeps working. */
+html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; overflow-x:clip; }
+img,video{ max-width:100%; height:auto; }
+
+@media (max-width:640px){
+  /* 16px form controls stop iOS Safari from auto-zooming on focus (it zooms
+     any field whose text is under 16px). Desktop keeps its 14px sizing. */
+  .input,
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),
+  select, textarea { font-size:16px; }
+
+  /* Thumb-friendly tap targets (~44px, per Apple HIG / WCAG 2.5.5). min-height
+     only, so existing padding and layout are otherwise unchanged. */
+  .btn      { min-height:44px; }
+  .btn-sm   { min-height:40px; }
+  .nav-item { min-height:44px; }
+  .tab      { min-height:42px; }
+  .icon-btn { width:44px; height:44px; }
+}
