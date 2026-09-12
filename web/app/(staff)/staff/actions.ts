@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isStaff, canApproveMembers, canDisburseFunds } from '@/lib/roles';
+import { isStaff, canApproveMembers, canDisburseFunds, canMapMembership } from '@/lib/roles';
 import { sendMemberEmail } from '@/lib/email';
 import { pandadocConfigured, createFromTemplate, sendForSigning, listTemplates } from '@/lib/pandadoc';
 
@@ -116,7 +116,7 @@ export async function linkFundRecord(formData: FormData) {
   const id = String(formData.get('id') || '');
   const memberNo = String(formData.get('member_no') || '').trim();
   if (!id || !memberNo) return;
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireCap(canMapMembership);
   const { error } = await supabase.rpc('staff_link_membership', {
     p_member_no: memberNo,
     p_member_id: id,
@@ -129,7 +129,7 @@ export async function unlinkFundRecord(formData: FormData) {
   const id = String(formData.get('id') || '');
   const memberNo = String(formData.get('member_no') || '').trim();
   if (!id || !memberNo) return;
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireCap(canMapMembership);
   const { error } = await supabase.rpc('staff_unlink_membership', { p_member_no: memberNo });
   if (error) {
     console.error('unlinkFundRecord failed:', error.message);
