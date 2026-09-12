@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import StatementBody from '../StatementBody';
 
 // Print / save-to-PDF named after the member whose statement this is (the
@@ -12,10 +13,18 @@ function printStatement(fullName?: string, asOf?: string | null) {
   window.print();
 }
 
-export default function StatementView({ fin }: { fin: any }) {
+export default function StatementView({ fin, autoPrint }: { fin: any; autoPrint?: boolean }) {
   const asOf = fin.as_of
     ? new Date(fin.as_of).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : null;
+
+  // When opened with ?print=1 (the one-click "PDF" action from the list), open
+  // the browser's Save-as-PDF dialog automatically once the sheet has painted.
+  useEffect(() => {
+    if (!autoPrint) return;
+    const t = setTimeout(() => printStatement(fin.full_name, asOf), 500);
+    return () => clearTimeout(t);
+  }, [autoPrint, fin.full_name, asOf]);
 
   return (
     <div style={{ maxWidth: 880, margin: '0 auto' }}>
