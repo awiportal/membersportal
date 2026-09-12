@@ -57,6 +57,8 @@ export default function WithdrawalsClient({
   requests,
   notReady,
   windowOpen,
+  isExiting,
+  paidOut,
 }: {
   uid: string;
   active: boolean;
@@ -64,11 +66,13 @@ export default function WithdrawalsClient({
   requests: WReq[];
   notReady: boolean;
   windowOpen: boolean;
+  isExiting: boolean;
+  paidOut: number;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [reasonType, setReasonType] = useState<'exit' | 'other'>('other');
+  const [reasonType, setReasonType] = useState<'exit' | 'other'>(isExiting ? 'exit' : 'other');
   const [method, setMethod] = useState<'bank' | 'mpesa'>('bank');
   const [bankName, setBankName] = useState('');
   const [accountName, setAccountName] = useState('');
@@ -82,12 +86,13 @@ export default function WithdrawalsClient({
 
   const amountNum = useMemo(() => Number(String(amount).replace(/[^0-9.]/g, '')) || 0, [amount]);
   const overBalance = netBalance != null && amountNum > netBalance;
-  // Non-exit ("other") payouts are only accepted while the office has opened the
-  // payout window. Exit requests are always allowed.
-  const payoutBlocked = !windowOpen && reasonType === 'other';
+  // AWIVEST is a long-term fund. The office opens a payout window when partial
+  // payouts are invited; while it is closed, active members cannot request.
+  // Members who are leaving the fund ("exiting") can always request their refund.
+  const canRequest = windowOpen || isExiting;
+  const closedForYou = !canRequest;
   const pendingExists = requests.some((r) => ['submitted', 'under_review', 'approved'].includes(r.status));
   const inProgress = requests.filter((r) => ['submitted', 'under_review', 'approved'].includes(r.status)).length;
-  const paidCount = requests.filter((r) => r.status === 'paid').length;
 
   async function submit() {
     setMsg(null);
@@ -103,10 +108,10 @@ export default function WithdrawalsClient({
       setMsg({ kind: 'err', text: 'Please give a brief reason for the withdrawal.' });
       return;
     }
-    if (payoutBlocked) {
+    if (closedForYou) {
       setMsg({
         kind: 'err',
-        text: 'Payout requests are currently closed by the office. Only exit requests are being accepted right now.',
+        text: 'Payout requests are currently closed by the office. Your funds remain invested — you can request when the window reopens.',
       });
       return;
     }
@@ -211,7 +216,7 @@ export default function WithdrawalsClient({
                 <div className="hero-pills">
                   <div className="hero-pill"><div className="k">Available</div><div className="v num">{netBalance != null ? KES(netBalance) : '\u2014'}</div></div>
                   <div className="hero-pill"><div className="k">In progress</div><div className="v num">{inProgress}</div></div>
-                  <div className="hero-pill"><div className="k">Paid</div><div className="v num">{paidCount}</div></div>
+                  <div className="hero-pill"><div className="k">Paid out</div><div className="v num">{paidOut > 0 ? KES(paidOut) : '\u2014'}</div></div>
                 </div>
               </div>
               <div className="hero-spark">
@@ -242,6 +247,18 @@ export default function WithdrawalsClient({
               </div>
             )}
 
+            {isExiting && (
+              <div className="badge badge-good" style={{ marginBottom: 12 }}>
+                <i className="fa-solid fa-right-from-bracket" /> Your exit is approved{!windowOpen ? ' — you can request your funds now, even though the general payout window is closed' : ' — you can request your funds below'}.
+              </div>
+            )}
+
+            {closedForYou && (
+              <div className="badge badge-warn" style={{ marginBottom: 12 }}>
+                <i className="fa-solid fa-lock" /> Payout requests are currently closed by the office. Your funds remain invested; you can request when the window reopens.
+              </div>
+            )}
+
             {msg && (
               <div
                 style={{
@@ -265,7 +282,7 @@ export default function WithdrawalsClient({
               </div>
             )}
 
-            <fieldset disabled={!active || busy} style={{ border: 0, padding: 0, margin: 0 }}>
+            <fieldset disabled={!active || busy || closedForYou} style={{ border: 0, padding: 0, margin: 0 }}>
               <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
                 <div className="field">
                   <label>Amount to withdraw (KES)</label>
@@ -297,9 +314,9 @@ export default function WithdrawalsClient({
                   <option value="other">Partial payout (staying in the fund)</option>
                   <option value="exit">Exit — leaving the fund</option>
                 </select>
-                {payoutBlocked && (
+                {closedForYou && (
                   <div className="muted2" style={{ fontSize: 11.5, marginTop: 5, color: '#ef7f7f', lineHeight: 1.5 }}>
-                    Payout requests are currently closed by the office. You can still request a full exit from the fund.
+                    Payout requests are currently closed by the office. Members who are exiting the fund can still request their refund.
                   </div>
                 )}
               </div>
@@ -345,7 +362,7 @@ export default function WithdrawalsClient({
                 </div>
               </div>
 
-              <button className="btn btn-lime" style={{ marginTop: 6 }} type="button" onClick={submit} disabled={!active || busy || payoutBlocked}>
+              <button className="btn btn-lime" style={{ marginTop: 6 }} type="button" onClick={submit} disabled={!active || busy || closedForYou}>
                 {busy ? (
                   <><i className="fa-solid fa-spinner fa-spin" /> Submitting…</>
                 ) : (
