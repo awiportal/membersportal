@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 type Fin = Record<string, any> | null;
 
@@ -11,11 +12,57 @@ const MONTHS: [string, string][] = [
 
 const kes = (v?: number | null) =>
   v == null || isNaN(Number(v)) ? '\u2014' : 'KES ' + Math.round(Number(v)).toLocaleString('en-KE');
+const kesc = (v?: number | null) => {
+  if (v == null || isNaN(Number(v))) return '\u2014';
+  const nn = Number(v);
+  if (Math.abs(nn) >= 1000000) return 'KES ' + (nn / 1000000).toFixed(2) + 'M';
+  if (Math.abs(nn) >= 1000) return 'KES ' + Math.round(nn / 1000) + 'K';
+  return 'KES ' + Math.round(nn).toLocaleString('en-KE');
+};
 
 const num = (v: any): number | null =>
   v == null || v === '' || isNaN(Number(v)) ? null : Number(v);
 
 type TabId = 'overview' | 'contributions' | 'interest' | 'withdrawals';
+
+const NAV = [
+  { href: '/dashboard', icon: 'fa-gauge-high', label: 'Dashboard', id: 'dashboard' },
+  { href: '/portfolio', icon: 'fa-chart-pie', label: 'Portfolio', id: 'portfolio' },
+  { href: '/contributions', icon: 'fa-hand-holding-dollar', label: 'Contributions', id: 'contributions' },
+  { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
+];
+
+function PageNav({ here }: { here: string }) {
+  return (
+    <nav className="pagenav">
+      {NAV.map((it) => (
+        <Link key={it.id} href={it.href} className={it.id === here ? 'is-here' : undefined}>
+          <i className={`fa-solid ${it.icon}`} /> {it.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function Ring({ pct, label }: { pct: number; label: string }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const off = c * (1 - clamped / 100);
+  return (
+    <div className="ring-wrap" style={{ width: 132, height: 132 }}>
+      <svg width={132} height={132} className="ring">
+        <circle cx={66} cy={66} r={r} strokeWidth={12} fill="none" style={{ stroke: 'rgba(255,255,255,0.18)' }} />
+        <circle className="ring-fill" cx={66} cy={66} r={r} strokeWidth={12}
+          style={{ stroke: '#c3e05f', strokeDasharray: c, strokeDashoffset: off }} />
+      </svg>
+      <div className="ring-center">
+        <div className="p" style={{ color: '#fff' }}>{clamped}%</div>
+        <div className="l" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function ContributionsClient({ fin }: { fin: Fin }) {
   const [tab, setTab] = useState<TabId>('overview');
@@ -23,8 +70,9 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
   if (!fin) {
     return (
       <div>
+        <PageNav here="contributions" />
         <div className="page-title">Contributions &amp; Earnings</div>
-        <div className="sub">Your personal fund statement — contributions, interest and balance.</div>
+        <div className="sub">Your personal fund statement &mdash; contributions, interest and balance.</div>
         <div className="card card-pad" style={{ marginTop: 20, textAlign: 'center', padding: '44px 24px' }}>
           <div style={{ fontSize: 34, color: 'var(--muted2)', marginBottom: 12 }}>
             <i className="fa-solid fa-file-circle-question" />
@@ -64,12 +112,16 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
   ] as [string, number | null][]).filter((p) => p[1] != null) as [string, number][];
   const hasSplit = interestParts.length > 0;
   const maxPart = hasSplit ? Math.max(...interestParts.map((p) => p[1])) : 0;
+  const partColors = ['#a6398f', '#7e2674', '#5aa9f0', '#37c98a', '#f2b23b'];
 
   const goalPct = goal ? Math.min(100, Math.round((schedTotal / goal) * 100)) : 0;
   const toGoal = goal - schedTotal;
+  const monthsFilled = sched ? MONTHS.filter(([k]) => (num(sched[k]) ?? 0) > 0).length : 0;
+  const interestShare = current ? Math.round(((totalInterest ?? 0) / current) * 100) : 0;
 
   const statusCls =
     fin.status === 'active' ? 'badge-good' : fin.status === 'exiting' ? 'badge-warn' : 'badge-info';
+  const statusTxt = fin.status === 'exiting' ? 'Exiting' : fin.status === 'active' ? 'Active' : (fin.status || 'Member');
 
   const TABS: [TabId, string, string][] = [
     ['overview', 'Overview', 'fa-gauge-high'],
@@ -78,28 +130,60 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
     ['withdrawals', 'Withdrawals', 'fa-money-bill-transfer'],
   ];
 
-  const Row = ({ k, v, strong }: { k: string; v: string; strong?: boolean }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
+  const Row = ({ k, v, strong, neg }: { k: string; v: string; strong?: boolean; neg?: boolean }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <span className="muted" style={{ fontSize: 13.5 }}>{k}</span>
-      <span style={{ fontWeight: strong ? 800 : 600, fontSize: strong ? 15 : 13.5, textAlign: 'right' }}>{v}</span>
+      <span className="num" style={{ fontWeight: strong ? 800 : 600, fontSize: strong ? 16 : 13.5, textAlign: 'right', color: neg ? 'var(--bad)' : undefined }}>{v}</span>
+    </div>
+  );
+
+  const Stat = ({ lbl, val, sub, icon, grad }: { lbl: string; val: string; sub?: string; icon: string; grad?: boolean }) => (
+    <div className="stat">
+      <div className="stat-top">
+        <span className="stat-lbl">{lbl}</span>
+        <span className={`stat-ic ${grad ? 'grad-lime' : ''}`} style={{ background: grad ? undefined : 'var(--surface2)', color: grad ? '#20260a' : 'var(--lime2)' }}>
+          <i className={`fa-solid ${icon}`} />
+        </span>
+      </div>
+      <div className="stat-val num">{val}</div>
+      {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div className="page-title">Contributions &amp; Earnings</div>
-          <div className="sub">
-            {fin.member_no ? `${fin.member_no} \u00b7 ` : ''}All amounts in KES{asOf ? ` \u00b7 as at ${asOf}` : ''}
+      <PageNav here="contributions" />
+
+      <section className="hero rise">
+        <div className="hero-grid">
+          <div>
+            <div className="hero-eyebrow">
+              Contributions &amp; Earnings{fin.member_no ? ' \u00b7 ' + fin.member_no : ''}
+              <span className={`badge ${statusCls}`} style={{ marginLeft: 10 }}>{statusTxt}</span>
+            </div>
+            <div className="hero-value">
+              <span className="cur">KES</span>
+              {current != null ? Math.round(current).toLocaleString('en-KE') : '\u2014'}
+            </div>
+            <div className="hero-line">
+              You have contributed {kes(lifetime)} over your membership and earned {kes(totalInterest)} in interest{asOf ? '. Figures as at ' + asOf : ''}.
+            </div>
+            <div className="hero-pills">
+              <div className="hero-pill"><div className="k">Lifetime in</div><div className="v num">{kesc(lifetime)}</div></div>
+              <div className="hero-pill"><div className="k">Interest</div><div className="v num">{kesc(totalInterest)}</div></div>
+              <div className="hero-pill"><div className="k">2026 so far</div><div className="v num">{kesc(schedTotal)}</div></div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', placeItems: 'center' }}>
+            <Ring pct={goalPct} label="2026 goal" />
+            <div style={{ color: 'rgba(255,255,255,0.84)', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>
+              {kes(schedTotal)} of {kes(goal)}<br />{toGoal > 0 ? kes(toGoal) + ' to go' : 'Goal reached'}
+            </div>
           </div>
         </div>
-        <span className={`badge ${statusCls}`} style={{ marginTop: 4 }}>
-          {fin.status === 'exiting' ? 'Exiting' : fin.status === 'active' ? 'Active' : (fin.status || 'Member')}
-        </span>
-      </div>
+      </section>
 
-      <div className="tabs" style={{ marginTop: 18, maxWidth: 640 }}>
+      <div className="tabs rise-2" style={{ marginTop: 16, maxWidth: 700 }}>
         {TABS.map(([id, label, icon]) => (
           <button key={id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)} type="button">
             <i className={`fa-solid ${icon}`} style={{ marginRight: 7, fontSize: 12 }} />
@@ -108,38 +192,39 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
         ))}
       </div>
 
-      <div style={{ marginTop: 18 }}>
+      <div className="rise-3" style={{ marginTop: 18 }}>
         {tab === 'overview' && (
           <div style={{ display: 'grid', gap: 16 }}>
-            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))' }}>
-              <div className="card kpi">
-                <div className="ic grad-lime" style={{ color: '#20260a' }}><i className="fa-solid fa-wallet" /></div>
-                <div className="lbl" style={{ marginTop: 12 }}>Current balance</div>
-                <div className="val">{kes(current)}</div>
+            <div className="metricgrid">
+              <Stat lbl="Current balance" val={kes(current)} sub="Live fund position" icon="fa-wallet" grad />
+              <Stat lbl="Lifetime contributions" val={kes(lifetime)} sub="Since you joined" icon="fa-piggy-bank" />
+              <Stat lbl="Total interest earned" val={kes(totalInterest)} sub={`${interestShare}% of your balance`} icon="fa-coins" />
+              <Stat lbl="2026 contributions" val={kes(schedTotal)} sub={`${goalPct}% of your goal`} icon="fa-hand-holding-dollar" />
+            </div>
+
+            <div className="insightgrid">
+              <div className="insight">
+                <span className="ic-round"><i className="fa-solid fa-bullseye" /></span>
+                <div>
+                  <div className="insight-t">{goalPct}% of your 2026 goal</div>
+                  <div className="insight-d">{toGoal > 0 ? kes(toGoal) + ' more takes you to ' + kes(goal) + ' this year.' : 'You have reached your ' + kes(goal) + ' goal for 2026.'}</div>
+                </div>
               </div>
-              <div className="card kpi">
-                <div className="ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-hand-holding-dollar" /></div>
-                <div className="lbl" style={{ marginTop: 12 }}>Lifetime contributions</div>
-                <div className="val">{kes(lifetime)}</div>
-              </div>
-              <div className="card kpi">
-                <div className="ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-coins" /></div>
-                <div className="lbl" style={{ marginTop: 12 }}>Total interest earned</div>
-                <div className="val">{kes(totalInterest)}</div>
-              </div>
-              <div className="card kpi">
-                <div className="ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-piggy-bank" /></div>
-                <div className="lbl" style={{ marginTop: 12 }}>2026 contributions</div>
-                <div className="val">{kes(schedTotal)}</div>
+              <div className="insight">
+                <span className="ic-round"><i className="fa-solid fa-coins" /></span>
+                <div>
+                  <div className="insight-t">{interestShare}% is interest</div>
+                  <div className="insight-d">{kes(totalInterest)} of your balance is interest the fund earned on your behalf.</div>
+                </div>
               </div>
             </div>
 
             <div className="card card-pad">
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Statement summary</div>
+              <div className="section-title" style={{ marginBottom: 10 }}>Statement summary</div>
               <Row k="Opening balance (31 Dec 2025)" v={kes(opening)} />
               <Row k="Contributions in 2026" v={kes(schedTotal)} />
               <Row k="Total interest earned" v={kes(totalInterest)} />
-              {withdrawal != null && withdrawal > 0 && <Row k="Withdrawals" v={`- ${kes(withdrawal)}`} />}
+              {withdrawal != null && withdrawal > 0 && <Row k="Withdrawals" v={'\u2212 ' + kes(withdrawal)} neg />}
               <Row k="Current balance" v={kes(current)} strong />
               {net != null && net !== current && <Row k="Net balance in fund" v={kes(net)} />}
               {fin.notes && (
@@ -155,28 +240,26 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
           <div style={{ display: 'grid', gap: 16 }}>
             <div className="card card-pad">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>2026 annual goal</div>
-                <div className="muted" style={{ fontSize: 13 }}>{kes(schedTotal)} of {kes(goal)}</div>
+                <div className="section-title">2026 annual goal</div>
+                <div className="muted num" style={{ fontSize: 13 }}>{kes(schedTotal)} of {kes(goal)}</div>
               </div>
-              <div className="bar" style={{ marginTop: 12 }}><span style={{ width: `${goalPct}%` }} /></div>
+              <div className="bar" style={{ marginTop: 12, height: 12 }}><span style={{ width: `${goalPct}%` }} /></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                <span className="muted" style={{ fontSize: 12.5 }}>{goalPct}% of goal</span>
+                <span className="muted" style={{ fontSize: 12.5 }}>{goalPct}% of goal &middot; {monthsFilled} of 12 months funded</span>
                 <span className="muted" style={{ fontSize: 12.5 }}>{toGoal > 0 ? `${kes(toGoal)} to goal` : 'Goal reached'}</span>
               </div>
             </div>
 
             <div className="card card-pad">
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>2026 contribution schedule</div>
+              <div className="section-title" style={{ marginBottom: 12 }}>2026 contribution schedule</div>
               {sched ? (
-                <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))' }}>
+                <div className="monthgrid">
                   {MONTHS.map(([k, label]) => {
                     const v = num(sched[k]);
                     return (
-                      <div key={k} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px' }}>
-                        <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
-                        <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 3, color: v ? 'var(--text)' : 'var(--muted2)' }}>
-                          {v ? Math.round(v).toLocaleString('en-KE') : '\u2014'}
-                        </div>
+                      <div key={k} className={`monthchip ${v ? 'on' : 'off'}`}>
+                        <div className="m">{label}</div>
+                        <div className="a num">{v ? Math.round(v).toLocaleString('en-KE') : '\u2014'}</div>
                       </div>
                     );
                   })}
@@ -198,22 +281,24 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
 
         {tab === 'interest' && (
           <div className="card card-pad">
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Interest &amp; earnings</div>
-            <div className="muted" style={{ fontSize: 12.5, marginBottom: 14 }}>How your total interest of {kes(totalInterest)} was earned.</div>
+            <div className="section-title" style={{ marginBottom: 4 }}>Interest &amp; earnings</div>
+            <div className="muted" style={{ fontSize: 12.5, marginBottom: 16 }}>How your total interest of {kes(totalInterest)} was earned.</div>
             {hasSplit ? (
-              <div style={{ display: 'grid', gap: 14 }}>
-                {interestParts.map(([label, v]) => (
+              <div style={{ display: 'grid', gap: 15 }}>
+                {interestParts.map(([label, v], i) => (
                   <div key={label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 13.5 }}>{label}</span>
-                      <span style={{ fontWeight: 700, fontSize: 13.5 }}>{kes(v)}</span>
+                      <span style={{ fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="dotc" style={{ width: 10, height: 10, borderRadius: 3, background: partColors[i % partColors.length] }} />{label}
+                      </span>
+                      <span className="num" style={{ fontWeight: 700, fontSize: 13.5 }}>{kes(v)}</span>
                     </div>
-                    <div className="bar"><span style={{ width: `${maxPart ? Math.max(3, Math.round((v / maxPart) * 100)) : 0}%` }} /></div>
+                    <div className="minibar" style={{ height: 9 }}><span style={{ width: `${maxPart ? Math.max(3, Math.round((v / maxPart) * 100)) : 0}%`, background: partColors[i % partColors.length] }} /></div>
                   </div>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid var(--border2)', paddingTop: 12, marginTop: 4 }}>
                   <span style={{ fontWeight: 800 }}>Total interest</span>
-                  <span style={{ fontWeight: 800 }}>{kes(totalInterest)}</span>
+                  <span className="num" style={{ fontWeight: 800 }}>{kes(totalInterest)}</span>
                 </div>
               </div>
             ) : (
@@ -221,7 +306,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
                 <Row k="Britam interest" v={kes(num(fin.britam_interest_2026))} />
                 <Row k="Jubilee interest" v={kes(num(fin.jubilee_interest_2026))} />
                 <Row k="Total interest" v={kes(totalInterest)} strong />
-                <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>The full breakdown (2018–2023, Britam, Jubilee MMF &amp; FIF) appears once loaded.</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>The full breakdown (2018&ndash;2023, Britam, Jubilee MMF &amp; FIF) appears once loaded.</div>
               </div>
             )}
           </div>
@@ -229,7 +314,7 @@ export default function ContributionsClient({ fin }: { fin: Fin }) {
 
         {tab === 'withdrawals' && (
           <div className="card card-pad">
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Withdrawals</div>
+            <div className="section-title" style={{ marginBottom: 12 }}>Withdrawals</div>
             {(withdrawal != null && withdrawal > 0) || fin.refund_status ? (
               <div>
                 {withdrawal != null && withdrawal > 0 && <Row k="Amount withdrawn / refunded" v={kes(withdrawal)} />}

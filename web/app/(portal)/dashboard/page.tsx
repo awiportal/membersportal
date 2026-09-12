@@ -321,16 +321,12 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div>
-          <div className="page-title">Welcome, {firstName}</div>
-          <div className="sub">
-            {profile?.investor_id ? `${profile.investor_id} · ` : ''}
-            {profile?.status === 'active' ? 'Your account is active.' : 'Your account is pending approval — complete your membership below.'}
-          </div>
-        </div>
-        {!empty && !notActive && !fin && <LoadDemoData />}
-      </div>
+      <nav className="pagenav">
+        <Link href="/dashboard" className="is-here"><i className="fa-solid fa-gauge-high" /> Dashboard</Link>
+        <Link href="/portfolio"><i className="fa-solid fa-chart-pie" /> Portfolio</Link>
+        <Link href="/contributions"><i className="fa-solid fa-hand-holding-dollar" /> Contributions</Link>
+        <Link href="/statements"><i className="fa-solid fa-file-invoice-dollar" /> Statement</Link>
+      </nav>
 
       {notActive && (
         <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', border: '1px solid rgba(166,205,53,0.3)' }}>
@@ -351,116 +347,160 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {fin && (
-        <div className="card card-pad hover-lift" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>Your AWIVEST fund</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>
-                {fin.member_no}{asOf ? ` · as at ${asOf}` : ''}
-              </div>
-            </div>
-            {fin.status === 'exiting' && (
-              <span className="badge badge-bad">
-                <i className="fa-solid fa-right-from-bracket" /> Exiting · refund in process
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
-            <div>
-              <div className="muted" style={{ fontSize: 12 }}>Contributions to end-2025</div>
-              <div className="num" style={{ fontWeight: 800, fontSize: 20 }}>{KES(Number(fin.opening_balance_2025))}</div>
-            </div>
-            <div>
-              <div className="muted" style={{ fontSize: 12 }}>Contributions 2026</div>
-              <div className="num" style={{ fontWeight: 800, fontSize: 20 }}>{KES(Number(fin.contributions_2026))}</div>
-            </div>
-            <div>
-              <div className="muted" style={{ fontSize: 12 }}>Total interest (to Jul 2026)</div>
-              <div className="num" style={{ fontWeight: 800, fontSize: 20 }}>{KES(Number(fin.total_interest_2026))}</div>
-            </div>
-            <div>
-              <div className="muted" style={{ fontSize: 12 }}>Current balance</div>
-              <div className="num" style={{ fontWeight: 800, fontSize: 20, color: 'var(--lime2)' }}>{KES(Number(fin.current_balance))}</div>
-            </div>
-          </div>
-          <div className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-            Figures from the AWIVEST Final Compiled Statement (2018-Jul 2026). Contributions are shown to end-2025 and for 2026 separately; total interest combines Britam, Jubilee MMF and FIF, and prior-year interest. The four figures sum to the current balance.
-          </div>
-        </div>
-      )}
-
       {empty ? (
-        <div className="card card-pad" style={{ textAlign: 'center', padding: '56px 24px' }}>
-          <div className="grad-purple" style={{ width: 70, height: 70, borderRadius: 20, margin: '0 auto 18px', display: 'grid', placeItems: 'center', color: '#fff' }}>
-            <i className="fa-solid fa-seedling" style={{ fontSize: 28 }} />
+        <div>
+          <div className="page-title">Welcome, {firstName}</div>
+          <div className="sub">
+            {profile?.investor_id ? `${profile.investor_id} \u00b7 ` : ''}
+            {profile?.status === 'active' ? 'Your account is active.' : 'Your account is pending approval \u2014 complete your membership below.'}
           </div>
-          <div style={{ fontWeight: 800, fontSize: 20 }}>Let&apos;s bring your dashboard to life</div>
-          <p className="muted" style={{ fontSize: 14, maxWidth: 460, margin: '10px auto 22px', lineHeight: 1.6 }}>
-            Your account and secure profile are ready. Load a sample portfolio to preview how your holdings, allocation and goals will look — everything is stored live in your Supabase database.
-          </p>
-          {!notActive && <LoadDemoData />}
+          <div className="card card-pad" style={{ textAlign: 'center', padding: '56px 24px', marginTop: 18 }}>
+            <div className="grad-purple" style={{ width: 70, height: 70, borderRadius: 20, margin: '0 auto 18px', display: 'grid', placeItems: 'center', color: '#fff' }}>
+              <i className="fa-solid fa-seedling" style={{ fontSize: 28 }} />
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 20 }}>Let&apos;s bring your dashboard to life</div>
+            <p className="muted" style={{ fontSize: 14, maxWidth: 460, margin: '10px auto 22px', lineHeight: 1.6 }}>
+              Your account and secure profile are ready. Load a sample portfolio to preview how your holdings, allocation and goals will look &mdash; everything is stored live in your Supabase database.
+            </p>
+            {!notActive && <LoadDemoData />}
+          </div>
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(215px,1fr))', marginBottom: 16 }}>
-            <div className="card kpi hover-lift">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Portfolio value</span><span className="ic grad-purple" style={{ color: '#fff' }}><i className="fa-solid fa-wallet" /></span></div>
-              <div className="val num">{KESc(portfolioValue)}</div>
+          <section className="hero rise">
+            <div className="hero-grid">
+              <div>
+                <div className="hero-eyebrow">
+                  Welcome back, {firstName}{fin?.member_no ? ' \u00b7 ' + fin.member_no : ''}
+                  {fin?.status === 'exiting' && <span className="badge badge-warn" style={{ marginLeft: 10 }}>Exiting</span>}
+                </div>
+                <div className="hero-value"><span className="cur">KES</span>{Math.round(portfolioValue || 0).toLocaleString('en-KE')}</div>
+                <div className="hero-line">
+                  {fin
+                    ? `Your live AWIVEST fund position${asOf ? ', as at ' + asOf : ''}.${dividendsValue > 0 ? ' ' + KES(dividendsValue) + ' of your balance is interest earned for you.' : ''}`
+                    : 'A preview of how your portfolio, allocation and goals will look once your register record is linked.'}
+                </div>
+                <div className="hero-pills">
+                  <div className="hero-pill"><div className="k">Contributions</div><div className="v num">{KESc(contribValue)}</div></div>
+                  <div className="hero-pill"><div className="k">Interest</div><div className="v num">{KESc(dividendsValue)}</div></div>
+                  {fp?.wellness_score ? <div className="hero-pill"><div className="k">Wellness</div><div className="v num">{fp.wellness_score}/100</div></div> : null}
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+                  <Link href="/portfolio" className="hero-cta"><i className="fa-solid fa-chart-pie" /> Portfolio</Link>
+                  <Link href="/statements" className="hero-cta"><i className="fa-solid fa-file-invoice-dollar" /> Statement</Link>
+                </div>
+              </div>
+              <div className="hero-spark">
+                <div className="hero-spark-lbl">Value trend (KES thousands)</div>
+                <AreaChart data={trend} height={132} />
+              </div>
             </div>
-            <div className="card kpi hover-lift">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Contributions</span><span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-piggy-bank" style={{ color: 'var(--lime2)' }} /></span></div>
-              <div className="val num">{KESc(contribValue)}</div>
+          </section>
+
+          {!empty && !notActive && !fin && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}><LoadDemoData /></div>
+          )}
+
+          <div className="metricgrid rise-2" style={{ margin: '16px 0' }}>
+            <div className="stat">
+              <div className="stat-top"><span className="stat-lbl">Portfolio value</span><span className="stat-ic grad-purple" style={{ color: '#fff' }}><i className="fa-solid fa-wallet" /></span></div>
+              <div className="stat-val num">{KESc(portfolioValue)}</div>
+              <div className="stat-sub">{fin ? 'Live fund balance' : 'Sample preview'}</div>
             </div>
-            <div className="card kpi hover-lift">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Interest earned</span><span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-coins" style={{ color: 'var(--lime2)' }} /></span></div>
-              <div className="val num">{KESc(dividendsValue)}</div>
+            <div className="stat">
+              <div className="stat-top"><span className="stat-lbl">Contributions</span><span className="stat-ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-piggy-bank" /></span></div>
+              <div className="stat-val num">{KESc(contribValue)}</div>
+              <div className="stat-sub">Lifetime paid in</div>
             </div>
-            <div className="card kpi hover-lift">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="lbl">Financial wellness</span><span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-heart-pulse" style={{ color: 'var(--purple2)' }} /></span></div>
-              <div className="val num">{fp?.wellness_score ?? '—'}{fp?.wellness_score ? <span className="muted" style={{ fontSize: 15, fontWeight: 600 }}>/100</span> : ''}</div>
+            <div className="stat">
+              <div className="stat-top"><span className="stat-lbl">Interest earned</span><span className="stat-ic" style={{ background: 'var(--surface2)', color: 'var(--lime2)' }}><i className="fa-solid fa-coins" /></span></div>
+              <div className="stat-val num">{KESc(dividendsValue)}</div>
+              <div className="stat-sub">{portfolioValue > 0 ? Math.round((dividendsValue / portfolioValue) * 100) + '% of balance' : 'Interest to date'}</div>
+            </div>
+            <div className="stat">
+              <div className="stat-top"><span className="stat-lbl">Financial wellness</span><span className="stat-ic" style={{ background: 'var(--surface2)', color: 'var(--purple2)' }}><i className="fa-solid fa-heart-pulse" /></span></div>
+              <div className="stat-val num">{fp?.wellness_score ?? '\u2014'}{fp?.wellness_score ? <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>/100</span> : null}</div>
+              <div className="stat-sub">{fp?.wellness_score ? 'Your profile score' : 'Complete your profile'}</div>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0,1.9fr) minmax(0,1fr)', marginBottom: 16 }} className="dash-grid">
-            <div className="card card-pad hover-lift">
-              <div style={{ fontWeight: 700, fontSize: 16 }}>Portfolio value</div>
-              <div className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>Illustrative trend (historical NAV tracking arrives with statements)</div>
+          {segments.length > 0 && (
+            <div className="card card-pad rise-3">
+              <div className="section-head">
+                <div>
+                  <div className="section-title">{fin ? 'How your balance is built' : 'Asset allocation'}</div>
+                  <div className="section-sub">{fin ? 'Principal and interest that make up your current balance.' : 'Your sample holdings by asset class.'}</div>
+                </div>
+              </div>
+              <div className="split">
+                <div>
+                  <div className="compbar">
+                    {segments.map((x) => (
+                      <span key={x.label} style={{ width: (portfolioValue ? (x.value / portfolioValue) * 100 : 0) + '%', background: x.color }} />
+                    ))}
+                  </div>
+                  <div className="complegend">
+                    {segments.map((x) => (
+                      <div key={x.label} className="compitem">
+                        <div className="row"><span className="dotc" style={{ background: x.color }} /> {x.label}</div>
+                        <div className="amt num">{KESc(x.value)}</div>
+                        <div className="shr num">{portfolioValue ? Math.round((x.value / portfolioValue) * 100) : 0}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', placeItems: 'center' }}>
+                  <Donut segments={segments} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="split rise-3" style={{ marginTop: 16 }}>
+            <div className="card card-pad">
+              <div className="section-head">
+                <div>
+                  <div className="section-title">Portfolio value trend</div>
+                  <div className="section-sub">{fin ? 'Illustrative \u2014 historical NAV tracking arrives with statements.' : 'Sample trend.'}</div>
+                </div>
+              </div>
               <AreaChart data={trend} />
             </div>
-            <div className="card card-pad hover-lift">
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{fin ? 'Fund composition' : 'Asset allocation'}</div>
-              <Donut segments={segments} />
+            <div className="card card-pad">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div className="section-title">Goal progress</div>
+                <span className="badge badge-lime">{onTrack} of {gls.length} on track</span>
+              </div>
+              {gls.length === 0 ? (
+                <div className="muted" style={{ fontSize: 13 }}>No goals yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {gls.map((g) => {
+                    const p = pct(g.saved_amount, g.target_amount);
+                    return (
+                      <div key={g.id}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5 }}>
+                          <span style={{ fontWeight: 600 }}>{g.name}</span>
+                          <span className="muted num">{p}%</span>
+                        </div>
+                        <div className="bar"><span style={{ width: `${p}%` }} /></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11 }} className="muted2 num">
+                          <span>{KESc(Number(g.saved_amount))}</span><span>{KESc(Number(g.target_amount))}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="card card-pad hover-lift">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>Goal progress</div>
-              <span className="badge badge-lime">{onTrack} of {gls.length} on track</span>
+          {fin && (
+            <div className="muted rise-3" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.5 }}>
+              <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }} />
+              Figures from the AWIVEST Final Compiled Statement (2018&ndash;Jul 2026). Contributions to end-2025 and for 2026 are shown separately; total interest combines Britam, Jubilee MMF and FIF plus prior-year interest. The four figures sum to your current balance.
             </div>
-            {gls.length === 0 ? (
-              <div className="muted" style={{ fontSize: 13 }}>No goals yet.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {gls.map((g) => {
-                  const p = pct(g.saved_amount, g.target_amount);
-                  return (
-                    <div key={g.id}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5 }}>
-                        <span style={{ fontWeight: 600 }}>{g.name}</span>
-                        <span className="muted num">{p}%</span>
-                      </div>
-                      <div className="bar"><span style={{ width: `${p}%` }} /></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11 }} className="muted2 num">
-                        <span>{KESc(Number(g.saved_amount))}</span><span>{KESc(Number(g.target_amount))}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          )}
         </>
       )}
     </div>

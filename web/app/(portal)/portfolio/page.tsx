@@ -8,10 +8,25 @@ export const dynamic = 'force-dynamic';
 
 const n = (v: any) => Number(v || 0);
 
-// Investment Portfolio — the member's REAL position in the AWIVEST fund, read
-// live from member_finances (same source as their statement and the staff
-// views). No illustrative allocation: the balance is broken into how it was
-// actually built (principal + interest) and where the interest came from.
+const NAV = [
+  { href: '/dashboard', icon: 'fa-gauge-high', label: 'Dashboard', id: 'dashboard' },
+  { href: '/portfolio', icon: 'fa-chart-pie', label: 'Portfolio', id: 'portfolio' },
+  { href: '/contributions', icon: 'fa-hand-holding-dollar', label: 'Contributions', id: 'contributions' },
+  { href: '/statements', icon: 'fa-file-invoice-dollar', label: 'Statement', id: 'statements' },
+];
+
+function PortfolioPageNav({ here }: { here: string }) {
+  return (
+    <nav className="pagenav">
+      {NAV.map((it) => (
+        <Link key={it.id} href={it.href} className={it.id === here ? 'is-here' : undefined}>
+          <i className={`fa-solid ${it.icon}`} /> {it.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export default async function PortfolioPage() {
   const supabase = createClient();
   const {
@@ -26,6 +41,7 @@ export default async function PortfolioPage() {
   if (!fin) {
     return (
       <div>
+        <PortfolioPageNav here="portfolio" />
         <div className="page-title">Investment Portfolio</div>
         <div className="sub">Your position in the AWIVEST fund.</div>
         <div className="card card-pad" style={{ marginTop: 20 }}>
@@ -60,135 +76,165 @@ export default async function PortfolioPage() {
     { label: 'Jubilee FIF', value: n(fin.jubilee_fif), color: '#37c98a' },
     { label: 'Jubilee FIF (Apr-Jul 2026)', value: n(fin.jubilee_fif_apr_jul), color: '#f2b23b' },
   ].filter((x) => x.value > 0);
+  const maxSource = sources.reduce((m, s) => Math.max(m, s.value), 0);
 
   const months = 8;
   const trend = Array.from({ length: months }, (_, i) =>
     Math.round((opening + ((current - opening) * i) / (months - 1)) / 1000)
   );
 
+  const returnPct = lifetime > 0 ? Math.round((interest / lifetime) * 100) : 0;
+  const multiple = lifetime > 0 ? current / lifetime : 0;
+  const interestShare = current > 0 ? Math.round((interest / current) * 100) : 0;
+  const isExiting = fin.status === 'exiting';
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div className="page-title">Investment Portfolio</div>
-          <div className="sub">
-            Your real position in the AWIVEST fund{asOf ? ', as at ' + asOf : ''}. <span className="badge badge-good">Live</span>
-          </div>
-        </div>
-        <Link href="/statements" className="btn btn-ghost btn-sm"><i className="fa-solid fa-file-invoice-dollar" /> View full statement</Link>
-      </div>
+      <PortfolioPageNav here="portfolio" />
 
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(215px,1fr))', margin: '22px 0 16px' }}>
-        <div className="card kpi hover-lift">
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="lbl">Current balance</span>
-            <span className="ic grad-purple" style={{ color: '#fff' }}><i className="fa-solid fa-wallet" /></span>
+      <section className="hero rise">
+        <div className="hero-grid">
+          <div>
+            <div className="hero-eyebrow">Investment Portfolio{fin.member_no ? ' \u00b7 ' + fin.member_no : ''}</div>
+            <div className="hero-value">
+              <span className="cur">KES</span>
+              {Math.round(current).toLocaleString('en-KE')}
+            </div>
+            <div className="hero-line">
+              Your live position in the AWIVEST fund{asOf ? ', as at ' + asOf : ''}. A principal of {KES(lifetime)} has earned{' '}
+              {KES(interest)} in interest{returnPct > 0 ? ' \u2014 a ' + returnPct + '% lifetime return' : ''}.
+            </div>
+            <div className="hero-pills">
+              <div className="hero-pill"><div className="k">Principal</div><div className="v num">{KESc(lifetime)}</div></div>
+              <div className="hero-pill"><div className="k">Interest</div><div className="v num">{KESc(interest)}</div></div>
+              <div className="hero-pill"><div className="k">Growth</div><div className="v num">{multiple ? multiple.toFixed(2) + 'x' : '\u2014'}</div></div>
+            </div>
+            <Link href="/statements" className="hero-cta"><i className="fa-solid fa-file-invoice-dollar" /> View full statement</Link>
           </div>
-          <div className="val num">{KESc(current)}</div>
-        </div>
-        <div className="card kpi hover-lift">
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="lbl">Principal contributed</span>
-            <span className="ic" style={{ background: 'var(--surface2)' }}><i className="fa-solid fa-piggy-bank" style={{ color: 'var(--lime2)' }} /></span>
+          <div className="hero-spark">
+            <div className="hero-spark-lbl">Value growth (KES thousands)</div>
+            <AreaChart data={trend} height={128} />
           </div>
-          <div className="val num">{KESc(lifetime)}</div>
         </div>
-        <div className="card kpi hover-lift">
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="lbl">Interest earned</span>
-            <span className="ic grad-lime" style={{ color: '#20260a' }}><i className="fa-solid fa-chart-line" /></span>
-          </div>
-          <div className="val num">{KESc(interest)}</div>
-        </div>
-      </div>
+      </section>
 
-      <div className="card card-pad">
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Balance composition</div>
-        <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>How your current balance is made up — these sum to your total.</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
-            <thead>
-              <tr className="muted" style={{ textAlign: 'left', fontSize: 12 }}>
-                <th style={{ padding: '8px 10px' }}>Component</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Amount</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Share</th>
-                <th style={{ padding: '8px 10px' }} />
-              </tr>
-            </thead>
-            <tbody>
-              {comp.map((x) => {
-                const share = current ? Math.round((x.value / current) * 100) : 0;
-                return (
-                  <tr key={x.label} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: x.color, marginRight: 8 }} />
-                      {x.label}
-                    </td>
-                    <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(x.value)}</td>
-                    <td style={{ padding: '10px', textAlign: 'right' }} className="num muted">{share}%</td>
-                    <td style={{ padding: '10px', width: 140 }}>
-                      <div className="bar" style={{ width: 120 }}><span style={{ width: String(share) + '%' }} /></div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{ fontWeight: 800 }}>
-                <td style={{ padding: '12px 10px', borderTop: '2px solid var(--border)' }}>Current balance</td>
-                <td style={{ padding: '12px 10px', textAlign: 'right', borderTop: '2px solid var(--border)' }} className="num">{KES(current)}</td>
-                <td colSpan={2} style={{ borderTop: '2px solid var(--border)' }} />
-              </tr>
-            </tfoot>
-          </table>
+      <div className="insightgrid rise-2" style={{ margin: '16px 0' }}>
+        <div className="insight">
+          <span className="ic-round"><i className="fa-solid fa-arrow-trend-up" /></span>
+          <div>
+            <div className="insight-t">{multiple ? multiple.toFixed(2) + 'x' : '\u2014'} your money</div>
+            <div className="insight-d">Every KES 1 contributed is now worth about KES {multiple ? multiple.toFixed(2) : '\u2014'} in the fund.</div>
+          </div>
+        </div>
+        <div className="insight">
+          <span className="ic-round"><i className="fa-solid fa-percent" /></span>
+          <div>
+            <div className="insight-t">{interestShare}% is interest</div>
+            <div className="insight-d">{KES(interest)} of your {KES(current)} balance is interest the fund earned for you.</div>
+          </div>
+        </div>
+        <div className="insight">
+          <span className="ic-round"><i className={`fa-solid ${isExiting ? 'fa-right-from-bracket' : 'fa-shield-halved'}`} /></span>
+          <div>
+            <div className="insight-t">{isExiting ? 'Exiting the fund' : 'Fully invested'}</div>
+            <div className="insight-d">{isExiting ? 'Your refund is being processed by the office.' : 'Your full balance stays invested and keeps earning interest.'}</div>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', marginTop: 16 }}>
+      <div className="split rise-3">
         <div className="card card-pad">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Composition</div>
+          <div className="section-head">
+            <div>
+              <div className="section-title">How your balance is built</div>
+              <div className="section-sub">Principal plus interest &mdash; these sum to your current balance.</div>
+            </div>
+          </div>
+          <div className="compbar">
+            {comp.map((x) => (
+              <span key={x.label} style={{ width: (current ? (x.value / current) * 100 : 0) + '%', background: x.color }} />
+            ))}
+          </div>
+          <div className="complegend">
+            {comp.map((x) => (
+              <div key={x.label} className="compitem">
+                <div className="row"><span className="dotc" style={{ background: x.color }} /> {x.label}</div>
+                <div className="amt num">{KES(x.value)}</div>
+                <div className="shr num">{current ? Math.round((x.value / current) * 100) : 0}% of balance</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontWeight: 700 }}>Current balance</span>
+            <span className="num" style={{ fontWeight: 900, fontSize: 18, color: 'var(--lime2)' }}>{KES(current)}</span>
+          </div>
+        </div>
+
+        <div className="card card-pad">
+          <div className="section-title" style={{ marginBottom: 12 }}>Composition</div>
           {compSegments.length ? <Donut segments={compSegments} /> : <div className="muted" style={{ fontSize: 13 }}>No balance recorded yet.</div>}
-        </div>
-        <div className="card card-pad">
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Growth (KES thousands)</div>
-          <AreaChart data={trend} />
-          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            Interpolated between opening balance (Dec 2025) and current balance{asOf ? ' (' + asOf + ')' : ''}. Monthly NAV history arrives with statements.
-          </div>
         </div>
       </div>
 
       {sources.length > 0 && (
-        <div className="card card-pad" style={{ marginTop: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Where your returns come from</div>
-          <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>Interest credited to your balance by the fund&apos;s partner instruments.</div>
+        <div className="card card-pad rise-3" style={{ marginTop: 16 }}>
+          <div className="section-head">
+            <div>
+              <div className="section-title">Where your returns come from</div>
+              <div className="section-sub">Interest credited to your balance by the fund&apos;s partner instruments.</div>
+            </div>
+            <span className="badge badge-lime num">{KESc(interest)} total</span>
+          </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+            <table className="ledger">
               <thead>
-                <tr className="muted" style={{ textAlign: 'left', fontSize: 12 }}>
-                  <th style={{ padding: '8px 10px' }}>Instrument</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>Interest (KES)</th>
+                <tr>
+                  <th>Instrument</th>
+                  <th className="r">Interest (KES)</th>
+                  <th className="barcell">Share</th>
                 </tr>
               </thead>
               <tbody>
                 {sources.map((x) => (
-                  <tr key={x.label} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: x.color, marginRight: 8 }} />
-                      {x.label}
+                  <tr key={x.label}>
+                    <td><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: x.color, marginRight: 8 }} />{x.label}</td>
+                    <td className="r num">{KES(x.value)}</td>
+                    <td className="barcell">
+                      <div className="minibar"><span style={{ width: (maxSource ? Math.max(4, Math.round((x.value / maxSource) * 100)) : 0) + '%', background: x.color }} /></div>
                     </td>
-                    <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(x.value)}</td>
                   </tr>
                 ))}
-                <tr style={{ fontWeight: 800, borderTop: '2px solid var(--border)' }}>
-                  <td style={{ padding: '10px' }}>Total interest earned</td>
-                  <td style={{ padding: '10px', textAlign: 'right' }} className="num">{KES(interest)}</td>
-                </tr>
               </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total interest earned</td>
+                  <td className="r num">{KES(interest)}</td>
+                  <td />
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      <div className="split-even rise-4" style={{ marginTop: 16 }}>
+        <Link href="/contributions" className="card card-pad hover-lift" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span className="ic grad-lime" style={{ color: '#20260a', width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0 }}><i className="fa-solid fa-hand-holding-dollar" /></span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontWeight: 700 }}>Track your contributions</span>
+            <span className="muted" style={{ fontSize: 12.5 }}>Monthly schedule, annual goal and interest breakdown</span>
+          </span>
+          <i className="fa-solid fa-chevron-right muted" />
+        </Link>
+        <Link href="/statements" className="card card-pad hover-lift" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span className="ic grad-purple" style={{ color: '#fff', width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0 }}><i className="fa-solid fa-file-invoice-dollar" /></span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontWeight: 700 }}>Download your statement</span>
+            <span className="muted" style={{ fontSize: 12.5 }}>The official AWIVEST statement, print or save as PDF</span>
+          </span>
+          <i className="fa-solid fa-chevron-right muted" />
+        </Link>
+      </div>
     </div>
   );
 }
