@@ -97,7 +97,7 @@ export async function recordWithdrawal(formData: FormData) {
   const withdrawal = n(row.withdrawal) + amount;
   const rc = recompute({ ...row, withdrawal });
   const stamp = new Date().toLocaleDateString('en-GB');
-  const line = stamp + ': withdrawal ' + Math.round(amount).toLocaleString('en-KE') + (note ? ' - ' + note : '');
+  const line = stamp + ': withdrawal ' + Number(amount).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (note ? ' - ' + note : '');
   const notes = row.notes ? row.notes + ' | ' + line : line;
   await supabase
     .from('member_finances')

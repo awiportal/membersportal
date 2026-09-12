@@ -9,3 +9,15 @@ export const KES = (n: number) =>
 export const KESc = (n: number) => KES(n);
 
 export const pct = (a: number, b: number) => (b ? Math.min(100, Math.round((a / b) * 100)) : 0);
+
+// Total interest derived from the EXACT per-source cent columns. The stored
+// total_interest_2026 aggregate is now cent-exact too, but deriving here keeps
+// the figure authoritative even if that column is ever re-imported rounded.
+export const interestTotal = (fin: any): number =>
+  Math.round(
+    ((Number(fin?.interest_2018_2023) || 0) +
+      (Number(fin?.britam_interest_life) || 0) +
+      (Number(fin?.jubilee_mmf) || 0) +
+      (Number(fin?.jubilee_fif) || 0) +
+      (Number(fin?.jubilee_fif_apr_jul) || 0)) * 100,
+  ) / 100;

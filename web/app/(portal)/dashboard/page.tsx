@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getSessionUser, getSessionProfile } from '@/lib/session';
-import { KES, KESc, pct } from '@/lib/format';
+import { KES, KESc, pct, interestTotal } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
 import MoneyNav from '@/components/MoneyNav';
@@ -296,7 +296,7 @@ export default async function DashboardPage() {
   const contribValue = fin
     ? Number(fin.lifetime_contributions || 0) || Number(fin.opening_balance_2025 || 0) + Number(fin.contributions_2026 || 0)
     : totalContrib;
-  const dividendsValue = fin ? Number(fin.total_interest_2026 || 0) : totalDiv;
+  const dividendsValue = fin ? interestTotal(fin) : totalDiv;
 
   const byClass: Record<string, number> = {};
   holds.forEach((h) => {
@@ -308,7 +308,7 @@ export default async function DashboardPage() {
   const fundComposition: Segment[] = [
     { label: 'Contributions to 2025', value: Number(fin?.opening_balance_2025 || 0), color: '#7e2674' },
     { label: '2026 contributions', value: Number(fin?.contributions_2026 || 0), color: '#a6cd35' },
-    { label: 'Interest earned', value: Number(fin?.total_interest_2026 || 0), color: '#5aa9f0' },
+    { label: 'Interest earned', value: fin ? interestTotal(fin) : 0, color: '#5aa9f0' },
   ].filter((s) => s.value > 0);
   const segments: Segment[] = fin
     ? fundComposition

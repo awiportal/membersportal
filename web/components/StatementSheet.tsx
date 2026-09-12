@@ -1,3 +1,4 @@
+import { interestTotal } from '@/lib/format';
 // Shared, print-ready investment statement sheet.
 //
 // Single source of truth for the printable statement across every surface:
@@ -19,7 +20,7 @@ const MONTHS: [string, string][] = [
 const num = (v: any): number | null =>
   v == null || v === '' || isNaN(Number(v)) ? null : Number(v);
 const kes = (v: any) =>
-  num(v) == null ? '\u2014' : 'KES ' + Math.round(Number(v)).toLocaleString('en-KE');
+  num(v) == null ? '\u2014' : 'KES ' + Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Two-letter monogram from the member's name for the letterhead mark.
 function monogram(name: string): string {
@@ -37,7 +38,7 @@ export default function StatementSheet({ fin }: { fin: any }) {
     fin.sched_2026 && typeof fin.sched_2026 === 'object' ? fin.sched_2026 : null;
   const schedTotal = sched ? MONTHS.reduce((s, m) => s + (num(sched[m[0]]) ?? 0), 0) : (c2026 ?? 0);
   const lifetime = num(fin.lifetime_contributions) ?? ((opening ?? 0) + (c2026 ?? 0));
-  const totalInterest = num(fin.total_interest_2026);
+  const totalInterest = interestTotal(fin);
   const current = num(fin.current_balance);
   const net = num(fin.net_balance);
   const withdrawal = num(fin.withdrawal);
@@ -166,7 +167,7 @@ export default function StatementSheet({ fin }: { fin: any }) {
               return (
                 <div key={m[0]} className={'stmt-month' + (v ? ' is-filled' : '')}>
                   <div className="stmt-month-lbl">{m[1]}</div>
-                  <div className="stmt-month-val num">{v ? Math.round(v).toLocaleString('en-KE') : '\u2014'}</div>
+                  <div className="stmt-month-val num">{v ? Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '\u2014'}</div>
                 </div>
               );
             })}

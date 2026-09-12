@@ -63,7 +63,7 @@ export async function submitWithdrawal(input: WithdrawalInput): Promise<{ ok?: t
   if (fin) {
     const available = Number(fin.net_balance ?? fin.current_balance ?? 0);
     if (amount > available) {
-      return { error: `That is more than your available balance of KES ${Math.round(available).toLocaleString('en-KE')}.` };
+      return { error: `That is more than your available balance of KES ${Number(available).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.` };
     }
   }
 
