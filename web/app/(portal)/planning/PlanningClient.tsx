@@ -277,7 +277,7 @@ export default function PlanningClient({
               </div>
               <div className="muted" style={{ fontSize: 12.5, paddingBottom: 6 }}>{out.note}</div>
             </div>
-            <AreaChart data={out.yearly} height={210} />
+            <AreaChart data={out.yearly} height={210} valuePrefix="KES " labels={out.yearly.map((_, i) => (i === 0 ? "Now" : "Year " + i))} />
             <div className="muted2" style={{ fontSize: 11, textAlign: 'right', marginTop: 4 }}>Projection over {num(vals.yrs)} years</div>
           </div>
         </div>
