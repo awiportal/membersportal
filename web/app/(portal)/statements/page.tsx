@@ -44,10 +44,10 @@ export default async function StatementsPage() {
 
   return (
     <div>
-      <MoneyNav />
+      <div className="no-print"><MoneyNav /></div>
 
       {fin ? (
-        <section className="hero rise">
+        <section className="hero rise no-print">
           <div className="hero-grid">
             <div>
               <div className="hero-eyebrow">Official Statement{fin.member_no ? ' \u00b7 ' + fin.member_no : ''}</div>
@@ -92,13 +92,13 @@ export default async function StatementsPage() {
         </div>
       )}
 
-      <div className="section-head rise-3" style={{ marginTop: 26 }}>
+      <div className="section-head rise-3 no-print" style={{ marginTop: 26 }}>
         <div>
           <div className="section-title">Published documents</div>
           <div className="section-sub">Statements and reports shared with you. Files open via short-lived, signed links &mdash; never public.</div>
         </div>
       </div>
-      <div className="card card-pad rise-3" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="card card-pad rise-3 no-print" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {withUrls.length === 0 ? (
           <div className="muted" style={{ fontSize: 13 }}>No documents have been published to you yet.</div>
         ) : (
