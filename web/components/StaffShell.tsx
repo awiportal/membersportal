@@ -88,6 +88,9 @@ export default function StaffShell({
           <Link href="/staff/information" className={`nav-item ${pathname.startsWith('/staff/information') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-bullhorn" /><span>Information Center</span>
           </Link>
+          <Link href="/staff/meetings" className={`nav-item ${pathname.startsWith('/staff/meetings') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+            <i className="fa-solid fa-people-group" /><span>Meetings</span>
+          </Link>
           <div className="nav-group-label">Administration</div>
           {isAdmin(profile?.role) ? (
             <Link href="/staff/roles" className={`nav-item ${pathname.startsWith('/staff/roles') ? 'active' : ''}`} onClick={() => setOpen(false)}>
