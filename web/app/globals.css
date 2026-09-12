@@ -395,3 +395,83 @@ html[data-theme="light"] .brand-logo--light{display:block}
 .rise-2{animation:rise .45s ease .07s both}
 .rise-3{animation:rise .45s ease .14s both}
 .rise-4{animation:rise .45s ease .21s both}
+
+/* ============================================================================
+   ELEVATION LAYER v2 - international presentation upgrade
+   Appended last so it refines the primitives above purely by cascade: no
+   !important, no markup changes. Every page inherits a richer canvas, crisper
+   cards, more confident KPIs and typography, calmer tables, and gains reusable
+   empty-state + quick-tile (hub) components.
+   ========================================================================== */
+
+/* Canvas: a deeper, layered aurora with a third glow for depth. */
+body{
+  background:
+    radial-gradient(1200px 780px at 8% -12%, rgba(126,38,116,0.50), transparent 56%),
+    radial-gradient(980px 700px at 112% 6%, rgba(166,205,53,0.16), transparent 52%),
+    radial-gradient(760px 640px at 82% 120%, rgba(166,57,143,0.20), transparent 60%),
+    linear-gradient(160deg, var(--bg), var(--bg2));
+  background-attachment:fixed;
+}
+html[data-theme="light"] body{
+  background:
+    radial-gradient(1200px 780px at 8% -12%, rgba(126,38,116,0.14), transparent 56%),
+    radial-gradient(980px 700px at 112% 6%, rgba(166,205,53,0.14), transparent 52%),
+    radial-gradient(760px 640px at 82% 120%, rgba(166,57,143,0.10), transparent 60%),
+    linear-gradient(160deg, var(--bg), var(--bg2));
+  background-attachment:fixed;
+}
+
+/* Cards: rounder, a cleaner inner highlight, and a deeper, softer cast. */
+.glass,.card{
+  border-radius:22px;
+  box-shadow:0 1px 0 rgba(255,255,255,0.06) inset, 0 26px 60px -34px rgba(0,0,0,0.80);
+}
+html[data-theme="light"] .glass,html[data-theme="light"] .card{
+  box-shadow:0 1px 0 rgba(255,255,255,0.7) inset, 0 26px 56px -32px rgba(60,15,57,0.26);
+}
+
+/* Headings: a touch more confident. */
+.page-title{font-size:26px;letter-spacing:-.02em}
+.section-title{font-size:16.5px}
+
+/* KPI / stat cards: larger numerals and a subtle brand accent hairline on top.
+   (No icon-background override, so inline/grad icon colours are preserved.) */
+.stat{padding:17px 18px;border-radius:20px}
+.stat::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--lime2),var(--purple2));opacity:.5}
+.stat-val{font-size:25px;letter-spacing:-.02em;margin-top:12px}
+.kpi .val{font-size:27px}
+
+/* Delta chips for trend context beside a stat value. */
+.delta{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;border:1px solid var(--border)}
+.delta.up{background:rgba(55,201,138,0.14);color:#7ef0bf;border-color:rgba(55,201,138,0.32)}
+.delta.down{background:rgba(240,97,109,0.14);color:#ff9aa2;border-color:rgba(240,97,109,0.32)}
+.delta.flat{background:var(--surface2);color:var(--muted)}
+
+/* Tables: calmer rhythm, comfortable padding, tabular figures, tidy edges.
+   Existing inline cell padding still wins, so no table regresses. */
+.card thead th{padding:0 14px 11px;border-bottom:1px solid var(--border)}
+.card tbody td{padding:12px 14px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
+.card tbody tr:first-child td{border-top:0}
+.card tbody tr:hover td{background:rgba(166,205,53,0.07)}
+.table-wrap{border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.table-sticky thead th{position:sticky;top:0;z-index:1;background:var(--menu-bg)}
+
+/* Reusable empty state (available to every page). */
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:40px 24px}
+.empty-ic{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font-size:22px;margin-bottom:6px;background:linear-gradient(135deg,rgba(166,205,53,0.16),rgba(126,38,116,0.22));color:var(--lime2)}
+.empty-t{font-size:15.5px;font-weight:800}
+.empty-d{font-size:13px;color:var(--muted);max-width:46ch;line-height:1.6}
+
+/* Quick-tile hub: fast, well-labelled navigation between consoles/pages. */
+.hub-head{display:flex;align-items:center;gap:12px;margin:28px 0 14px}
+.hub-head .line{flex:1;height:1px;background:var(--border)}
+.tilegrid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(232px,1fr))}
+.tile{position:relative;display:flex;gap:14px;align-items:flex-start;padding:17px 18px;border-radius:18px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0) 46%),var(--surface);transition:transform .18s cubic-bezier(.2,.8,.2,1),border-color .18s,box-shadow .18s}
+.tile:hover{transform:translateY(-3px);border-color:var(--border2);box-shadow:var(--shadow-lg)}
+.tile-ic{width:42px;height:42px;flex:0 0 auto;border-radius:13px;display:grid;place-items:center;font-size:16px;color:#fff;background:linear-gradient(135deg,var(--purple2),var(--purple));box-shadow:0 10px 22px -12px rgba(126,38,116,0.9)}
+.tile-ic.lime{background:linear-gradient(135deg,var(--lime2),var(--lime));color:#20260a;box-shadow:0 10px 22px -12px rgba(166,205,53,0.9)}
+.tile-t{font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+.tile-d{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.tile-arrow{margin-left:auto;align-self:center;color:var(--muted2);transition:transform .18s ease,color .18s ease}
+.tile:hover .tile-arrow{transform:translateX(3px);color:var(--lime2)}
