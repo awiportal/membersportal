@@ -1,7 +1,7 @@
 // Role helpers shared across the app.
 // Enum (member_role): member=Investor, secretary=Secretary, admin=Admin, superadmin=Chairlady.
 
-export const STAFF_ROLES = ['secretary', 'admin', 'superadmin'];
+export const STAFF_ROLES = ['secretary', 'treasurer', 'admin', 'superadmin'];
 export const ADMIN_ROLES = ['admin', 'superadmin'];
 
 export function isStaff(role?: string | null) {

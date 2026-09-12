@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic';
 const ROLE_OPTIONS = [
   { value: 'member', label: 'Investor' },
   { value: 'secretary', label: 'Secretary' },
+  { value: 'treasurer', label: 'Treasurer' },
+  { value: 'auditor', label: 'Auditor' },
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Chairlady' },
 ];
