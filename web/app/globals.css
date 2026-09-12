@@ -515,3 +515,19 @@ img,video{ max-width:100%; height:auto; }
   .tab      { min-height:42px; }
   .icon-btn { width:44px; height:44px; }
 }
+
+
+/* ---- Read-only Auditor console -------------------------------------------
+   Auditor is a read-only governance role. Writes are already rejected by the
+   server actions (isStaff guard) and by the database (auditor_read is SELECT-only);
+   this view-only layer just hides the write controls to match that enforcement. */
+.ro-console .ro-banner {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; padding: 10px 14px;
+  border: 1px solid var(--border); border-left: 3px solid #B22C75;
+  border-radius: 10px; background: rgba(178, 44, 117, 0.06);
+  color: var(--text); font-size: 13.5px;
+}
+.ro-console .ro-banner i { color: #B22C75; }
+.ro-console form button[type="submit"],
+.ro-console form button:not([type]) { display: none !important; }

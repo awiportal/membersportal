@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isStaff } from "@/lib/roles";
+import { canViewStaffConsole } from "@/lib/roles";
 import { buildSignedAgreementPdf } from "@/lib/signedPdf";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!isStaff(me?.role)) return new Response("Forbidden", { status: 403 });
+  if (!canViewStaffConsole(me?.role)) return new Response("Forbidden", { status: 403 });
 
   const result = await buildSignedAgreementPdf(supabase, params.id);
   if (!result) return new Response("Not found", { status: 404 });

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getSessionUser, getSessionProfile } from '@/lib/session';
 import { redirect } from 'next/navigation';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import { KES } from '@/lib/format';
 import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
@@ -36,7 +36,7 @@ export default async function StaffReportsPage() {
   const user = await getSessionUser();
   if (!user) redirect('/login');
   const me = await getSessionProfile();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
 
   const { data: rowsData } = await supabase
     .from('member_finances')

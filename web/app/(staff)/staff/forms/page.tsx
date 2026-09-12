@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff } from '@/lib/roles';
+import { canViewStaffConsole } from '@/lib/roles';
 import FormsManager from './FormsManager';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export default async function StaffFormsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
 
   const [{ data: formRows }, { data: subs }] = await Promise.all([
     supabase.from('forms').select('*').order('sort_order', { ascending: true }).order('title', { ascending: true }),

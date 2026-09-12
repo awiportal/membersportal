@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { isStaff, isAdmin, displayRole } from '@/lib/roles';
+import { isAdmin, displayRole, canViewStaffConsole } from '@/lib/roles';
 import { setRole } from './actions';
 import InvestorRoleTable from './InvestorRoleTable';
 
@@ -49,7 +49,7 @@ export default async function StaffRolesPage({ searchParams }: { searchParams: {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('id, role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
 
   if (!isAdmin(me?.role)) {
     return (

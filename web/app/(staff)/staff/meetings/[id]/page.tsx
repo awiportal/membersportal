@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { isStaff, isAdmin } from '@/lib/roles';
+import { isAdmin, canViewStaffConsole } from '@/lib/roles';
 import {
   updateMeetingDetails,
   saveAgenda,
@@ -40,7 +40,7 @@ export default async function MeetingDetail({ params }: { params: { id: string }
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: me } = await supabase.from('profiles').select('id, role').eq('id', user.id).single();
-  if (!isStaff(me?.role)) redirect('/staff');
+  if (!canViewStaffConsole(me?.role)) redirect('/staff');
   const admin = isAdmin(me?.role);
 
   const id = params.id;

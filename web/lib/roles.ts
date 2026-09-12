@@ -1,5 +1,6 @@
 // Role helpers shared across the app.
-// Enum (member_role): member=Investor, secretary=Secretary, admin=Admin, superadmin=Chairlady.
+// Enum (member_role): member=Investor, secretary=Secretary, treasurer=Treasurer,
+//   auditor=Auditor (read-only governance), admin=Admin, superadmin=Chairlady.
 
 export const STAFF_ROLES = ['secretary', 'treasurer', 'admin', 'superadmin'];
 export const ADMIN_ROLES = ['admin', 'superadmin'];
@@ -15,6 +16,17 @@ export function isAdmin(role?: string | null) {
 // Chairlady is the single superadmin-tier governance role.
 export function isChairlady(role?: string | null) {
   return role === 'superadmin';
+}
+
+// Auditor is a read-only governance role. It is deliberately NOT in STAFF_ROLES
+// (so isStaff() is false and every write guard rejects it); read access is granted
+// at the database by the auditor_read SELECT policies. canViewStaffConsole gates
+// who may OPEN the staff console UI: all staff plus the read-only Auditor.
+export function isAuditor(role?: string | null) {
+  return role === 'auditor';
+}
+export function canViewStaffConsole(role?: string | null) {
+  return isStaff(role) || isAuditor(role);
 }
 
 // ---- Withdrawal workflow capabilities -------------------------------------
@@ -58,6 +70,10 @@ export function roleLabel(role?: string | null) {
       return 'Chairlady';
     case 'admin':
       return 'Admin';
+    case 'treasurer':
+      return 'Treasurer';
+    case 'auditor':
+      return 'Auditor';
     case 'secretary':
       return 'Secretary';
     case 'member':
