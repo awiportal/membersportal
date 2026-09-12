@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getWithdrawalsOpen } from '@/lib/settings';
 import WithdrawalsClient from './WithdrawalsClient';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,7 @@ export default async function WithdrawalsPage() {
     .order('created_at', { ascending: false });
 
   const notReady = !!error;
+  const windowOpen = await getWithdrawalsOpen();
 
   return (
     <WithdrawalsClient
@@ -44,6 +46,7 @@ export default async function WithdrawalsPage() {
       netBalance={fin ? Number(fin.net_balance ?? fin.current_balance ?? 0) : null}
       requests={(rows ?? []) as any[]}
       notReady={notReady}
+      windowOpen={windowOpen}
     />
   );
 }

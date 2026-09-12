@@ -172,6 +172,7 @@ export async function markWithdrawalPaid(formData: FormData) {
   if (!req || !VALID_FROM.paid.includes(req.status)) return;
 
   const amount = n(req.amount);
+  const reference = String(formData.get('reference') || '').trim();
 
   // 1) Post to the fund record (authoritative for statements).
   const { data: fin } = await supabase
@@ -199,18 +200,22 @@ export async function markWithdrawalPaid(formData: FormData) {
   }
 
   // 2) Append to the withdrawals ledger (best-effort; balance above is the source of truth).
-  await supabase.from('withdrawals').insert({
-    member_id: req.member_id,
-    occurred_at: new Date().toISOString(),
-    amount,
-    method: req.method,
-    reference: `WR-${String(id).slice(0, 8)}`,
-  });
+  if (fin?.member_no) {
+    await supabase.from('withdrawals').insert({
+      member_no: fin.member_no,
+      member_id: req.member_id,
+      occurred_at: new Date().toISOString(),
+      amount,
+      method: req.method,
+      reference: reference || `WR-${String(id).slice(0, 8)}`,
+      recorded_by: uid,
+    });
+  }
 
   // 3) Close out the request.
   await supabase
     .from('withdrawal_requests')
-    .update({ status: 'paid', paid_by: uid, paid_at: new Date().toISOString() })
+    .update({ status: 'paid', paid_by: uid, paid_at: new Date().toISOString(), disbursed_reference: reference || null })
     .eq('id', id);
 
   await notify(
@@ -227,5 +232,30 @@ export async function markWithdrawalPaid(formData: FormData) {
   revalidatePath('/staff/withdrawals');
   revalidatePath('/staff/fund-data');
   revalidatePath('/staff/statements');
+  revalidatePath('/withdrawals');
+}
+
+// ── Payout window: Admin opens/closes member-facing "other" payout requests ──
+// AWIVEST is a long-term fund, so the window is closed by default. Exit requests
+// are always accepted regardless (enforced in the member submit action).
+export async function setWithdrawalWindow(formData: FormData) {
+  const open = String(formData.get('open') || '') === 'true';
+  const { supabase, uid } = await requireCap('pay');
+
+  await supabase
+    .from('app_settings')
+    .upsert(
+      { key: 'withdrawals_open', value: open ? 'true' : 'false', updated_by: uid, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
+
+  await supabase.from('audit_log').insert({
+    actor_id: uid,
+    member_id: uid,
+    action: open ? 'withdrawals_window_opened' : 'withdrawals_window_closed',
+    meta: {},
+  });
+
+  revalidatePath('/staff/withdrawals');
   revalidatePath('/withdrawals');
 }

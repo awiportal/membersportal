@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { getWithdrawalsOpen } from '@/lib/settings';
 
 const MIGRATION_HINT =
   'Withdrawals are not enabled yet. Please run the v1.5 database migration (withdrawal_requests), then try again.';
@@ -14,6 +15,7 @@ function looksMissingTable(msg?: string) {
 export type WithdrawalInput = {
   amount: number;
   reason: string;
+  reason_type: 'exit' | 'other';
   method: 'bank' | 'mpesa';
   bank_name?: string | null;
   account_name?: string | null;
@@ -36,6 +38,21 @@ export async function submitWithdrawal(input: WithdrawalInput): Promise<{ ok?: t
   const method = input?.method === 'mpesa' ? 'mpesa' : 'bank';
   const reason = String(input?.reason || '').trim();
   if (!reason) return { error: 'Please give a brief reason for the withdrawal.' };
+
+  // Every payout request records WHY: 'exit' (leaving the fund) or 'other'.
+  const reason_type = input?.reason_type === 'exit' ? 'exit' : 'other';
+
+  // AWIVEST is a long-term fund: "other" (non-exit) payouts are only accepted
+  // while an Admin has opened the payout window. Exit requests are always allowed.
+  if (reason_type === 'other') {
+    const open = await getWithdrawalsOpen();
+    if (!open) {
+      return {
+        error:
+          'Payout requests are currently closed by the office. Only exit requests are being accepted right now.',
+      };
+    }
+  }
 
   const letter_path = String(input?.letter_path || '').trim();
   // Only accept a letter uploaded into the member's own folder of the bucket.
@@ -71,6 +88,7 @@ export async function submitWithdrawal(input: WithdrawalInput): Promise<{ ok?: t
     member_id: uid,
     amount,
     reason,
+    reason_type,
     method,
     bank_name,
     account_name,
