@@ -11,6 +11,7 @@ type WReq = {
   id: string;
   amount: number | string;
   reason: string | null;
+  reason_type: string | null;
   method: string;
   bank_name: string | null;
   account_name: string | null;
@@ -55,16 +56,19 @@ export default function WithdrawalsClient({
   netBalance,
   requests,
   notReady,
+  windowOpen,
 }: {
   uid: string;
   active: boolean;
   netBalance: number | null;
   requests: WReq[];
   notReady: boolean;
+  windowOpen: boolean;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [reasonType, setReasonType] = useState<'exit' | 'other'>('other');
   const [method, setMethod] = useState<'bank' | 'mpesa'>('bank');
   const [bankName, setBankName] = useState('');
   const [accountName, setAccountName] = useState('');
@@ -78,6 +82,9 @@ export default function WithdrawalsClient({
 
   const amountNum = useMemo(() => Number(String(amount).replace(/[^0-9.]/g, '')) || 0, [amount]);
   const overBalance = netBalance != null && amountNum > netBalance;
+  // Non-exit ("other") payouts are only accepted while the office has opened the
+  // payout window. Exit requests are always allowed.
+  const payoutBlocked = !windowOpen && reasonType === 'other';
   const pendingExists = requests.some((r) => ['submitted', 'under_review', 'approved'].includes(r.status));
   const inProgress = requests.filter((r) => ['submitted', 'under_review', 'approved'].includes(r.status)).length;
   const paidCount = requests.filter((r) => r.status === 'paid').length;
@@ -94,6 +101,13 @@ export default function WithdrawalsClient({
     }
     if (!reason.trim()) {
       setMsg({ kind: 'err', text: 'Please give a brief reason for the withdrawal.' });
+      return;
+    }
+    if (payoutBlocked) {
+      setMsg({
+        kind: 'err',
+        text: 'Payout requests are currently closed by the office. Only exit requests are being accepted right now.',
+      });
       return;
     }
     if (method === 'bank' && (!bankName.trim() || !accountName.trim() || !accountNumber.trim())) {
@@ -128,6 +142,7 @@ export default function WithdrawalsClient({
       const res = await submitWithdrawal({
         amount: amountNum,
         reason: reason.trim(),
+        reason_type: reasonType,
         method,
         bank_name: method === 'bank' ? bankName.trim() : null,
         account_name: method === 'bank' ? accountName.trim() : null,
@@ -277,8 +292,21 @@ export default function WithdrawalsClient({
               </div>
 
               <div className="field">
-                <label>Reason for withdrawal</label>
-                <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. school fees, medical, personal" />
+                <label>Withdrawal reason</label>
+                <select className="input" value={reasonType} onChange={(e) => setReasonType(e.target.value as 'exit' | 'other')}>
+                  <option value="other">Partial payout (staying in the fund)</option>
+                  <option value="exit">Exit — leaving the fund</option>
+                </select>
+                {payoutBlocked && (
+                  <div className="muted2" style={{ fontSize: 11.5, marginTop: 5, color: '#ef7f7f', lineHeight: 1.5 }}>
+                    Payout requests are currently closed by the office. You can still request a full exit from the fund.
+                  </div>
+                )}
+              </div>
+
+              <div className="field">
+                <label>{reasonType === 'exit' ? 'Reason (why you are leaving)' : 'Reason for withdrawal'}</label>
+                <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={reasonType === 'exit' ? 'e.g. relocating, personal circumstances' : 'e.g. school fees, medical, personal'} />
               </div>
 
               {method === 'bank' ? (
@@ -317,7 +345,7 @@ export default function WithdrawalsClient({
                 </div>
               </div>
 
-              <button className="btn btn-lime" style={{ marginTop: 6 }} type="button" onClick={submit} disabled={!active || busy}>
+              <button className="btn btn-lime" style={{ marginTop: 6 }} type="button" onClick={submit} disabled={!active || busy || payoutBlocked}>
                 {busy ? (
                   <><i className="fa-solid fa-spinner fa-spin" /> Submitting…</>
                 ) : (
@@ -355,6 +383,11 @@ export default function WithdrawalsClient({
                         </div>
                         <span className={`badge ${st.cls}`}>{st.label}</span>
                       </div>
+                      {r.reason_type === 'exit' && (
+                        <div style={{ marginTop: 10 }}>
+                          <span className="badge badge-warn"><i className="fa-solid fa-right-from-bracket" /> Exit request</span>
+                        </div>
+                      )}
                       {r.reason && <div className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>{r.reason}</div>}
                       {r.status === 'rejected' && r.decision_note && (
                         <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>

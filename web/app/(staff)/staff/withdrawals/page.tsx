@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { getSessionProfile } from '@/lib/session';
 import { KES } from '@/lib/format';
+import { getWithdrawalsOpen } from '@/lib/settings';
 import { isAdmin, isChairlady } from '@/lib/roles';
-import { reviewWithdrawal, approveWithdrawal, rejectWithdrawal, markWithdrawalPaid } from './actions';
+import { reviewWithdrawal, approveWithdrawal, rejectWithdrawal, markWithdrawalPaid, setWithdrawalWindow } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +39,7 @@ export default async function StaffWithdrawalsPage() {
   const role = me?.role as string | undefined;
   const canDecide = isChairlady(role);
   const canPay = isAdmin(role);
+  const windowOpen = await getWithdrawalsOpen();
 
   const { data: rows, error } = await supabase
     .from('withdrawal_requests')
@@ -117,6 +119,12 @@ export default async function StaffWithdrawalsPage() {
           <Badge s={r.status} />
         </div>
         <Payout r={r} />
+        <div style={{ marginTop: 6 }}>
+          <span className={`badge ${r.reason_type === 'exit' ? 'badge-warn' : 'badge-info'}`}>
+            <i className={`fa-solid ${r.reason_type === 'exit' ? 'fa-right-from-bracket' : 'fa-money-bill-wave'}`} /> {r.reason_type === 'exit' ? 'Exit' : 'Partial payout'}
+          </span>
+          {r.disbursed_reference && <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>Ref: {r.disbursed_reference}</span>}
+        </div>
         {r.reason && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>{r.reason}</div>}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -156,8 +164,9 @@ export default async function StaffWithdrawalsPage() {
           {/* Approved → Admin or Chairlady disburses */}
           {r.status === 'approved' && (
             canPay ? (
-              <form action={markWithdrawalPaid}>
+              <form action={markWithdrawalPaid} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input type="hidden" name="id" value={r.id} />
+                <input className="input" name="reference" placeholder="M-Pesa / bank ref" style={{ height: 32, fontSize: 12.5, maxWidth: 170 }} />
                 <button className="btn btn-primary btn-sm" type="submit"><i className="fa-solid fa-money-bill-transfer" /> Mark paid</button>
               </form>
             ) : (
@@ -194,6 +203,27 @@ export default async function StaffWithdrawalsPage() {
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div className="page-title">Withdrawals</div>
       <div className="sub">Review member withdrawal requests, approve or return them, and disburse funds. Paid requests post to the member's fund record automatically.</div>
+
+      <div className="card card-pad" style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderLeft: `3px solid ${windowOpen ? 'var(--good, #37c98a)' : 'var(--muted)'}` }}>
+        <span className={`badge ${windowOpen ? 'badge-good' : 'badge'}`}>
+          <i className={`fa-solid ${windowOpen ? 'fa-lock-open' : 'fa-lock'}`} /> Payout window {windowOpen ? 'OPEN' : 'CLOSED'}
+        </span>
+        <div className="muted" style={{ fontSize: 12.5, flex: 1, minWidth: 220 }}>
+          {windowOpen
+            ? 'Members can request partial payouts. Exit requests are always accepted.'
+            : 'Members cannot request partial payouts right now. Exit requests are still accepted.'}
+        </div>
+        {canPay ? (
+          <form action={setWithdrawalWindow}>
+            <input type="hidden" name="open" value={windowOpen ? 'false' : 'true'} />
+            <button className={`btn btn-sm ${windowOpen ? 'btn-ghost' : 'btn-lime'}`} type="submit">
+              <i className={`fa-solid ${windowOpen ? 'fa-lock' : 'fa-lock-open'}`} /> {windowOpen ? 'Close window' : 'Open window'}
+            </button>
+          </form>
+        ) : (
+          <span className="muted" style={{ fontSize: 12 }}><i className="fa-solid fa-user-shield" /> Admin controls this</span>
+        )}
+      </div>
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', margin: '18px 0 4px' }}>
         {kpis.map((k) => (
