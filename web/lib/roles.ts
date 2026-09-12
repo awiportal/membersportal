@@ -67,6 +67,15 @@ export function roleLabel(role?: string | null) {
   }
 }
 
+// A profile may carry an optional display title (profiles.title) that overrides
+// the role label in the UI — e.g. two superadmin-tier logins showing "Super
+// Admin" vs "Chairlady". Permissions are unchanged; this is label-only and it
+// degrades gracefully (falls back to roleLabel) before the column migration.
+export function displayRole(role?: string | null, title?: string | null) {
+  const t = title?.trim();
+  return t ? t : roleLabel(role);
+}
+
 export function statusLabel(s?: string | null) {
   if (!s) return '—';
   return s[0].toUpperCase() + s.slice(1);

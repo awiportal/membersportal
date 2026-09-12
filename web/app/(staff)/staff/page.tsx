@@ -27,6 +27,7 @@ export default async function StaffHome() {
     email: (m.email || "") as string,
     investor_id: (m.investor_id || "") as string,
     role: (m.role || "member") as string,
+    title: (m.title ?? null) as string | null,
     status: (m.status || "") as string,
     onboarding_step: (m.onboarding_step || "") as string,
     submitted_at: (m.submitted_at ?? null) as string | null,

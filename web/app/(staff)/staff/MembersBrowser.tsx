@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { roleLabel, statusLabel } from "@/lib/roles";
+import { displayRole, statusLabel } from "@/lib/roles";
 import { approveMember } from "./actions";
 
 type Row = {
@@ -10,6 +10,7 @@ type Row = {
   email: string;
   investor_id: string;
   role: string;
+  title: string | null;
   status: string;
   onboarding_step: string;
   submitted_at: string | null;
@@ -220,7 +221,7 @@ export default function MembersBrowser({ members }: { members: Row[] }) {
                       </div>
                     </td>
                     <td style={{ padding: "10px" }} className="num">{m.investor_id || "—"}</td>
-                    <td style={{ padding: "10px" }}>{roleLabel(m.role)}</td>
+                    <td style={{ padding: "10px" }}>{displayRole(m.role, m.title)}</td>
                     <td style={{ padding: "10px" }}><StatusBadge s={m.status} /></td>
                     <td style={{ padding: "10px" }}>
                       <WaitLabel days={isAwaiting(m) ? daysSince(m.submitted_at, now) : null} />

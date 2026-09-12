@@ -6,7 +6,7 @@ import AreaChart from '@/components/AreaChart';
 import Donut, { Segment } from '@/components/Donut';
 import MoneyNav from '@/components/MoneyNav';
 import LoadDemoData from '@/components/LoadDemoData';
-import { isStaff, roleLabel } from '@/lib/roles';
+import { isStaff, displayRole } from '@/lib/roles';
 
 const COLORS = ['#a6398f', '#a6cd35', '#5aa9f0', '#f2b23b', '#ef7fd8', '#37c98a'];
 
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
           <div>
             <div className="page-title">Welcome, {firstName}</div>
             <div className="sub">
-              {roleLabel(role)} · fund overview across {members} member{members === 1 ? '' : 's'} · as at 31 Jul 2026
+              {displayRole(role, profile?.title)} · fund overview across {members} member{members === 1 ? '' : 's'} · as at 31 Jul 2026
             </div>
           </div>
           <Link href="/staff" className="btn btn-lime">
