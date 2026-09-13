@@ -84,7 +84,7 @@ export default function StaffStatementsBrowser({ rows }: { rows: any[] }) {
                   <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 600 }} className="num">{kes(r.current_balance)}</td>
                   <td style={{ padding: '9px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setSel(r); }}><i className="fa-solid fa-eye" /> View</button>
-                    <Link href={'/staff/statements/' + encodeURIComponent(r.member_no) + '?print=1'} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={(e) => e.stopPropagation()} title="Open a print-ready statement and save it as PDF"><i className="fa-solid fa-file-pdf" /> PDF</Link>
+                    <Link href={'/staff/statements/' + encodeURIComponent(r.member_no) + '?print=1'} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={(e) => e.stopPropagation()} title="Open a print-ready statement and save it as PDF"><i className="fa-solid fa-download" /> Download</Link>
                   </td>
                 </tr>
               ))}

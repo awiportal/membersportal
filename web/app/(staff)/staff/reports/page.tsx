@@ -145,7 +145,28 @@ export default async function StaffReportsPage() {
 
   return (
     <div className="rpt">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
+      <div className="rpt-print-head" aria-hidden="true">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <img src="/awi-logo.png" alt="AWIVEST" width={52} height={52} style={{ display: 'block', borderRadius: 12 }} />
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 0.5 }}>AWIVEST</div>
+              <div style={{ fontSize: 10.5, color: '#666' }}>African Women Investors</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: 10.5, color: '#444', lineHeight: 1.55 }}>
+            <div>awivest.com</div>
+            <div>info@awivest.com</div>
+            <div>+254 748 475 347</div>
+          </div>
+        </div>
+        <div className="rpt-brandrule" style={{ height: 3, borderRadius: 2, margin: '12px 0 10px', background: 'linear-gradient(90deg,#7A1E50,#B22C75 55%,#61CE70)' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>Reports &amp; fund distribution</div>
+          <div style={{ fontSize: 10.5, color: '#666' }}>As at 31 Jul 2026 · KES · Generated {generatedAt}</div>
+        </div>
+      </div>
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div className="page-title">Reports &amp; fund distribution</div>
           <div className="sub">
@@ -156,7 +177,7 @@ export default async function StaffReportsPage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link href="/staff/reports/generate" className="btn btn-ghost btn-sm"><i className="fa-solid fa-folder-tree" /> Formal reports</Link>
           <ReportExport rows={exportRows} />
-          <PrintButton label="Print report" className="btn btn-primary btn-sm" />
+          <PrintButton label="Print report" className="btn btn-primary btn-sm" docTitle={"AWIVEST Reports & fund distribution"} />
         </div>
       </div>
 
@@ -412,12 +433,16 @@ export default async function StaffReportsPage() {
         </div>
       </div>
 
-      <div className="muted" style={{ fontSize: 11, marginTop: 14 }}>Generated {generatedAt} · AWIVEST fund report</div>
+      <div className="muted no-print" style={{ fontSize: 11, marginTop: 14 }}>Generated {generatedAt} · AWIVEST fund report</div>
+
+      <div className="rpt-print-foot" aria-hidden="true">
+        AWIVEST · African Women Investors · awivest.com · info@awivest.com · +254 748 475 347 — Confidential fund report.
+      </div>
 
       <style
         dangerouslySetInnerHTML={{
           __html:
-            '@media print{.rpt,.rpt *{color:#1a1220 !important}.rpt .muted,.rpt .muted2{color:#555 !important}.rpt .card,.rpt .stat{background:#fff !important;border-color:#e2e2e2 !important;box-shadow:none !important}.rpt .badge{border-color:#cfcfcf !important}.rpt .compbar,.rpt .compbar>span,.rpt .dotc{-webkit-print-color-adjust:exact;print-color-adjust:exact}}',
+            '.rpt-print-head,.rpt-print-foot{display:none}@media print{.rpt,.rpt *{color:#1a1220 !important}.rpt .muted,.rpt .muted2{color:#555 !important}.rpt .card,.rpt .stat{background:#fff !important;border-color:#e2e2e2 !important;box-shadow:none !important}.rpt .badge{border-color:#cfcfcf !important}.rpt .compbar,.rpt .compbar>span,.rpt .dotc{-webkit-print-color-adjust:exact;print-color-adjust:exact}.rpt-print-head{display:block;margin-bottom:6px}.rpt-print-foot{display:block;margin-top:18px;padding-top:8px;border-top:1px solid #e2e2e2;text-align:center;font-size:10px;color:#666 !important}.rpt-brandrule,.rpt-print-head img{-webkit-print-color-adjust:exact;print-color-adjust:exact}}',
         }}
       />
     </div>
