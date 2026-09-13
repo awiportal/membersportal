@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PDFDocument, StandardFonts, rgb, PDFFont } from "pdf-lib";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "agreements";
 
@@ -29,7 +30,7 @@ export type SignedPdf = { bytes: Uint8Array; filename: string; originalIncluded:
 // Build "<original agreement> + <signature page>" for one acceptance and return
 // the PDF bytes. Row access is governed by the passed supabase client's RLS:
 // a member client only resolves the member's own acceptance; a staff client any.
-// The original is pulled from the public agreements bucket via fetch and only
+// The original is pulled from the private agreements bucket (service role) and
 // merged when it is really a PDF; otherwise just the signature page is returned.
 export async function buildSignedAgreementPdf(
   supabase: SupabaseClient,
@@ -52,10 +53,12 @@ export async function buildSignedAgreementPdf(
   let originalIncluded = false;
   if (agr?.file_path) {
     try {
-      const url = supabase.storage.from(BUCKET).getPublicUrl(agr.file_path).data.publicUrl;
-      const res = await fetch(url, { cache: "no-store" });
-      if (res.ok) {
-        const bytes = new Uint8Array(await res.arrayBuffer());
+      // Download the blank template with the service-role client so it works on
+      // the private 'agreements' bucket regardless of the caller's RLS (#94).
+      const admin = createAdminClient();
+      const { data: file } = await admin.storage.from(BUCKET).download(agr.file_path);
+      if (file) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
         if (new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-") {
           out = await PDFDocument.load(bytes, { ignoreEncryption: true });
           originalIncluded = true;
