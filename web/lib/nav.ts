@@ -25,6 +25,7 @@ export const NAV: NavGroup[] = [
     { id: 'kyc', label: 'KYC Verification', icon: 'fa-id-card-clip' },
     { id: 'documents', label: 'Document Centre', icon: 'fa-folder-open' },
     { id: 'agreements', label: 'Agreements', icon: 'fa-file-contract' },
+    { id: 'sign-requests', label: 'Documents to Sign', icon: 'fa-file-pen' },
     { id: 'welfare', label: 'Welfare', icon: 'fa-hand-holding-heart' },
   ]},
   { group: 'Account', items: [
