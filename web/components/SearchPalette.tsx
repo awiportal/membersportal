@@ -92,14 +92,16 @@ export default function SearchPalette({
             if (results[0]) go(results[0].href);
           }}
         >
-          <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input
+          <div className="search-field">
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+            <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search pages…"
             aria-label="Search pages"
           />
+          </div>
           <button type="button" className="icon-btn" aria-label="Close search" onClick={onClose}>
             <i className="fa-solid fa-xmark" />
           </button>
@@ -116,8 +118,11 @@ export default function SearchPalette({
                 onClick={() => go(d.href)}
               >
                 <i className={`fa-solid ${d.icon}`} aria-hidden="true" />
-                <span className="search-result-label">{d.label}</span>
-                <span className="search-result-group muted">{d.group}</span>
+                <span className="search-result-text">
+                  <span className="search-result-label">{d.label}</span>
+                  <span className="search-result-group muted">{d.group}</span>
+                </span>
+                <i className="fa-solid fa-chevron-right search-result-go" aria-hidden="true" />
               </button>
             ))
           )}
