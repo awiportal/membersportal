@@ -617,3 +617,21 @@ img,video{ max-width:100%; height:auto; }
   /* Full-screen search: clear the status bar and give the field room. */
   .search-panel-input{padding:calc(12px + env(safe-area-inset-top)) 12px 12px}
 }
+
+
+/* ---- Mobile UI round 2b: fit the top bar, strengthen the bottom bar ------ */
+.icon-btn{flex:0 0 auto}
+
+@media (max-width:640px){
+  /* Stop the top bar squeezing the hamburger into a sliver and shoving the
+     avatar off-screen: drop the wordmark (the logo carries identity),
+     tighten spacing, and clear any top display cutout. */
+  .topbar-wordmark{display:none}
+  .topbar{gap:10px;padding:calc(12px + env(safe-area-inset-top)) 12px 12px}
+
+  /* Taller, fully legible bottom bar that clears the gesture/nav bar. */
+  .bottombar{padding:8px 6px calc(10px + env(safe-area-inset-bottom))}
+  .bottombar a,.bottombar button{color:var(--text);opacity:.68;font-size:11px;gap:4px;padding:6px 2px}
+  .bottombar a i,.bottombar button i{font-size:20px}
+  .bottombar a.is-here,.bottombar button.is-here{color:var(--lime2);opacity:1;background:rgba(166,205,53,.14)}
+}
