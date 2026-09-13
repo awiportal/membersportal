@@ -19,6 +19,7 @@ export const dynamic = 'force-dynamic';
 
 const STATUS_CLS: Record<string, string> = { scheduled: 'badge-info', held: 'badge-good', cancelled: 'badge-bad' };
 const AI_CLS: Record<string, string> = { open: 'badge-info', done: 'badge-good', cancelled: 'badge-bad' };
+const PROVIDER_LABEL: Record<string, string> = { none: 'None', meet: 'Google Meet', zoom: 'Zoom', other: 'Other' };
 
 function toLocalInput(ts?: string | null): string {
   if (!ts) return '';
@@ -74,11 +75,27 @@ export default async function MeetingDetail({ params }: { params: { id: string }
         <span className={'badge ' + (STATUS_CLS[m.status] || 'badge-info')}>{m.status}</span>
       </div>
 
+      {/* Join meeting */}
+      {m.meeting_link ? (
+        <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              Video meeting
+              {m.meeting_provider && m.meeting_provider !== 'none' ? <span className="badge badge-info" style={{ marginLeft: 8, fontSize: 10.5 }}>{PROVIDER_LABEL[m.meeting_provider] || m.meeting_provider}</span> : null}
+              {m.member_visible ? <span className="badge badge-good" style={{ marginLeft: 8, fontSize: 10.5 }}>Shown to members</span> : null}
+            </div>
+            {m.meeting_passcode ? <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>Passcode: {m.meeting_passcode}</div> : null}
+          </div>
+          <a href={m.meeting_link} target="_blank" rel="noopener" className="btn btn-primary"><i className="fa-solid fa-video" /> Join meeting</a>
+        </div>
+      ) : null}
+
       {/* Details */}
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Details</div>
         <form action={updateMeetingDetails} style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', alignItems: 'end' }}>
           <input type="hidden" name="id" value={m.id} />
+          <input type="hidden" name="has_video" value="1" />
           <div className="field" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
             <label>Title</label>
             <input className="input" name="title" defaultValue={m.title || ''} required />
@@ -108,6 +125,32 @@ export default async function MeetingDetail({ params }: { params: { id: string }
               <option value="held">Held</option>
               <option value="cancelled">Cancelled</option>
             </select>
+          </div>
+          <div className="field" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+            <label>Video link (Zoom / Google Meet)</label>
+            <input className="input" name="meeting_link" defaultValue={m.meeting_link || ''} placeholder="https://…" />
+            <div className="muted" style={{ fontSize: 11.5, marginTop: 6, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <a href="https://meet.google.com/new" target="_blank" rel="noopener"><i className="fa-solid fa-video" /> New Google Meet</a>
+              <a href="https://zoom.us/start/webmeeting" target="_blank" rel="noopener"><i className="fa-solid fa-video" /> New Zoom</a>
+            </div>
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Provider</label>
+            <select className="input" name="meeting_provider" defaultValue={m.meeting_provider || 'none'}>
+              <option value="none">None</option>
+              <option value="meet">Google Meet</option>
+              <option value="zoom">Zoom</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Passcode (optional)</label>
+            <input className="input" name="meeting_passcode" defaultValue={m.meeting_passcode || ''} />
+          </div>
+          <div className="field" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" name="member_visible" defaultChecked={!!m.member_visible} /> Show to members with a Join button
+            </label>
           </div>
           <button className="btn btn-primary" type="submit" style={{ gridColumn: '1 / -1', justifySelf: 'start' }}>
             <i className="fa-solid fa-floppy-disk" /> Save details
