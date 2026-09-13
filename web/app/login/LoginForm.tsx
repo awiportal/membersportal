@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { COUNTRIES } from '@/lib/countries';
-import { guardLogin } from './actions';
+import { guardLogin, notifyAdminsOfRegistration } from './actions';
 import FancySelect from '@/components/FancySelect';
 import { validatePassword } from '@/lib/password';
 
@@ -145,15 +145,38 @@ export default function LoginForm() {
           friendly = raw + ref;
         }
         setMsg({ t: friendly, kind: 'bad' });
-      } else if (data.session) {
-        // Email confirmation is switched off — straight into the portal.
-        router.push('/dashboard');
-        router.refresh();
       } else {
-        // Email confirmation is on: collect the 6-digit code on this screen
-        // instead of asking the member to click a link in their inbox.
-        setAwaitingCode(true);
-        setMsg({ t: 'We’ve emailed you a code. Enter it below to finish creating your account.', kind: 'good' });
+        // Genuinely new account? Supabase returns an empty identities array when
+        // the email already exists (to avoid leaking who is registered), so only
+        // alert the approvers for a real new registration. Best-effort — it must
+        // never block sign-up.
+        const isNewUser = Boolean(
+          data.user &&
+            Array.isArray((data.user as any).identities) &&
+            (data.user as any).identities.length > 0,
+        );
+        if (isNewUser) {
+          try {
+            await notifyAdminsOfRegistration({
+              fullName,
+              email,
+              phone: phone ? `${dialCode} ${phone}`.trim() : '',
+              memberType,
+            });
+          } catch {
+            /* ignore — approver alerts must not block the member */
+          }
+        }
+        if (data.session) {
+          // Email confirmation is switched off — straight into the portal.
+          router.push('/dashboard');
+          router.refresh();
+        } else {
+          // Email confirmation is on: collect the 6-digit code on this screen
+          // instead of asking the member to click a link in their inbox.
+          setAwaitingCode(true);
+          setMsg({ t: 'We’ve emailed you a code. Enter it below to finish creating your account.', kind: 'good' });
+        }
       }
     }
     setLoading(false);

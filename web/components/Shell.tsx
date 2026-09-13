@@ -8,10 +8,9 @@ import { isStaff } from "@/lib/roles";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import IdleTimeout from "./IdleTimeout";
-
-// Sections a member can reach before their membership is approved (manual 3.7):
-// Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
-const ALLOWED_WHEN_PENDING = new Set(["dashboard", "information", "kyc", "profile", "notifications", "settings"]);
+// Single source of truth for what a not-yet-approved member may reach, shared
+// with the server-side gate in lib/supabase/middleware.ts (manual 3.7).
+import { PENDING_ALLOWED_NAV as ALLOWED_WHEN_PENDING } from "@/lib/pendingAccess";
 
 // Shows the member's uploaded photo when they have one, otherwise their
 // coloured initials. Keeps the same 40x40 rounded shape in every position.
@@ -146,26 +145,16 @@ export default function Shell({
               <span>Staff console</span>
             </Link>
           )}
-          {NAV.map((group) => (
-            <div key={group.group}>
-              <div className="nav-group-label">{group.group}</div>
-              {group.items.map((it) => {
-                const locked = !isActive && !ALLOWED_WHEN_PENDING.has(it.id);
-                if (locked) {
-                  return (
-                    <div
-                      key={it.id}
-                      className="nav-item"
-                      style={{ opacity: 0.5, cursor: "not-allowed" }}
-                      title="Available once your membership is approved"
-                    >
-                      <i className={`fa-solid ${it.icon}`} />
-                      <span>{it.label}</span>
-                      <i className="fa-solid fa-lock" style={{ marginLeft: "auto", fontSize: 11 }} />
-                    </div>
-                  );
-                }
-                return (
+          {NAV.map((group) => {
+            // Pending members only see the onboarding-essential sections; the
+            // rest are hidden (not just locked) to keep their nav focused. The
+            // same allow-list is enforced server-side in middleware.
+            const items = group.items.filter((it) => isActive || ALLOWED_WHEN_PENDING.has(it.id));
+            if (items.length === 0) return null;
+            return (
+              <div key={group.group}>
+                <div className="nav-group-label">{group.group}</div>
+                {items.map((it) => (
                   <Link
                     key={it.id}
                     href={hrefFor(it.id)}
@@ -176,10 +165,19 @@ export default function Shell({
                     <span>{it.label}</span>
                     {it.tag && <span className="tag">{it.tag}</span>}
                   </Link>
-                );
-              })}
+                ))}
+              </div>
+            );
+          })}
+          {!isActive && (
+            <div
+              className="muted"
+              style={{ padding: "12px 16px", fontSize: 11.5, lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }}
+            >
+              <i className="fa-solid fa-lock" style={{ fontSize: 11, marginTop: 2 }} />
+              <span>Your full investor portal unlocks once your membership is approved.</span>
             </div>
-          ))}
+          )}
         </nav>
         <div style={{ padding: "12px 14px", borderTop: "1px solid var(--border)" }}>
           <div ref={sideMenuRef} style={{ position: "relative" }}>
