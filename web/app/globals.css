@@ -549,3 +549,38 @@ img,video{ max-width:100%; height:auto; }
 .ro-console .ro-banner i { color: #B22C75; }
 .ro-console form button[type="submit"],
 .ro-console form button:not([type]) { display: none !important; }
+
+
+/* ---- Mobile bottom tab bar + command-palette search ---------------------- */
+
+/* Fixed bottom navigation, the top-bar search icon, and the reserved spacer are
+   phone-only; on desktop the sidebar and the search box cover these. */
+.bottombar{display:none}
+.search-btn{display:none}
+.bottombar-spacer{display:none}
+
+/* Command-palette search overlay (opened from the search box or the icon). */
+.search-overlay{position:fixed;inset:0;z-index:120;background:rgba(6,3,6,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;padding:12vh 16px 16px;animation:scrimIn .16s ease}
+.search-panel{width:100%;max-width:560px;max-height:70vh;display:flex;flex-direction:column;background:var(--menu-bg);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-lg);overflow:hidden}
+.search-panel-input{display:flex;align-items:center;gap:10px;padding:13px;border-bottom:1px solid var(--border)}
+.search-panel-input > i{color:var(--muted)}
+.search-panel-input input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--text);font-size:16px;font-family:inherit}
+.search-results{overflow-y:auto;padding:8px}
+.search-result{width:100%;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;background:transparent;border:0;cursor:pointer;color:var(--text);font-size:14px;font-weight:600;text-align:left;font-family:inherit}
+.search-result:hover{background:var(--surface2)}
+.search-result > i{width:20px;text-align:center;color:var(--muted)}
+.search-result-group{margin-left:auto;font-size:11.5px;font-weight:500}
+.search-empty{padding:22px;text-align:center;font-size:13.5px}
+
+@media(max-width:640px){
+  .bottombar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;background:var(--topbar);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .bottombar a,.bottombar button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px;border-radius:12px;background:transparent;border:0;cursor:pointer;color:var(--muted);font-size:10.5px;font-weight:600;font-family:inherit;text-decoration:none;transition:color .15s ease}
+  .bottombar a i,.bottombar button i{font-size:17px}
+  .bottombar a span,.bottombar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bottombar a.is-here{color:var(--lime2)}
+  .bottombar a.is-here i{filter:drop-shadow(0 3px 8px rgba(166,205,53,.35))}
+  .search-btn{display:inline-flex}
+  .bottombar-spacer{display:block;height:calc(70px + env(safe-area-inset-bottom))}
+  .search-overlay{padding:0}
+  .search-panel{max-width:none;height:100%;max-height:none;border-radius:0;border:0}
+}
