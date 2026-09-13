@@ -9,7 +9,7 @@ const ADMIN_TIER = ['admin', 'superadmin'];
 
 // #180 — Real-time security / anomaly alerts.
 //
-// Runs on a Vercel Cron (every 15 min; see web/vercel.json). On each run it
+// Runs on a Vercel Cron (daily on the Vercel Hobby plan; see web/vercel.json). On each run it
 // reads two REAL persistent signals through the SERVICE-ROLE admin client
 // (exactly as /staff/security and /staff/audit read RLS-protected data) and
 // emails every current Admin/Chairlady when something fires:
@@ -35,8 +35,10 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // NOTE (Vercel cron config — web/vercel.json): cron schedules run in UTC. This
-// route is scheduled every 15 minutes. If the project's Vercel plan restricts
-// cron frequency, the schedule can be relaxed to daily with no code change: the
+// route is scheduled DAILY because the Vercel Hobby plan caps crons at once per
+// day, so detection can lag up to ~24h. For near-real-time alerting, upgrade to
+// Vercel Pro and use a */15 schedule, or ping this endpoint from an external
+// scheduler with the CRON_SECRET header. Either way the
 // handler is idempotent and safe to invoke manually (per-event dedup means the
 // same anomaly is never emailed twice regardless of how often it runs).
 
@@ -52,9 +54,9 @@ const SPIKE_RULES: { prefix: string; cap: number; kind: string; ident: 'ip' | 'u
 
 // Consider only windows that started within this lookback as "active". With the
 // */15 schedule this comfortably covers the 5–15 min fixed windows; if the
-// schedule is later relaxed to daily, a current spike is still caught and older,
-// already-reset windows are correctly ignored.
-const LOOKBACK_MINUTES = 60;
+// schedule is daily, this is set wide (~26h) so one run covers the whole prior
+// day; the per-bucket window_start dedup below prevents re-alerting.
+const LOOKBACK_MINUTES = 1560;
 
 function fmtWhen(ts: string | null): string {
   if (!ts) return 'unknown time';
