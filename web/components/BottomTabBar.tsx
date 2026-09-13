@@ -17,7 +17,7 @@ const ACTIVE_ITEMS: Item[] = [
 const PENDING_ITEMS: Item[] = [
   { id: 'dashboard', href: '/dashboard', icon: 'fa-gauge-high', label: 'Home' },
   { id: 'kyc', href: '/onboarding', icon: 'fa-id-card-clip', label: 'KYC' },
-  { id: 'information', href: '/information', icon: 'fa-bullhorn', label: 'Updates' },
+  { id: 'notifications', href: '/notifications', icon: 'fa-bell', label: 'Updates' },
 ];
 
 // Fixed bottom navigation for phones (hidden on desktop via CSS). The last cell
