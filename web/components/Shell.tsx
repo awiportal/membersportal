@@ -10,6 +10,7 @@ import NotificationBell from "./NotificationBell";
 import IdleTimeout from "./IdleTimeout";
 import SearchPalette from "./SearchPalette";
 import BottomTabBar from "./BottomTabBar";
+import { clearTwoFactorGate } from "@/app/verify/actions";
 // Single source of truth for what a not-yet-approved member may reach, shared
 // with the server-side gate in lib/supabase/middleware.ts (manual 3.7).
 import { PENDING_ALLOWED_NAV as ALLOWED_WHEN_PENDING } from "@/lib/pendingAccess";
@@ -73,6 +74,13 @@ export default function Shell({
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    // Clear the httpOnly 2FA gate cookies server-side so signing back in
+    // re-triggers the emailed-code step instead of silently skipping it.
+    try {
+      await clearTwoFactorGate();
+    } catch {
+      /* best-effort */
+    }
     router.push("/login");
     router.refresh();
   }
