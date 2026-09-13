@@ -21,21 +21,21 @@ const imageRemotePatterns = supabaseHost
 const supabaseHttps = supabaseHost ? `https://${supabaseHost}` : 'https://*.supabase.co';
 const supabaseWss = supabaseHost ? `wss://${supabaseHost}` : 'wss://*.supabase.co';
 
-// Content-Security-Policy, shipped in REPORT-ONLY mode first. It never blocks a
-// request: the browser only reports what an enforcing policy WOULD block, so we
-// can watch the report stream on the live site and confirm the allow-lists are
-// complete before switching the header name to 'Content-Security-Policy'.
+// Content-Security-Policy — now ENFORCED. Previously shipped in report-only mode
+// so the report stream could confirm the allow-lists; those have been audited
+// against the app's real loads and are complete, so the full policy is applied
+// as an enforcing header below.
 // Origins reflect the app's real loads:
 //   - Google Fonts (fonts.googleapis.com CSS + fonts.gstatic.com webfonts)
 //   - Font Awesome via cdnjs (CSS + webfonts)
 //   - Supabase Storage/REST (https) and Realtime (wss); KYC review embeds a
 //     signed Storage URL in an iframe, so the Supabase host is in frame-src too
 //   - PandaDoc e-sign (form-action + frame-src)
-// 'unsafe-inline' is temporary: the theme <script> in app/layout.tsx and the
-// app's inline style={} attributes need it. To ENFORCE later, nonce the theme
-// script (generate a per-request nonce in middleware, add strict-dynamic) and
-// drop 'unsafe-inline' from script-src.
-const cspReportOnly = [
+// 'unsafe-inline' is still required: the theme <script> in app/layout.tsx and
+// the app's inline style={} attributes need it. Future hardening: nonce the
+// theme script (per-request nonce in middleware, add strict-dynamic) and drop
+// 'unsafe-inline' from script-src.
+const csp = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
@@ -61,11 +61,10 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
   { key: 'X-DNS-Prefetch-Control', value: 'off' },
-  // Enforced clickjacking protection for browsers that prefer CSP over XFO.
-  { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
-  // Full policy in report-only mode (see cspReportOnly above): observe first,
-  // enforce once the allow-lists are confirmed and the inline script is nonced.
-  { key: 'Content-Security-Policy-Report-Only', value: cspReportOnly },
+  // Full Content-Security-Policy, now ENFORCED (see csp above). Graduated from
+  // report-only after auditing the app's real loads (Google Fonts, Font Awesome
+  // via cdnjs, Supabase https/wss + Storage iframe, PandaDoc e-sign).
+  { key: 'Content-Security-Policy', value: csp },
 ];
 
 const nextConfig = {
