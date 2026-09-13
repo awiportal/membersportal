@@ -6,7 +6,8 @@ import { displayRole, statusLabel, canApproveMembers, canDisburseFunds, canMapMe
 import { KES } from '@/lib/format';
 import { KYC_DOC_TYPES } from '@/lib/onboarding';
 import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
-import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord, recordWithdrawal } from '../../actions';
+import { rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord, recordWithdrawal } from '../../actions';
+import ApproveCountersign from './ApproveCountersign';
 import OneOffAgreement from './OneOffAgreement';
 import RelationsEditor from './RelationsEditor';
 import ExitSettlement from './ExitSettlement';
@@ -131,10 +132,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
         <>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {m.status !== 'active' && m.status !== 'dormant' && (
-            <form action={approveMember}>
-              <input type="hidden" name="id" value={m.id} />
-              <button className="btn btn-lime" type="submit"><i className="fa-solid fa-check" /> Approve &amp; activate</button>
-            </form>
+            <ApproveCountersign memberId={m.id} />
           )}
           {m.status === 'active' && (
             <form action={setMemberStatus}>
