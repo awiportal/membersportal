@@ -41,6 +41,7 @@ type SequentialItem = {
   total: number;
   signed: number;
   active_role_label?: string | null;
+  custom_fields?: CustomField[];
 };
 
 function fmtDateTime(v?: string | null) {

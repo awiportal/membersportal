@@ -62,6 +62,7 @@ type MyActiveStep = {
   title: string;
   doc_type: string;
   note?: string | null;
+  custom_fields?: CustomField[];
 };
 type PickerProfile = { id: string; full_name?: string | null; email?: string | null; role?: string | null };
 
