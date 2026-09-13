@@ -7,6 +7,7 @@ import { isStaff, isAdmin } from '@/lib/roles';
 
 const MEETING_TYPES = ['agm', 'committee', 'general', 'special', 'other'];
 const MEETING_STATUS = ['scheduled', 'held', 'cancelled'];
+const MEETING_PROVIDERS = ['none', 'meet', 'zoom', 'other'];
 const ATT_STATUS = ['present', 'absent', 'apology'];
 const AI_STATUS = ['open', 'done', 'cancelled'];
 
@@ -49,10 +50,25 @@ export async function createMeeting(formData: FormData) {
   const meeting_type = MEETING_TYPES.includes(mt) ? mt : 'committee';
   const scheduled_at = val(formData.get('scheduled_at'));
   const location = val(formData.get('location'));
+  const meeting_link = val(formData.get('meeting_link'));
+  const mpV = String(formData.get('meeting_provider') || '');
+  const meeting_provider = MEETING_PROVIDERS.includes(mpV) ? mpV : 'none';
+  const meeting_passcode = val(formData.get('meeting_passcode'));
+  const member_visible = formData.get('member_visible') === 'on';
 
   const { data, error } = await supabase
     .from('meetings')
-    .insert({ title, meeting_type, scheduled_at, location, created_by: uid })
+    .insert({
+      title,
+      meeting_type,
+      scheduled_at,
+      location,
+      meeting_link,
+      meeting_provider,
+      meeting_passcode,
+      member_visible,
+      created_by: uid,
+    })
     .select('id')
     .single();
   if (error || !data) {
@@ -78,6 +94,17 @@ export async function updateMeetingDetails(formData: FormData) {
   if (MEETING_TYPES.includes(mt)) patch.meeting_type = mt;
   const st = String(formData.get('status') || '');
   if (MEETING_STATUS.includes(st)) patch.status = st;
+
+  // Only forms that opt in (the details-edit form on the meeting detail page)
+  // carry the video fields. The hidden `has_video` marker guards them so other
+  // forms calling this action never clobber the link/provider/visibility.
+  if (formData.get('has_video')) {
+    patch.meeting_link = val(formData.get('meeting_link'));
+    const mp = String(formData.get('meeting_provider') || '');
+    patch.meeting_provider = MEETING_PROVIDERS.includes(mp) ? mp : 'none';
+    patch.meeting_passcode = val(formData.get('meeting_passcode'));
+    patch.member_visible = formData.get('member_visible') === 'on';
+  }
 
   const { error } = await supabase.from('meetings').update(patch).eq('id', id);
   if (error) {

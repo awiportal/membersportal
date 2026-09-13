@@ -5,6 +5,7 @@ export const NAV: NavGroup[] = [
   { group: 'Overview', items: [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'information', label: 'Information Center', icon: 'fa-bullhorn' },
+    { id: 'meetings', label: 'Meetings', icon: 'fa-video' },
     { id: 'portfolio', label: 'Investment Portfolio', icon: 'fa-chart-pie' },
     { id: 'financial-profile', label: 'Financial Profile', icon: 'fa-heart-pulse', tag: 'MSI' },
   ]},
