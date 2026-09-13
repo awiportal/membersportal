@@ -8,6 +8,8 @@ import { isStaff } from "@/lib/roles";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import IdleTimeout from "./IdleTimeout";
+import SearchPalette from "./SearchPalette";
+import BottomTabBar from "./BottomTabBar";
 // Single source of truth for what a not-yet-approved member may reach, shared
 // with the server-side gate in lib/supabase/middleware.ts (manual 3.7).
 import { PENDING_ALLOWED_NAV as ALLOWED_WHEN_PENDING } from "@/lib/pendingAccess";
@@ -32,6 +34,7 @@ export default function Shell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
@@ -230,8 +233,9 @@ export default function Shell({
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setOpen(true)} aria-label="Open menu"><i className="fa-solid fa-bars" /></button>
           <Link href="/dashboard" className="topbar-brand" aria-label="AWIVEST — Investor Portal"><span className="dot" aria-hidden="true" />AWIVEST</Link>
-          <label className="search"><i className="fa-solid fa-magnifying-glass" /><input placeholder="Search holdings, forms, documents…" aria-label="Search" /></label>
+          <label className="search" onClick={() => setSearchOpen(true)}><i className="fa-solid fa-magnifying-glass" /><input placeholder="Search holdings, forms, documents…" aria-label="Search" readOnly onFocus={() => setSearchOpen(true)} style={{ cursor: "pointer" }} /></label>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="icon-btn search-btn" onClick={() => setSearchOpen(true)} aria-label="Search"><i className="fa-solid fa-magnifying-glass" /></button>
             <span className={`badge ${isActive ? "badge-good" : "badge-warn"} hide-sm`}>{profile?.status ? String(profile.status)[0].toUpperCase() + String(profile.status).slice(1) : "Member"}</span>
             <ThemeToggle />
             <NotificationBell userId={profile?.id} viewAllHref="/notifications" />
@@ -263,7 +267,10 @@ export default function Shell({
           </div>
         </header>
         <main className="view">{children}</main>
+        <div className="bottombar-spacer" aria-hidden="true" />
+        {!open && <BottomTabBar isActive={isActive} onMenu={() => setOpen(true)} />}
       </div>
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isActive={isActive} />
     </div>
   );
 }
