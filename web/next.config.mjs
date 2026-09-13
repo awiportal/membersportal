@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+import { withSentryConfig } from '@sentry/nextjs';
 
 // Derive the Supabase project host from the public URL so the Next.js image
 // optimizer is NOT an open proxy for arbitrary remote hosts (previously
@@ -69,10 +70,29 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
+  // Required on Next.js 14.x for instrumentation.ts (Sentry server/edge init).
+  experimental: { instrumentationHook: true },
   images: { remotePatterns: imageRemotePatterns },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Suppress the noisy source-map upload logs during build.
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Source maps upload only when SENTRY_AUTH_TOKEN is set (Vercel/CI). When it is
+  // absent the upload is skipped and the build still succeeds.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Route browser events through the app's own origin so the enforced CSP
+  // (connect-src 'self') and ad-blockers do not drop them.
+  tunnelRoute: '/monitoring',
+  widenClientFileUpload: true,
+  disableLogger: true,
+  // Skip source-map generation unless an upload token is set. Keeps builds
+  // light on constrained CI; on Vercel with SENTRY_AUTH_TOKEN the maps are
+  // generated and uploaded so stack traces stay readable.
+  sourcemaps: { disable: process.env.SENTRY_AUTH_TOKEN ? false : true },
+});
