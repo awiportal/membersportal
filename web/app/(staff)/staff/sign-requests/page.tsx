@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canViewStaffConsole, isAdmin, roleLabel } from '@/lib/roles';
+import { parseCustomFields } from '@/lib/customFields';
 import StaffSignRequests from './StaffSignRequests';
 
 export const dynamic = 'force-dynamic';
@@ -139,6 +140,8 @@ export default async function StaffSignRequestsPage() {
         title: r.title || 'Document',
         doc_type: r.doc_type || 'other',
         note: r.note || null,
+        // Custom fields this signer must fill in on their active step.
+        custom_fields: parseCustomFields(s.custom_fields),
       };
     });
 

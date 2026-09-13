@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendMemberEmail } from '@/lib/email';
+import { mergeCustomFieldValues, parseCustomFields, type CustomField } from '@/lib/customFields';
 
 // Shared logic for applying ONE ordered signature to a sequential sign request.
 // Plain module (NOT 'use server') so it can be imported by the portal server
@@ -20,6 +21,7 @@ export async function applySequentialSignature(opts: {
   signedDate?: string;
   image?: string | null;
   kind?: string | null;
+  customFieldValues?: Record<string, string>;
 }): Promise<{ ok?: true; error?: string; completed?: boolean }> {
   const admin = createAdminClient();
 
@@ -35,6 +37,17 @@ export async function applySequentialSignature(opts: {
     return { error: 'It is not your turn to sign this document yet.' };
   }
 
+  // Custom signer fields (additive): validate every required field has a value,
+  // then merge the submitted values into this step's field definitions. A step
+  // with no custom fields ([]) skips all of this and behaves exactly as before.
+  const fieldDefs = parseCustomFields((step as any).custom_fields);
+  let mergedFields: CustomField[] = fieldDefs;
+  if (fieldDefs.length > 0) {
+    const res = mergeCustomFieldValues(fieldDefs, opts.customFieldValues || {});
+    if (!res.ok) return { error: res.error };
+    mergedFields = res.merged;
+  }
+
   const nowIso = new Date().toISOString();
   const image = opts.image || null;
   const signedDate = opts.signedDate || todayInNairobi();
@@ -47,6 +60,7 @@ export async function applySequentialSignature(opts: {
       signed_date: signedDate,
       signature_image: image,
       signature_kind: image ? opts.kind || 'draw' : null,
+      custom_fields: mergedFields,
       status: 'signed',
       updated_at: nowIso,
     })

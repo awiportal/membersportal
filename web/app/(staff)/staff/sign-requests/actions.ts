@@ -7,6 +7,11 @@ import { createAdminClient, describeServiceKey } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/roles';
 import { sendMemberEmail } from '@/lib/email';
 import { applySequentialSignature } from '@/lib/sequentialSign';
+import {
+  parseCustomFieldDefsJson,
+  parseCustomFieldValuesJson,
+  type CustomField,
+} from '@/lib/customFields';
 import { DOC_TYPE_SET } from './docTypes';
 
 const BUCKET = 'sign-documents';
@@ -306,16 +311,31 @@ export async function sendSequentialSignRequest(
     rawFirstAudience === 'all' ? 'all' : rawFirstAudience === 'list' ? 'list' : 'individual';
   const first_role = String(formData.get('first_role') || 'investor').trim() || 'investor';
 
+  // Custom field DEFINITIONS the FIRST (member) signer must fill in. The same
+  // definitions apply to step 1 of every member's chain in a broadcast.
+  const first_custom_fields: CustomField[] = parseCustomFieldDefsJson(
+    String(formData.get('first_custom_fields') || '')
+  );
+
   // 3) Parse the DOWNSTREAM office-holder signers (the steps AFTER the member).
-  // `signer_ids` / `signer_roles` are parallel arrays; pair by index BEFORE
-  // dropping any blank rows so the id/role alignment is preserved.
+  // `signer_ids` / `signer_roles` / `signer_custom_fields` are parallel arrays;
+  // pair by index BEFORE dropping any blank rows so the alignment is preserved.
   const rawIds = formData.getAll('signer_ids').map((v) => String(v).trim());
   const rawRoles = formData.getAll('signer_roles').map((v) => String(v).trim());
-  const downstreamSigners: { signer_id: string; signer_role: string | null }[] = [];
+  const rawCustomFields = formData.getAll('signer_custom_fields').map((v) => String(v));
+  const downstreamSigners: {
+    signer_id: string;
+    signer_role: string | null;
+    custom_fields: CustomField[];
+  }[] = [];
   for (let i = 0; i < rawIds.length; i++) {
     const sid = rawIds[i];
     if (!sid) continue;
-    downstreamSigners.push({ signer_id: sid, signer_role: rawRoles[i] || null });
+    downstreamSigners.push({
+      signer_id: sid,
+      signer_role: rawRoles[i] || null,
+      custom_fields: parseCustomFieldDefsJson(rawCustomFields[i] || ''),
+    });
   }
   if (downstreamSigners.length < 1) {
     return { error: 'Add at least one office-holder to sign after the member.' };
@@ -412,6 +432,7 @@ export async function sendSequentialSignRequest(
       signer_id: memberId,
       signer_role: first_role || 'investor',
       status: 'active',
+      custom_fields: first_custom_fields,
     });
     downstreamSigners.forEach((s, i) => {
       allStepRows.push({
@@ -420,6 +441,7 @@ export async function sendSequentialSignRequest(
         signer_id: s.signer_id,
         signer_role: s.signer_role || null,
         status: 'pending',
+        custom_fields: s.custom_fields,
       });
     });
   }
@@ -479,7 +501,9 @@ export async function sendSequentialSignRequest(
 // step of a sequential request from the staff console. Delegates to the shared
 // helper (which verifies it is their active turn and advances the chain). Same
 // contract as the portal signSequentialStep; returns void.
-export async function signSequentialStep(formData: FormData): Promise<void> {
+export async function signSequentialStep(
+  formData: FormData
+): Promise<{ ok?: true; error?: string }> {
   const supabase = createClient();
   const {
     data: { user },
@@ -491,21 +515,26 @@ export async function signSequentialStep(formData: FormData): Promise<void> {
   const signature_image = String(formData.get('signature_image') || '') || null;
   const signature_kind = String(formData.get('signature_kind') || '') || null;
   const signed_date = String(formData.get('signed_date') || '').trim() || undefined;
+  const customFieldValues = parseCustomFieldValuesJson(
+    String(formData.get('custom_field_values') || '')
+  );
 
   if (!step_id || !signed_name) {
-    revalidatePath('/staff/sign-requests');
-    return;
+    return { error: 'Please enter your full name to sign.' };
   }
 
-  await applySequentialSignature({
+  const res = await applySequentialSignature({
     stepId: step_id,
     userId: user.id,
     signedName: signed_name,
     image: signature_image,
     kind: signature_kind,
     signedDate: signed_date,
+    customFieldValues,
   });
+  if (res.error) return { error: res.error };
 
   revalidatePath('/staff/sign-requests');
   revalidatePath('/sign-requests');
+  return { ok: true };
 }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SignaturePad from '@/components/SignaturePad';
 import { signSignRequest, signSequentialStep } from './actions';
+import type { CustomField } from '@/lib/customFields';
 
 const TYPE_LABEL: Record<string, string> = {
   enrollment: 'Enrollment',
@@ -127,17 +128,25 @@ function SequentialSignForm({ item }: { item: SequentialItem }) {
   const [hasSig, setHasSig] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const fields = item.custom_fields ?? [];
+  const [values, setValues] = useState<Record<string, string>>({});
 
   const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
-  const canSubmit = name.trim().length > 1 && hasSig && !busy;
+  const requiredOk = fields.every((f) => !f.required || (values[f.key] || '').trim().length > 0);
+  const canSubmit = name.trim().length > 1 && hasSig && requiredOk && !busy;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
     const fd = new FormData(e.currentTarget);
+    fd.set('custom_field_values', JSON.stringify(values));
     setBusy(true);
     try {
-      await signSequentialStep(fd);
+      const res = await signSequentialStep(fd);
+      if (res?.error) {
+        setMsg(res.error);
+        return;
+      }
       router.refresh();
     } catch (err: any) {
       setMsg(err?.message || 'Could not submit your signature. Please try again.');
@@ -172,6 +181,25 @@ function SequentialSignForm({ item }: { item: SequentialItem }) {
           <input className="input" type="date" name="signed_date" defaultValue={todayIso} />
         </div>
       </div>
+      {fields.length > 0 && (
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+          {fields.map((f) => (
+            <div className="field" style={{ marginBottom: 0 }} key={f.key}>
+              <label>
+                {f.label}
+                {f.required ? <span style={{ color: 'var(--lime2)' }}> *</span> : null}
+              </label>
+              <input
+                className="input"
+                type={f.type === 'date' ? 'date' : 'text'}
+                required={f.required}
+                value={values[f.key] || ''}
+                onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+      )}
       <div>
         <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}>Signature</label>
         <SignaturePad name="signature_image" onCapture={setHasSig} />

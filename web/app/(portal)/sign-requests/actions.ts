@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { applySequentialSignature } from '@/lib/sequentialSign';
+import { parseCustomFieldValuesJson } from '@/lib/customFields';
 
 // A member signs a document that was sent to them: typed full name plus a drawn
 // OR uploaded signature (data URL). The write goes through the service-role
@@ -83,7 +84,9 @@ export async function signSignRequest(formData: FormData): Promise<void> {
 // shared helper verifies it is their active turn, records the signature, then
 // advances the chain (or completes the request). Returns void, like
 // signSignRequest.
-export async function signSequentialStep(formData: FormData): Promise<void> {
+export async function signSequentialStep(
+  formData: FormData
+): Promise<{ ok?: true; error?: string }> {
   const supabase = createClient();
   const {
     data: { user },
@@ -95,21 +98,26 @@ export async function signSequentialStep(formData: FormData): Promise<void> {
   const signature_image = String(formData.get('signature_image') || '') || null;
   const signature_kind = String(formData.get('signature_kind') || '') || null;
   const signed_date = String(formData.get('signed_date') || '').trim() || undefined;
+  const customFieldValues = parseCustomFieldValuesJson(
+    String(formData.get('custom_field_values') || '')
+  );
 
   if (!step_id || !signed_name) {
-    revalidatePath('/sign-requests');
-    return;
+    return { error: 'Please enter your full name to sign.' };
   }
 
-  await applySequentialSignature({
+  const res = await applySequentialSignature({
     stepId: step_id,
     userId: user.id,
     signedName: signed_name,
     image: signature_image,
     kind: signature_kind,
     signedDate: signed_date,
+    customFieldValues,
   });
+  if (res.error) return { error: res.error };
 
   revalidatePath('/sign-requests');
   revalidatePath('/staff/sign-requests');
+  return { ok: true };
 }
