@@ -108,6 +108,39 @@ export async function buildSignedAgreementPdf(
     pending: !acc.signed_at && !acc.signature_image && !acc.signed_name,
   });
 
+  // ---- Countersignature card (Admin/Chairlady approval), when present ----
+  const hasCountersign = !!(acc.countersigned_at || acc.countersign_signature_image || acc.countersigned_name);
+  if (hasCountersign) {
+    let csProfile: any = null;
+    if (acc.countersigned_by) {
+      try {
+        const adminC = createAdminClient();
+        const { data: cs } = await adminC
+          .from("profiles")
+          .select("full_name, role")
+          .eq("id", acc.countersigned_by)
+          .maybeSingle();
+        csProfile = cs;
+      } catch {
+        csProfile = null;
+      }
+    }
+    const csRole = csProfile ? roleLabel(csProfile.role) : "";
+    const csLabel = "COUNTERSIGNATURE" + (csRole ? " - " + csRole.toUpperCase() : " - OFFICE");
+    const csLines = [
+      csRole,
+      "Approved and countersigned",
+      "Signed: " + fmtCertDateTime(acc.countersigned_at),
+      "Method: " + signatureMethodLabel(acc.countersign_signature_kind),
+    ];
+    y = await drawSignerCard(doc, page, fonts, width, y, csLabel, {
+      name: acc.countersigned_name || csProfile?.full_name || "Administrator",
+      lines: csLines,
+      img64: acc.countersign_signature_image,
+      pending: false,
+    });
+  }
+
   // ---- Footer ----
   y -= 4;
   draw(

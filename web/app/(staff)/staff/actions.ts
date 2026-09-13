@@ -40,7 +40,7 @@ function refresh(id: string) {
 export async function approveMember(formData: FormData) {
   const id = String(formData.get('id') || '');
   if (!id) return;
-  const { supabase } = await requireCap(canApproveMembers);
+  const { supabase, uid } = await requireCap(canApproveMembers);
 
   const { data: p } = await supabase.from('profiles').select('joined_at, email, full_name').eq('id', id).single();
   await supabase
@@ -50,6 +50,35 @@ export async function approveMember(formData: FormData) {
       joined_at: p?.joined_at ?? new Date().toISOString(),
     })
     .eq('id', id);
+
+  // Approval doubles as the Admin/Chairlady countersignature on the agreements
+  // this member signed during onboarding: record the approver identity + time on
+  // every not-yet-countersigned acceptance, plus an optional drawn signature from
+  // the approve form. Uses the service-role client because agreement_acceptances
+  // rows are owned by the member (RLS). Best-effort — never blocks activation.
+  try {
+    const csImage = String(formData.get('countersign_signature_image') || '');
+    const csKind = String(formData.get('countersign_signature_kind') || '') || 'draw';
+    const { data: approver } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', uid)
+      .single();
+    const admin = createAdminClient();
+    await admin
+      .from('agreement_acceptances')
+      .update({
+        countersigned_by: uid,
+        countersigned_name: (approver as any)?.full_name || 'AWIVEST',
+        countersigned_at: new Date().toISOString(),
+        countersign_signature_image: csImage || null,
+        countersign_signature_kind: csImage ? csKind : null,
+      })
+      .eq('member_id', id)
+      .is('countersigned_at', null);
+  } catch (e: any) {
+    console.error('approveMember: countersign step failed:', e?.message);
+  }
 
   // KYC is reviewed separately on the /staff/kyc screen (per-document Approve +
   // Mark verified). Activating the membership here must NOT touch the member's
