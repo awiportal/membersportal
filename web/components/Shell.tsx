@@ -232,7 +232,7 @@ export default function Shell({
       <div className="content">
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setOpen(true)} aria-label="Open menu"><i className="fa-solid fa-bars" /></button>
-          <Link href="/dashboard" className="topbar-brand" aria-label="AWIVEST — Investor Portal"><span className="dot" aria-hidden="true" />AWIVEST</Link>
+          <Link href="/dashboard" className="topbar-brand" aria-label="AWIVEST — Investor Portal"><img src="/awi-logo.png" alt="" width={26} height={26} className="topbar-logo" aria-hidden="true" />AWIVEST</Link>
           <label className="search" onClick={() => setSearchOpen(true)}><i className="fa-solid fa-magnifying-glass" /><input placeholder="Search holdings, forms, documents…" aria-label="Search" readOnly onFocus={() => setSearchOpen(true)} style={{ cursor: "pointer" }} /></label>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
             <button className="icon-btn search-btn" onClick={() => setSearchOpen(true)} aria-label="Search"><i className="fa-solid fa-magnifying-glass" /></button>
