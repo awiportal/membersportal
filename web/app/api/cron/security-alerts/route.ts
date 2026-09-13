@@ -4,6 +4,9 @@ import { sendMemberEmail } from '@/lib/email';
 import { isAuthorizedCron } from '@/lib/cron';
 import { roleLabel } from '@/lib/roles';
 
+// Admin-tier roles (Admin + Chairlady) — the roster we watch for new grants.
+const ADMIN_TIER = ['admin', 'superadmin'];
+
 // #180 — Real-time security / anomaly alerts.
 //
 // Runs on a Vercel Cron (every 15 min; see web/vercel.json). On each run it
