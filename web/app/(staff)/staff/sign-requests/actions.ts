@@ -1,10 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, describeServiceKey } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/roles';
 import { sendMemberEmail } from '@/lib/email';
+import { applySequentialSignature } from '@/lib/sequentialSign';
 import { DOC_TYPE_SET } from './docTypes';
 
 const BUCKET = 'sign-documents';
@@ -252,4 +254,182 @@ export async function countersignSignRequest(
 
   revalidatePath('/staff/sign-requests');
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Sequential (ordered) signing — ADDITIVE. Sends ONE document to an ordered list
+// of signers; each signs in turn and only the next signer is notified once the
+// previous has signed. Does not touch sendSignRequest / countersignSignRequest.
+// ---------------------------------------------------------------------------
+export async function sendSequentialSignRequest(
+  formData: FormData
+): Promise<{ ok?: true; error?: string }> {
+  const auth = await requireAdminUser();
+  if ('error' in auth) return { error: auth.error };
+
+  // 1) Validate the request fields (same rules as sendSignRequest).
+  const title = String(formData.get('title') || '').trim();
+  const doc_type = String(formData.get('doc_type') || 'other').trim();
+  const note = String(formData.get('note') || '').trim() || null;
+  const file = formData.get('file');
+
+  if (!title) return { error: 'Please give the document a title.' };
+  if (!DOC_TYPE_SET.has(doc_type)) return { error: 'Please choose a valid document type.' };
+  if (!(file instanceof File) || file.size === 0) return { error: 'Please choose a PDF to send.' };
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext !== 'pdf' || !(file.type || '').toLowerCase().includes('pdf')) {
+    return { error: 'Only PDF files are accepted. Please upload a PDF.' };
+  }
+  if (file.size > MAX_BYTES) return { error: 'That file is too large. The maximum size is 15 MB.' };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') {
+    return { error: 'That file does not look like a valid PDF. Please upload a PDF.' };
+  }
+
+  // 2) Parse the ordered signers. `signer_ids` and `signer_roles` are parallel
+  // arrays (index 0 = step 1). Pair by index BEFORE dropping any blank rows so
+  // the id/role alignment is preserved.
+  const rawIds = formData.getAll('signer_ids').map((v) => String(v).trim());
+  const rawRoles = formData.getAll('signer_roles').map((v) => String(v).trim());
+  const orderedSigners: { signer_id: string; signer_role: string | null }[] = [];
+  for (let i = 0; i < rawIds.length; i++) {
+    const sid = rawIds[i];
+    if (!sid) continue;
+    orderedSigners.push({ signer_id: sid, signer_role: rawRoles[i] || null });
+  }
+  if (orderedSigners.length < 2) {
+    return { error: 'A sequential signing flow needs at least two signers, in order.' };
+  }
+
+  // 3) Confirm the server actually holds a real service-role key.
+  const keyInfo = describeServiceKey();
+  if (!keyInfo.ok) {
+    console.error('sendSequentialSignRequest: service-role key not configured:', keyInfo.message);
+    return { error: 'Sending is not configured on the server yet. Please contact the administrator.' };
+  }
+
+  const admin = createAdminClient();
+
+  // 4) Ensure the private bucket and upload the PDF (identical to sendSignRequest).
+  try {
+    await admin.storage.createBucket(BUCKET, { public: false });
+  } catch {
+    /* bucket already exists — ignore */
+  }
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
+  const { error: upErr } = await admin.storage
+    .from(BUCKET)
+    .upload(path, bytes, { upsert: true, contentType: 'application/pdf' });
+  if (upErr) {
+    console.error('sendSequentialSignRequest: upload failed:', upErr.message);
+    return { error: 'Could not upload the file. Please try again.' };
+  }
+
+  // 5) Insert the request (flow 'sequential'), then one step per signer in order.
+  const { data: reqRow, error: insErr } = await admin
+    .from('sign_requests')
+    .insert({
+      title,
+      doc_type,
+      note,
+      file_path: path,
+      file_name: file.name,
+      mime_type: file.type || 'application/pdf',
+      audience: 'sequential',
+      flow: 'sequential',
+      created_by: auth.userId,
+    })
+    .select('id')
+    .single();
+  if (insErr || !reqRow) {
+    console.error('sendSequentialSignRequest: request insert failed:', insErr?.message);
+    return { error: 'Could not save the request. Please try again.' };
+  }
+
+  const stepRows = orderedSigners.map((s, i) => ({
+    request_id: reqRow.id,
+    step_order: i + 1,
+    signer_id: s.signer_id,
+    signer_role: s.signer_role,
+    status: i === 0 ? 'active' : 'pending',
+  }));
+  const { error: stepErr } = await admin.from('sign_request_steps').insert(stepRows);
+  if (stepErr) {
+    console.error('sendSequentialSignRequest: step insert failed:', stepErr.message);
+    return { error: 'Could not set up the signing order. Please try again.' };
+  }
+
+  // 6) Best-effort notify + email ONLY the first (active) signer.
+  try {
+    const firstSigner = orderedSigners[0].signer_id;
+    try {
+      await admin.from('notifications').insert({
+        member_id: firstSigner,
+        type: 'agreement',
+        title: 'Document awaiting your signature',
+        body: `It is your turn to sign: ${title}.`,
+      });
+    } catch (e: any) {
+      console.error('sendSequentialSignRequest: notify failed:', e?.message);
+    }
+    try {
+      const { data: p } = await admin
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', firstSigner)
+        .maybeSingle();
+      await sendMemberEmail({
+        to: (p as any)?.email,
+        subject: 'A document is waiting for your signature',
+        heading: 'Document awaiting your signature',
+        bodyHtml:
+          `<p style="margin:0 0 12px;">Hi ${(p as any)?.full_name || 'there'},</p>` +
+          `<p style="margin:0 0 12px;">A new document, <strong>${title}</strong>, needs to be signed in order and it is your turn first.</p>` +
+          `<p style="margin:0;">Please sign in and open <strong>Documents to Sign</strong> to review and sign it.</p>`,
+      });
+    } catch (e: any) {
+      console.error('sendSequentialSignRequest: email failed:', e?.message);
+    }
+  } catch (e: any) {
+    console.error('sendSequentialSignRequest: first-signer messaging failed:', e?.message);
+  }
+
+  revalidatePath('/staff/sign-requests');
+  return { ok: true };
+}
+
+// A staff office-holder (Secretary/Treasurer/Chairlady/etc.) signs THEIR ordered
+// step of a sequential request from the staff console. Delegates to the shared
+// helper (which verifies it is their active turn and advances the chain). Same
+// contract as the portal signSequentialStep; returns void.
+export async function signSequentialStep(formData: FormData): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const step_id = String(formData.get('step_id') || '').trim();
+  const signed_name = String(formData.get('signed_name') || '').trim();
+  const signature_image = String(formData.get('signature_image') || '') || null;
+  const signature_kind = String(formData.get('signature_kind') || '') || null;
+  const signed_date = String(formData.get('signed_date') || '').trim() || undefined;
+
+  if (!step_id || !signed_name) {
+    revalidatePath('/staff/sign-requests');
+    return;
+  }
+
+  await applySequentialSignature({
+    stepId: step_id,
+    userId: user.id,
+    signedName: signed_name,
+    image: signature_image,
+    kind: signature_kind,
+    signedDate: signed_date,
+  });
+
+  revalidatePath('/staff/sign-requests');
+  revalidatePath('/sign-requests');
 }

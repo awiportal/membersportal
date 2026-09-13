@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canViewStaffConsole, isAdmin } from '@/lib/roles';
+import { canViewStaffConsole, isAdmin, roleLabel } from '@/lib/roles';
 import StaffSignRequests from './StaffSignRequests';
 
 export const dynamic = 'force-dynamic';
@@ -19,11 +19,14 @@ export default async function StaffSignRequestsPage() {
   // their own rows).
   const admin = createAdminClient();
 
+  // ---- Individual flow (unchanged) ----
   const { data: reqRows } = await admin
     .from('sign_requests')
     .select('*')
     .order('created_at', { ascending: false });
-  const requests = ((reqRows ?? []) as any[]);
+  const allRequests = ((reqRows ?? []) as any[]);
+  // The individual list excludes sequential requests (those render separately).
+  const requests = allRequests.filter((r) => (r.flow || 'individual') !== 'sequential');
   const reqIds = requests.map((r) => r.id);
 
   const { data: rcptRows } = reqIds.length
@@ -38,7 +41,7 @@ export default async function StaffSignRequestsPage() {
   const memberById: Record<string, any> = {};
   ((memRows ?? []) as any[]).forEach((m) => (memberById[m.id] = m));
 
-  // Active members for the recipient picker.
+  // Active members for the (individual) recipient picker.
   const { data: activeRows } = await admin
     .from('profiles')
     .select('id, full_name, email')
@@ -67,7 +70,94 @@ export default async function StaffSignRequestsPage() {
     recipients: recipientsByReq[r.id] || [],
   }));
 
+  // ---- Sequential flow (additive) ----
+  const seqRequests = allRequests.filter((r) => (r.flow || 'individual') === 'sequential');
+  const seqIds = seqRequests.map((r) => r.id);
+
+  const { data: stepRows } = seqIds.length
+    ? await admin
+        .from('sign_request_steps')
+        .select('*')
+        .in('request_id', seqIds)
+        .order('step_order', { ascending: true })
+    : { data: [] as any[] };
+  const steps = ((stepRows ?? []) as any[]);
+
+  const stepSignerIds = Array.from(new Set(steps.map((s) => s.signer_id).filter(Boolean)));
+  const { data: stepProfRows } = stepSignerIds.length
+    ? await admin.from('profiles').select('id, full_name, email, role').in('id', stepSignerIds)
+    : { data: [] as any[] };
+  const stepProfById: Record<string, any> = {};
+  ((stepProfRows ?? []) as any[]).forEach((p) => (stepProfById[p.id] = p));
+
+  const stepsByReq: Record<string, any[]> = {};
+  steps.forEach((s) => {
+    const p = stepProfById[s.signer_id] || {};
+    const item = {
+      id: s.id,
+      step_order: s.step_order,
+      signer_id: s.signer_id,
+      signer_role: s.signer_role,
+      status: s.status,
+      signed_name: s.signed_name,
+      signed_at: s.signed_at,
+      signer_name: p.full_name || 'Signer',
+      signer_email: p.email || '',
+      signer_role_label: roleLabel(p.role),
+    };
+    (stepsByReq[s.request_id] = stepsByReq[s.request_id] || []).push(item);
+  });
+
+  const sequentialRequests = seqRequests.map((r) => ({
+    id: r.id,
+    title: r.title,
+    doc_type: r.doc_type,
+    note: r.note,
+    created_at: r.created_at,
+    completed_at: r.completed_at || null,
+    steps: (stepsByReq[r.id] || []).slice().sort((a, b) => a.step_order - b.step_order),
+  }));
+
+  // Steps where the CURRENT staff user is the active signer (awaiting them).
+  const seqReqById: Record<string, any> = {};
+  seqRequests.forEach((r) => (seqReqById[r.id] = r));
+  const myActiveSteps = steps
+    .filter((s) => s.signer_id === user.id && s.status === 'active')
+    .map((s) => {
+      const r = seqReqById[s.request_id] || {};
+      const total = (stepsByReq[s.request_id] || []).length;
+      return {
+        step_id: s.id,
+        request_id: s.request_id,
+        step_order: s.step_order,
+        total,
+        signer_role: s.signer_role,
+        title: r.title || 'Document',
+        doc_type: r.doc_type || 'other',
+        note: r.note || null,
+      };
+    });
+
+  // Profiles for the ordered-signer picker (any role, so office-holders appear).
+  const { data: pickRows } = await admin
+    .from('profiles')
+    .select('id, full_name, email, role')
+    .order('full_name', { ascending: true });
+  const pickerProfiles = ((pickRows ?? []) as any[]).map((p) => ({
+    id: p.id,
+    full_name: p.full_name,
+    email: p.email,
+    role: p.role,
+  }));
+
   return (
-    <StaffSignRequests requests={data} activeMembers={activeMembers} canSend={isAdmin((me as any)?.role)} />
+    <StaffSignRequests
+      requests={data}
+      activeMembers={activeMembers}
+      canSend={isAdmin((me as any)?.role)}
+      sequentialRequests={sequentialRequests}
+      myActiveSteps={myActiveSteps}
+      pickerProfiles={pickerProfiles}
+    />
   );
 }
