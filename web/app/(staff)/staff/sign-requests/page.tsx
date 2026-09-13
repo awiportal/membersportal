@@ -115,6 +115,10 @@ export default async function StaffSignRequestsPage() {
     note: r.note,
     created_at: r.created_at,
     completed_at: r.completed_at || null,
+    // batch_id groups a broadcast fan-out (one chain per member); audience drives
+    // the "All active members" / "Selected members" label on the grouped card.
+    batch_id: r.batch_id || null,
+    audience: r.audience || null,
     steps: (stepsByReq[r.id] || []).slice().sort((a, b) => a.step_order - b.step_order),
   }));
 
