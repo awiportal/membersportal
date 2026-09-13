@@ -115,6 +115,16 @@ export default function StaffShell({
               <i className="fa-solid fa-lock" style={{ marginLeft: 'auto', fontSize: 11 }} />
             </div>
           )}
+          {isAdmin(profile?.role) ? (
+            <Link href="/staff/security" className={`nav-item ${pathname.startsWith('/staff/security') ? 'active' : ''}`} onClick={() => setOpen(false)}>
+              <i className="fa-solid fa-shield-halved" /><span>Security</span>
+            </Link>
+          ) : (
+            <div className="nav-item" style={{ opacity: 0.45, cursor: 'not-allowed' }} title="Admin / Chairlady only">
+              <i className="fa-solid fa-shield-halved" /><span>Security</span>
+              <i className="fa-solid fa-lock" style={{ marginLeft: 'auto', fontSize: 11 }} />
+            </div>
+          )}
           <Link href="/staff/settings" className={`nav-item ${pathname.startsWith('/staff/settings') ? 'active' : ''}`} onClick={() => setOpen(false)}>
             <i className="fa-solid fa-gear" /><span>Settings</span>
           </Link>
