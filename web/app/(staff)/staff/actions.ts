@@ -102,7 +102,7 @@ export async function rejectMember(formData: FormData) {
 export async function setMemberStatus(formData: FormData) {
   const id = String(formData.get('id') || '');
   const status = String(formData.get('status') || '');
-  if (!id || !['active', 'inactive', 'archived', 'pending'].includes(status)) return;
+  if (!id || !['active', 'inactive', 'archived', 'pending', 'dormant'].includes(status)) return;
   const { supabase } = await requireCap(canApproveMembers);
   await supabase.from('profiles').update({ status }).eq('id', id);
   refresh(id);
