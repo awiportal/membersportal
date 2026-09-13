@@ -66,3 +66,65 @@ export function verifyTwoFactorToken(token: string | undefined | null, userId: s
   if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// One-time sign-in code (emailed second factor) — app-generated, delivered via
+// our own Resend transactional email (lib/email) instead of Supabase's built-in
+// auth email, which is hard-capped on the default SMTP. The code itself is never
+// stored server-side or in the cookie; only an HMAC that binds the code to the
+// user and an expiry, so the challenge cookie cannot be brute-forced without the
+// server signing secret.
+// ---------------------------------------------------------------------------
+
+export const SIGNIN_CODE_TTL_SECONDS = 60 * 10; // 10 minutes
+
+/** A cryptographically-random 6-digit sign-in code (zero-padded). */
+export function generateSigninCode(): string {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+/**
+ * Issue an opaque challenge token: base64url(uid:exp).hmac(secret, body:code).
+ * The code is mixed into the HMAC with the server secret, so it can be neither
+ * read nor brute-forced from the cookie by anyone without the secret.
+ */
+export function issueSigninCodeChallenge(
+  userId: string,
+  code: string,
+  ttlSeconds = SIGNIN_CODE_TTL_SECONDS,
+): string {
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const body = Buffer.from(`${userId}:${exp}`).toString('base64url');
+  const sig = crypto.createHmac('sha256', signingKey()).update(`${body}:${code}`).digest('hex');
+  return `${body}.${sig}`;
+}
+
+/** Verify an entered code against a challenge token for this user. */
+export function verifySigninCodeChallenge(
+  token: string | undefined | null,
+  userId: string,
+  code: string,
+): boolean {
+  if (!token || !code) return false;
+  const dot = token.lastIndexOf('.');
+  if (dot <= 0) return false;
+  const body = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expected = crypto.createHmac('sha256', signingKey()).update(`${body}:${code}`).digest('hex');
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  let payload: string;
+  try {
+    payload = Buffer.from(body, 'base64url').toString('utf8');
+  } catch {
+    return false;
+  }
+  const sep = payload.lastIndexOf(':');
+  if (sep <= 0) return false;
+  const uid = payload.slice(0, sep);
+  const exp = Number(payload.slice(sep + 1));
+  if (uid !== userId) return false;
+  if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
+  return true;
+}
