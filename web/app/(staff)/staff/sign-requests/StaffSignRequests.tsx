@@ -48,6 +48,8 @@ type SeqRequest = {
   note?: string | null;
   created_at?: string | null;
   completed_at?: string | null;
+  batch_id?: string | null;
+  audience?: string | null;
   steps: SeqStep[];
 };
 type MyActiveStep = {
@@ -291,8 +293,10 @@ function SendPanel({ activeMembers }: { activeMembers: Member[] }) {
 // ---------------------------------------------------------------------------
 // Sequential (ordered) send panel (Admin/Chairlady only)
 // ---------------------------------------------------------------------------
+// The DOWNSTREAM office sequence — the signers AFTER the member. The member is
+// step 1 of every chain (signing as "Investor") and is chosen separately via the
+// first-signer audience control, so it is NOT part of these presets.
 const SEQ_ROLE_PRESETS: { label: string; role: string }[] = [
-  { label: 'Investor', role: 'member' },
   { label: 'Secretary', role: 'secretary' },
   { label: 'Treasurer', role: 'treasurer' },
   { label: 'Chairlady', role: 'superadmin' },
@@ -306,16 +310,36 @@ function nextUid() {
   return `seqstep-${seqUidCounter}`;
 }
 
-function SequentialSendPanel({ pickerProfiles }: { pickerProfiles: PickerProfile[] }) {
+function SequentialSendPanel({
+  activeMembers,
+  pickerProfiles,
+}: {
+  activeMembers: Member[];
+  pickerProfiles: PickerProfile[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
 
+  // First signer (step 1 of every chain) is a member, signing as "Investor".
+  const [firstAudience, setFirstAudience] = useState<'all' | 'list' | 'individual'>('individual');
+  const [individualId, setIndividualId] = useState('');
+  const [pickQuery, setPickQuery] = useState('');
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+
+  const pickedCount = Object.values(picked).filter(Boolean).length;
+  const shownMembers = activeMembers.filter((m) => {
+    if (!pickQuery.trim()) return true;
+    const q = pickQuery.toLowerCase();
+    return (m.full_name || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q);
+  });
+
   const defaultSignerFor = (role: string) => {
     const found = pickerProfiles.find((p) => p.role === role);
     return found ? found.id : '';
   };
+  // Downstream office-holder steps only (the member is added server-side as step 1).
   const makeInitial = (): StepDraft[] =>
     SEQ_ROLE_PRESETS.map((r) => ({ uid: nextUid(), roleLabel: r.label, signerId: defaultSignerFor(r.role) }));
 
@@ -331,7 +355,7 @@ function SequentialSendPanel({ pickerProfiles }: { pickerProfiles: PickerProfile
     });
   }
   function removeStep(idx: number) {
-    setSteps((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== idx)));
+    setSteps((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
   }
   function addStep() {
     setSteps((prev) => [...prev, { uid: nextUid(), roleLabel: 'Signer', signerId: '' }]);
@@ -358,12 +382,29 @@ function SequentialSendPanel({ pickerProfiles }: { pickerProfiles: PickerProfile
       setMsg('Please choose a PDF to send.');
       return;
     }
-    const chosen = steps.filter((s) => s.signerId);
-    if (chosen.length < 2) {
-      setMsg('Add at least two signers, in the order they should sign.');
+    // Validate the first-signer audience.
+    if (firstAudience === 'list' && pickedCount === 0) {
+      setMsg('Pick at least one member, or choose "All active members".');
       return;
     }
-    // Rebuild the ordered signer fields from React state (source of truth for order).
+    if (firstAudience === 'individual' && !individualId) {
+      setMsg('Choose the member who signs first.');
+      return;
+    }
+    const chosen = steps.filter((s) => s.signerId);
+    if (chosen.length < 1) {
+      setMsg('Add at least one office-holder to sign after the member.');
+      return;
+    }
+    // Rebuild the audience + ordered signer fields from React state (source of truth).
+    fd.set('first_audience', firstAudience);
+    fd.set('first_role', 'investor');
+    fd.delete('first_member_ids');
+    if (firstAudience === 'list') {
+      for (const m of activeMembers) if (picked[m.id]) fd.append('first_member_ids', m.id);
+    } else if (firstAudience === 'individual') {
+      fd.append('first_member_ids', individualId);
+    }
     fd.delete('signer_ids');
     fd.delete('signer_roles');
     for (const s of steps) {
@@ -378,6 +419,10 @@ function SequentialSendPanel({ pickerProfiles }: { pickerProfiles: PickerProfile
         setMsg(res.error);
         return;
       }
+      setFirstAudience('individual');
+      setIndividualId('');
+      setPicked({});
+      setPickQuery('');
       setSteps(makeInitial());
       setFormKey((k) => k + 1);
       router.refresh();
@@ -420,10 +465,124 @@ function SequentialSendPanel({ pickerProfiles }: { pickerProfiles: PickerProfile
         <textarea className="input" name="note" rows={2} placeholder="A short message shown with the request" />
       </div>
 
+      {/* First signer: who signs step 1 of each chain (as Investor). Choosing more
+          than one member broadcasts the document — each member gets their own chain. */}
       <div className="field">
-        <label>Signing order</label>
+        <label>First signer (the member)</label>
         <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-          Each person signs in turn. The next signer is only notified once the previous one has signed.
+          Step 1 of each chain is the member, signing as <strong>Investor</strong>. Choosing more than one member
+          sends the document to every one of them — each gets their own chain through the office sequence below.
+        </div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+            <input
+              type="radio"
+              name="first_audience_ui"
+              value="all"
+              checked={firstAudience === 'all'}
+              onChange={() => setFirstAudience('all')}
+            />
+            <span>All active members</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+            <input
+              type="radio"
+              name="first_audience_ui"
+              value="list"
+              checked={firstAudience === 'list'}
+              onChange={() => setFirstAudience('list')}
+            />
+            <span>Selected members{firstAudience === 'list' && pickedCount > 0 ? ` (${pickedCount})` : ''}</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+            <input
+              type="radio"
+              name="first_audience_ui"
+              value="individual"
+              checked={firstAudience === 'individual'}
+              onChange={() => setFirstAudience('individual')}
+            />
+            <span>A specific member</span>
+          </label>
+        </div>
+      </div>
+
+      {firstAudience === 'individual' && (
+        <div className="field">
+          <label>Choose the member</label>
+          <select className="input" value={individualId} onChange={(e) => setIndividualId(e.target.value)}>
+            <option value="">Choose a member…</option>
+            {activeMembers.map((m) => (
+              <option key={m.id} value={m.id}>
+                {(m.full_name || 'Member') + (m.email ? ` — ${m.email}` : '')}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {firstAudience === 'list' && (
+        <div className="field">
+          <label>Choose members</label>
+          {activeMembers.length === 0 ? (
+            <div className="muted" style={{ fontSize: 12 }}>
+              No active members found.
+            </div>
+          ) : (
+            <>
+              <input
+                className="input"
+                value={pickQuery}
+                onChange={(e) => setPickQuery(e.target.value)}
+                placeholder="Search name or email"
+                style={{ marginBottom: 8 }}
+              />
+              <div
+                style={{
+                  maxHeight: 220,
+                  overflowY: 'auto',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 10,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                {shownMembers.map((m) => (
+                  <label
+                    key={m.id}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13.5, padding: '4px 2px' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!picked[m.id]}
+                      onChange={(e) => setPicked((prev) => ({ ...prev, [m.id]: e.target.checked }))}
+                    />
+                    <span style={{ fontWeight: 600 }}>{m.full_name || 'Member'}</span>
+                    {m.email ? (
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        {m.email}
+                      </span>
+                    ) : null}
+                  </label>
+                ))}
+                {shownMembers.length === 0 && (
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    No members match &quot;{pickQuery}&quot;.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="field">
+        <label>Office sequence (signs after the member)</label>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+          These office-holders sign in turn AFTER the member. The next signer is only notified once the previous one
+          has signed.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {steps.map((s, i) => (
@@ -487,7 +646,7 @@ function SequentialSendPanel({ pickerProfiles }: { pickerProfiles: PickerProfile
                   type="button"
                   className="btn btn-ghost btn-sm"
                   onClick={() => removeStep(i)}
-                  disabled={steps.length <= 2}
+                  disabled={steps.length <= 1}
                   title="Remove signer"
                 >
                   <i className="fa-solid fa-xmark" />
@@ -572,7 +731,7 @@ function CreateArea({ activeMembers, pickerProfiles }: { activeMembers: Member[]
       {flow === 'individual' ? (
         <SendPanel activeMembers={activeMembers} />
       ) : (
-        <SequentialSendPanel pickerProfiles={pickerProfiles} />
+        <SequentialSendPanel activeMembers={activeMembers} pickerProfiles={pickerProfiles} />
       )}
     </div>
   );
@@ -1060,6 +1219,159 @@ function SequentialRequestCard({ r }: { r: SeqRequest }) {
 }
 
 // ---------------------------------------------------------------------------
+// Group sequential requests into broadcasts. Requests sharing a batch_id belong
+// to one broadcast (one chain per member); a null batch_id is a standalone chain.
+// Order is preserved from the incoming (created_at desc) list.
+// ---------------------------------------------------------------------------
+type SeqGroup = { batch_id: string | null; chains: SeqRequest[] };
+
+function groupSequential(reqs: SeqRequest[]): SeqGroup[] {
+  const out: SeqGroup[] = [];
+  const byBatch: Record<string, SeqGroup> = {};
+  for (const r of reqs) {
+    const b = r.batch_id || null;
+    if (!b) {
+      out.push({ batch_id: null, chains: [r] });
+      continue;
+    }
+    if (!byBatch[b]) {
+      byBatch[b] = { batch_id: b, chains: [] };
+      out.push(byBatch[b]);
+    }
+    byBatch[b].chains.push(r);
+  }
+  return out;
+}
+
+function audienceLabel(a?: string | null) {
+  if (a === 'all') return 'All active members';
+  if (a === 'list') return 'Selected members';
+  return 'Members';
+}
+
+// One card for a broadcast batch: rollup "M of N members completed", with an
+// expandable list of each member's chain (status + download when complete).
+function SequentialBatchCard({ chains }: { chains: SeqRequest[] }) {
+  const [open, setOpen] = useState(false);
+  const first = chains[0] || ({} as SeqRequest);
+  const N = chains.length;
+  const M = chains.filter((c) => !!c.completed_at).length;
+  const pct = N ? Math.round((M / N) * 100) : 0;
+
+  return (
+    <div style={{ padding: 14, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 11,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'var(--surface)',
+            color: 'var(--purple2)',
+          }}
+        >
+          <i className="fa-solid fa-people-group" />
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 600 }}>{first.title}</div>
+          <div className="muted" style={{ fontSize: 12 }}>
+            {docTypeLabel(first.doc_type)} · {audienceLabel(first.audience)}
+            {first.created_at ? ` · Sent ${fmtDate(first.created_at)}` : ''}
+          </div>
+          {first.note ? (
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              {first.note}
+            </div>
+          ) : null}
+        </div>
+        <div style={{ textAlign: 'right', minWidth: 120 }}>
+          {M === N ? (
+            <span className="badge badge-good" style={{ fontSize: 11 }}>
+              <i className="fa-solid fa-circle-check" /> All completed
+            </span>
+          ) : (
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
+              {M}/{N}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Rollup progress */}
+      <div style={{ marginTop: 12, height: 8, borderRadius: 999, background: 'var(--surface)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--green, #61CE70)', borderRadius: 999, transition: 'width .3s' }} />
+      </div>
+      <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+        {M} of {N} members completed
+      </div>
+
+      <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setOpen((v) => !v)}>
+        <i className={`fa-solid fa-chevron-${open ? 'up' : 'down'}`} /> {open ? 'Hide member chains' : `Show member chains (${N})`}
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {chains.map((c) => {
+            const memberStep = c.steps.find((s) => s.step_order === 1) || c.steps[0];
+            const memberName = memberStep?.signed_name || memberStep?.signer_name || 'Member';
+            const total = c.steps.length;
+            const signed = c.steps.filter((s) => s.status === 'signed').length;
+            const active = c.steps.find((s) => s.status === 'active');
+            const activeRole = active ? active.signer_role || active.signer_role_label || 'the next signer' : null;
+            const cCompleted = !!c.completed_at;
+            return (
+              <div
+                key={c.id}
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{memberName}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {cCompleted
+                      ? 'Fully signed'
+                      : `${signed} of ${total} signed${activeRole ? ` — awaiting ${activeRole}` : ''}`}
+                  </div>
+                </div>
+                {cCompleted ? (
+                  <span className="badge badge-good" style={{ fontSize: 11 }}>
+                    <i className="fa-solid fa-circle-check" /> Completed
+                  </span>
+                ) : (
+                  <span className="badge badge-info" style={{ fontSize: 11 }}>
+                    <i className="fa-regular fa-clock" /> In progress
+                  </span>
+                )}
+                {cCompleted && (
+                  <a
+                    href={`/staff/sign-requests/${c.id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-ghost btn-sm"
+                  >
+                    <i className="fa-solid fa-download" /> Download
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 export default function StaffSignRequests({
   requests,
   activeMembers,
@@ -1121,9 +1433,13 @@ export default function StaffSignRequests({
         <div className="card card-pad" style={{ marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Ordered (sequential) documents</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {sequentialRequests.map((r) => (
-              <SequentialRequestCard key={r.id} r={r} />
-            ))}
+            {groupSequential(sequentialRequests).map((g) =>
+              g.batch_id ? (
+                <SequentialBatchCard key={g.batch_id} chains={g.chains} />
+              ) : (
+                <SequentialRequestCard key={g.chains[0].id} r={g.chains[0]} />
+              )
+            )}
           </div>
         </div>
       )}
