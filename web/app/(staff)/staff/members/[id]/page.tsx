@@ -9,6 +9,7 @@ import { pandadocConfigured, getEsignSummary } from '@/lib/pandadoc';
 import { approveMember, rejectMember, setMemberStatus, linkFundRecord, unlinkFundRecord, recordWithdrawal } from '../../actions';
 import OneOffAgreement from './OneOffAgreement';
 import RelationsEditor from './RelationsEditor';
+import ExitSettlement from './ExitSettlement';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
   // unlinked register rows the office can match this login to. Staff read every
   // row via the member_finances is_staff() RLS policy.
   const [{ data: linkedFinance }, { data: unlinkedFinance }] = await Promise.all([
-    supabase.from('member_finances').select('member_no, full_name, current_balance').eq('member_id', id).maybeSingle(),
+    supabase.from('member_finances').select('member_no, full_name, current_balance, withdrawal').eq('member_id', id).maybeSingle(),
     supabase.from('member_finances').select('member_no, full_name, current_balance').is('member_id', null).order('member_no', { ascending: true }),
   ]);
 
@@ -67,6 +68,15 @@ export default async function MemberDetail({ params }: { params: { id: string } 
   const dividendsList = (dividendRows ?? []) as any[];
   const welfareClaims = (welfareRows ?? []) as any[];
   const withdrawalsList = (withdrawalRows ?? []) as any[];
+
+  // Latest exit settlement for this member (#162), if any.
+  const { data: exitRow } = await supabase
+    .from('exit_settlements')
+    .select('*')
+    .eq('member_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const docsWithUrls = await Promise.all(
     ((docs ?? []) as any[]).map(async (d) => {
@@ -95,7 +105,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
   };
 
   const statusCls =
-    m.status === 'active' ? 'badge-good' : m.status === 'pending' ? 'badge-warn' : m.status === 'archived' ? 'badge-purple' : 'badge-bad';
+    m.status === 'active' ? 'badge-good' : m.status === 'pending' || m.status === 'dormant' ? 'badge-warn' : m.status === 'archived' ? 'badge-purple' : 'badge-bad';
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -120,7 +130,7 @@ export default async function MemberDetail({ params }: { params: { id: string } 
         ) : (
         <>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          {m.status !== 'active' && (
+          {m.status !== 'active' && m.status !== 'dormant' && (
             <form action={approveMember}>
               <input type="hidden" name="id" value={m.id} />
               <button className="btn btn-lime" type="submit"><i className="fa-solid fa-check" /> Approve &amp; activate</button>
@@ -138,6 +148,20 @@ export default async function MemberDetail({ params }: { params: { id: string } 
               <input type="hidden" name="id" value={m.id} />
               <input type="hidden" name="status" value="active" />
               <button className="btn btn-ghost" type="submit"><i className="fa-solid fa-user-check" /> Reactivate</button>
+            </form>
+          )}
+          {(m.status === 'active' || m.status === 'inactive') && (
+            <form action={setMemberStatus}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="status" value="dormant" />
+              <button className="btn btn-ghost" type="submit"><i className="fa-solid fa-user-clock" /> Mark dormant</button>
+            </form>
+          )}
+          {m.status === 'dormant' && (
+            <form action={setMemberStatus}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="status" value="active" />
+              <button className="btn btn-ghost" type="submit"><i className="fa-solid fa-user-check" /> Reactivate from dormant</button>
             </form>
           )}
         </div>
@@ -304,6 +328,8 @@ export default async function MemberDetail({ params }: { params: { id: string } 
       </div>
 
       <RelationsEditor memberId={m.id} relations={relations ?? []} />
+
+      <ExitSettlement memberId={m.id} settlement={exitRow ?? null} snapshot={{ current_balance: Number(linkedFinance?.current_balance || 0), withdrawal: Number((linkedFinance as any)?.withdrawal || 0) }} viewerRole={viewerRole} />
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
         {/* Personal */}
