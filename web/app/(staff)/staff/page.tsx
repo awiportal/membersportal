@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import MembersBrowser from "./MembersBrowser";
+import { getSessionProfile } from "@/lib/session";
+import { isTreasurer, isAuditor } from "@/lib/roles";
+import TreasurerDashboard from "./TreasurerDashboard";
+import AuditorDashboard from "./AuditorDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +22,15 @@ const HUB: { href: string; ic: string; t: string; d: string; lime?: boolean }[] 
 ];
 
 export default async function StaffHome() {
+  // Tailored committee-role landings (#155). The Treasurer gets a financial-ops
+  // dashboard and the Auditor a read-only oversight dashboard; every other staff
+  // role (admin/superadmin/secretary) keeps the shared console hub below,
+  // unchanged. Role routing uses the shared helpers in lib/roles.
+  const me = await getSessionProfile();
+  const role = (me?.role ?? null) as string | null;
+  if (isTreasurer(role)) return <TreasurerDashboard role={role} title={me?.title ?? null} />;
+  if (isAuditor(role)) return <AuditorDashboard role={role} title={me?.title ?? null} />;
+
   const supabase = createClient();
   const { data: members } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
   const all = (members ?? []) as any[];

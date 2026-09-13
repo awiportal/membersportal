@@ -25,6 +25,15 @@ export function isChairlady(role?: string | null) {
 export function isAuditor(role?: string | null) {
   return role === 'auditor';
 }
+
+// Treasurer is a normal staff role focused on financial operations. It is part
+// of STAFF_ROLES (so isStaff() is true and its write guards are unchanged); this
+// helper just names the check used to route the treasurer to their tailored
+// landing dashboard (#155). It does not grant any new capability.
+export function isTreasurer(role?: string | null) {
+  return role === 'treasurer';
+}
+
 export function canViewStaffConsole(role?: string | null) {
   return isStaff(role) || isAuditor(role);
 }
