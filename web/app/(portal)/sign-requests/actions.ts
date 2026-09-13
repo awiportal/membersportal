@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { applySequentialSignature } from '@/lib/sequentialSign';
 
 // A member signs a document that was sent to them: typed full name plus a drawn
 // OR uploaded signature (data URL). The write goes through the service-role
@@ -76,4 +77,39 @@ export async function signSignRequest(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/sign-requests');
+}
+
+// A participant signs THEIR ordered step of a sequential sign request. The
+// shared helper verifies it is their active turn, records the signature, then
+// advances the chain (or completes the request). Returns void, like
+// signSignRequest.
+export async function signSequentialStep(formData: FormData): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const step_id = String(formData.get('step_id') || '').trim();
+  const signed_name = String(formData.get('signed_name') || '').trim();
+  const signature_image = String(formData.get('signature_image') || '') || null;
+  const signature_kind = String(formData.get('signature_kind') || '') || null;
+  const signed_date = String(formData.get('signed_date') || '').trim() || undefined;
+
+  if (!step_id || !signed_name) {
+    revalidatePath('/sign-requests');
+    return;
+  }
+
+  await applySequentialSignature({
+    stepId: step_id,
+    userId: user.id,
+    signedName: signed_name,
+    image: signature_image,
+    kind: signature_kind,
+    signedDate: signed_date,
+  });
+
+  revalidatePath('/sign-requests');
+  revalidatePath('/staff/sign-requests');
 }

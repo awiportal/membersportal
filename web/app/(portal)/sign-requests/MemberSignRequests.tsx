@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SignaturePad from '@/components/SignaturePad';
-import { signSignRequest } from './actions';
+import { signSignRequest, signSequentialStep } from './actions';
 
 const TYPE_LABEL: Record<string, string> = {
   enrollment: 'Enrollment',
@@ -24,6 +24,22 @@ type Item = {
   member_signed_at?: string | null;
   countersigned_name?: string | null;
   countersigned_at?: string | null;
+};
+
+type SequentialItem = {
+  request_id: string;
+  step_id: string;
+  title: string;
+  doc_type: string;
+  note?: string | null;
+  completed_at?: string | null;
+  my_status: string;
+  my_step_order?: number | null;
+  my_signed_at?: string | null;
+  my_turn: boolean;
+  total: number;
+  signed: number;
+  active_role_label?: string | null;
 };
 
 function fmtDateTime(v?: string | null) {
@@ -104,7 +120,162 @@ function SignForm({ item }: { item: Item }) {
   );
 }
 
-export default function MemberSignRequests({ items }: { items: Item[] }) {
+// A participant signs THEIR ordered step of a sequential document.
+function SequentialSignForm({ item }: { item: SequentialItem }) {
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [hasSig, setHasSig] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
+  const canSubmit = name.trim().length > 1 && hasSig && !busy;
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMsg(null);
+    const fd = new FormData(e.currentTarget);
+    setBusy(true);
+    try {
+      await signSequentialStep(fd);
+      router.refresh();
+    } catch (err: any) {
+      setMsg(err?.message || 'Could not submit your signature. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} style={{ marginTop: 14, display: 'grid', gap: 14 }}>
+      <input type="hidden" name="step_id" value={item.step_id} />
+      <input type="hidden" name="signature_kind" value="draw" />
+      {msg && (
+        <div className="badge badge-bad">
+          <i className="fa-solid fa-circle-exclamation" /> {msg}
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Full name</label>
+          <input
+            className="input"
+            name="signed_name"
+            placeholder="Your full name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Date</label>
+          <input className="input" type="date" name="signed_date" defaultValue={todayIso} />
+        </div>
+      </div>
+      <div>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}>Signature</label>
+        <SignaturePad name="signature_image" onCapture={setHasSig} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <button className="btn btn-lime btn-sm" type="submit" disabled={!canSubmit}>
+          <i className="fa-solid fa-signature" /> {busy ? 'Submitting…' : 'Sign & submit'}
+        </button>
+        <span className="muted" style={{ fontSize: 11.5, flex: 1, minWidth: 200 }}>
+          You are step {item.my_step_order ?? '-'} of {item.total}. Your name and date are recorded for the audit trail.
+        </span>
+      </div>
+    </form>
+  );
+}
+
+function SequentialCard({ item }: { item: SequentialItem }) {
+  const completed = !!item.completed_at;
+  return (
+    <div className="card card-pad">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span
+            className="ic"
+            style={{ width: 40, height: 40, borderRadius: 11, display: 'grid', placeItems: 'center', background: 'var(--surface)', color: 'var(--lime2)' }}
+          >
+            <i className="fa-solid fa-list-ol" />
+          </span>
+          <div>
+            <div style={{ fontWeight: 700 }}>{item.title}</div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {TYPE_LABEL[item.doc_type] || 'Other'} · Step {item.my_step_order ?? '-'} of {item.total}
+            </div>
+            {item.note ? (
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {item.note}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {completed ? (
+          <span className="badge badge-good">
+            <i className="fa-solid fa-circle-check" /> Completed
+          </span>
+        ) : item.my_turn ? (
+          <span className="badge badge-warn">Your turn to sign</span>
+        ) : item.my_status === 'signed' ? (
+          <span className="badge badge-info">You have signed</span>
+        ) : (
+          <span className="badge badge-info">Waiting</span>
+        )}
+      </div>
+
+      {item.my_turn && !completed && <SequentialSignForm item={item} />}
+
+      {!item.my_turn && !completed && (
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>
+          {item.my_status === 'signed' ? (
+            <>
+              <i className="fa-solid fa-hourglass-half" /> You signed
+              {item.my_signed_at ? ` on ${fmtDateTime(item.my_signed_at)}` : ''} — now awaiting {item.active_role_label || 'the next signer'}.
+            </>
+          ) : (
+            <>
+              <i className="fa-solid fa-clock" /> Awaiting {item.active_role_label || 'an earlier signer'} before it is your turn.
+            </>
+          )}
+        </div>
+      )}
+
+      {completed && (
+        <div style={{ marginTop: 14 }}>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+            <i className="fa-solid fa-circle-check" /> Signed by all {item.total} signers in order.
+          </div>
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
+            <a
+              href={`/sign-requests/download/${item.request_id}?sequence=${item.request_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-lime btn-sm"
+            >
+              <i className="fa-solid fa-file-circle-check" /> View signed document
+            </a>
+            <a
+              href={`/sign-requests/download/${item.request_id}?sequence=${item.request_id}&download=1`}
+              className="btn btn-ghost btn-sm"
+            >
+              <i className="fa-solid fa-download" /> Download
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function MemberSignRequests({
+  items,
+  sequentialItems = [],
+}: {
+  items: Item[];
+  sequentialItems?: SequentialItem[];
+}) {
   return (
     <div>
       <div className="page-title">Documents to sign</div>
@@ -112,6 +283,17 @@ export default function MemberSignRequests({ items }: { items: Item[] }) {
         Documents the office has sent you to sign online. Once you sign, the office countersigns and the completed document becomes
         available to download.
       </div>
+
+      {sequentialItems.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Documents signed in order</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {sequentialItems.map((it) => (
+              <SequentialCard key={it.request_id} item={it} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {items.length === 0 ? (

@@ -2,13 +2,21 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildSignedRequestPdf } from '@/lib/signedRequestPdf';
+import { buildSignedSequencePdf } from '@/lib/signedSequencePdf';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// GET /sign-requests/download/[id] -> the member's OWN completed document
-// (original + signatures page with both signatures) as one PDF. Views inline by
-// default; ?download=1 forces a download. 403 if the row is not the caller's.
+// GET /sign-requests/download/[id]
+//
+//  - INDIVIDUAL (unchanged): [id] is the caller's OWN recipient row. Returns the
+//    original + signatures page (member + countersignature) as one PDF. 403 if
+//    the row is not the caller's.
+//  - SEQUENTIAL (additive): ?sequence=<requestId> streams the fully-signed
+//    ordered PDF. Allowed only if the caller is a signer on that request AND the
+//    request is completed. [id] is ignored in this branch.
+//
+// Views inline by default; ?download=1 forces a download.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient();
   const {
@@ -16,8 +24,44 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   } = await supabase.auth.getUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
 
-  // A member may only fetch their own recipient row.
   const admin = createAdminClient();
+  const url = new URL(req.url);
+  const attach = url.searchParams.get('download') === '1';
+  const sequenceId = (url.searchParams.get('sequence') || '').trim();
+
+  // ---- Sequential download (participant, completed only) ----
+  if (sequenceId) {
+    const { data: reqRow } = await admin
+      .from('sign_requests')
+      .select('id, completed_at')
+      .eq('id', sequenceId)
+      .maybeSingle();
+    if (!reqRow) return new Response('Not found', { status: 404 });
+
+    const { data: mine } = await admin
+      .from('sign_request_steps')
+      .select('id')
+      .eq('request_id', sequenceId)
+      .eq('signer_id', user.id)
+      .limit(1);
+    if (!mine || (mine as any[]).length === 0) return new Response('Forbidden', { status: 403 });
+    if (!(reqRow as any).completed_at) {
+      return new Response('This document is not fully signed yet.', { status: 403 });
+    }
+
+    const seq = await buildSignedSequencePdf(sequenceId);
+    if (!seq) return new Response('Not found', { status: 404 });
+    return new Response(Buffer.from(seq.bytes), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': (attach ? 'attachment' : 'inline') + '; filename="' + seq.filename + '"',
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  // ---- Individual download (unchanged): a member may only fetch their own row ----
   const { data: rcpt } = await admin
     .from('sign_request_recipients')
     .select('member_id')
@@ -28,7 +72,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const result = await buildSignedRequestPdf(params.id);
   if (!result) return new Response('Not found', { status: 404 });
 
-  const attach = new URL(req.url).searchParams.get('download') === '1';
   return new Response(Buffer.from(result.bytes), {
     status: 200,
     headers: {
