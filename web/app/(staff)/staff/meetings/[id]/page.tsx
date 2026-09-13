@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin, canViewStaffConsole } from '@/lib/roles';
+import { dailyConfigured } from '@/lib/daily';
 import {
   updateMeetingDetails,
   saveAgenda,
@@ -13,13 +14,15 @@ import {
   addActionItem,
   setActionItemStatus,
   removeActionItem,
+  createLiveRoom,
+  refreshRecordings,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
 const STATUS_CLS: Record<string, string> = { scheduled: 'badge-info', held: 'badge-good', cancelled: 'badge-bad' };
 const AI_CLS: Record<string, string> = { open: 'badge-info', done: 'badge-good', cancelled: 'badge-bad' };
-const PROVIDER_LABEL: Record<string, string> = { none: 'None', meet: 'Google Meet', zoom: 'Zoom', other: 'Other' };
+const PROVIDER_LABEL: Record<string, string> = { none: 'None', meet: 'Google Meet', zoom: 'Zoom', other: 'Other', daily: 'Daily (in-portal)' };
 
 function toLocalInput(ts?: string | null): string {
   if (!ts) return '';
@@ -32,6 +35,19 @@ function fmtDate(ts?: string | null): string {
   if (!ts) return '';
   const d = new Date(ts);
   return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function fmtDateTime(ts?: string | null): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return isNaN(d.getTime())
+    ? ''
+    : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function fmtDuration(secs?: number | null): string {
+  if (!secs || secs <= 0) return '';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 export default async function MeetingDetail({ params }: { params: { id: string } }) {
@@ -49,17 +65,20 @@ export default async function MeetingDetail({ params }: { params: { id: string }
   if (!meeting) notFound();
   const m = meeting as any;
 
-  const [{ data: attRaw }, { data: aiRaw }, { data: peopleRaw }] = await Promise.all([
+  const [{ data: attRaw }, { data: aiRaw }, { data: peopleRaw }, { data: recRaw }] = await Promise.all([
     supabase.from('meeting_attendance').select('*').eq('meeting_id', id).order('created_at', { ascending: true }),
     supabase.from('meeting_action_items').select('*').eq('meeting_id', id).order('created_at', { ascending: true }),
     supabase.from('profiles').select('id, full_name, email').order('full_name', { ascending: true }),
+    supabase.from('meeting_recordings').select('*').eq('meeting_id', id).order('created_at', { ascending: false }),
   ]);
   const attendance = (attRaw ?? []) as any[];
   const actionItems = (aiRaw ?? []) as any[];
   const people = (peopleRaw ?? []) as any[];
+  const recordings = (recRaw ?? []) as any[];
   const nameById = new Map(people.map((p) => [p.id, p.full_name || p.email || '—']));
   const attendedIds = new Set(attendance.filter((a) => a.member_id).map((a) => a.member_id));
   const availablePeople = people.filter((p) => !attendedIds.has(p.id));
+  const dailyReady = m.meeting_provider === 'daily' && !!m.meeting_link;
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -89,6 +108,64 @@ export default async function MeetingDetail({ params }: { params: { id: string }
           <a href={m.meeting_link} target="_blank" rel="noopener" className="btn btn-primary"><i className="fa-solid fa-video" /> Join meeting</a>
         </div>
       ) : null}
+
+      {/* In-portal live room (Daily) */}
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>In-portal live room</div>
+        <div className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+          Host the meeting inside the portal with Daily video and cloud recording. Recordings are pulled on demand.
+        </div>
+        {dailyReady ? (
+          <>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Link href={`/staff/meetings/${m.id}/live`} className="btn btn-primary btn-sm">
+                <i className="fa-solid fa-video" /> Open live room
+              </Link>
+              <form action={refreshRecordings} style={{ display: 'inline' }}>
+                <input type="hidden" name="meeting_id" value={m.id} />
+                <button className="btn btn-ghost btn-sm" type="submit">
+                  <i className="fa-solid fa-rotate" /> Refresh recordings
+                </button>
+              </form>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div className="muted" style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 6 }}>
+                Recordings ({recordings.length})
+              </div>
+              {recordings.length === 0 ? (
+                <div className="muted" style={{ fontSize: 12.5 }}>
+                  No recordings yet. Cloud recordings appear here after a session is recorded and you click Refresh recordings.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {recordings.map((r) => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                      <div style={{ fontSize: 13 }}>
+                        <span className={'badge ' + (r.status === 'ready' || r.status === 'finished' ? 'badge-good' : 'badge-info')} style={{ fontSize: 10.5, marginRight: 8 }}>{r.status}</span>
+                        {fmtDateTime(r.started_at) || fmtDateTime(r.created_at) || '—'}
+                        {r.duration_seconds ? <span className="muted"> · {fmtDuration(r.duration_seconds)}</span> : null}
+                      </div>
+                      <a href={`/staff/meetings/${m.id}/recording/${r.id}`} target="_blank" rel="noopener" className="btn btn-ghost btn-sm">
+                        <i className="fa-solid fa-download" /> Download
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <form action={createLiveRoom}>
+            <input type="hidden" name="meeting_id" value={m.id} />
+            <button className="btn btn-primary btn-sm" type="submit" disabled={!dailyConfigured()}>
+              <i className="fa-solid fa-video" /> Create live room
+            </button>
+            {!dailyConfigured() ? (
+              <div className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Set DAILY_API_KEY to enable in-portal live rooms.</div>
+            ) : null}
+          </form>
+        )}
+      </div>
 
       {/* Details */}
       <div className="card card-pad" style={{ marginBottom: 16 }}>
@@ -141,6 +218,7 @@ export default async function MeetingDetail({ params }: { params: { id: string }
               <option value="meet">Google Meet</option>
               <option value="zoom">Zoom</option>
               <option value="other">Other</option>
+              <option value="daily">Daily (in-portal)</option>
             </select>
           </div>
           <div className="field" style={{ marginBottom: 0 }}>

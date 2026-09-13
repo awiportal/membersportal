@@ -4,10 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isStaff, isAdmin } from '@/lib/roles';
+import { dailyConfigured, createRoom, listRecordings } from '@/lib/daily';
 
 const MEETING_TYPES = ['agm', 'committee', 'general', 'special', 'other'];
 const MEETING_STATUS = ['scheduled', 'held', 'cancelled'];
-const MEETING_PROVIDERS = ['none', 'meet', 'zoom', 'other'];
+const MEETING_PROVIDERS = ['none', 'meet', 'zoom', 'other', 'daily'];
 const ATT_STATUS = ['present', 'absent', 'apology'];
 const AI_STATUS = ['open', 'done', 'cancelled'];
 
@@ -233,4 +234,72 @@ export async function removeActionItem(formData: FormData) {
   if (!id) return;
   await supabase.from('meeting_action_items').delete().eq('id', id);
   refresh(meeting_id);
+}
+
+// ---- Phase 3: Daily.co in-portal live room + cloud recording --------------
+
+// Provision a Daily room for this meeting and point the meeting at it. Best
+// effort: if Daily is not configured or the API call fails, we log and leave
+// the meeting unchanged rather than crashing the page.
+export async function createLiveRoom(formData: FormData) {
+  const { supabase, uid } = await requireStaff();
+  const id = val(formData.get('meeting_id'));
+  if (!id) return;
+  if (!dailyConfigured()) {
+    console.error('createLiveRoom: DAILY_API_KEY is not configured; skipping.');
+    return;
+  }
+  try {
+    const room = await createRoom({ namePrefix: 'awivest' });
+    const { error } = await supabase
+      .from('meetings')
+      .update({ meeting_provider: 'daily', meeting_link: room.url, daily_room_name: room.name })
+      .eq('id', id);
+    if (error) {
+      console.error('createLiveRoom update failed:', error.message);
+      return;
+    }
+    await audit(supabase, uid, 'meeting_live_room_created', { meeting_id: id, room_name: room.name });
+  } catch (e: any) {
+    console.error('createLiveRoom failed:', e?.message || e);
+    return;
+  }
+  refresh(id);
+}
+
+// Pull the room's cloud recordings from Daily and upsert them into
+// meeting_recordings (idempotent on meeting_id + recording_ref). Fail-soft.
+export async function refreshRecordings(formData: FormData) {
+  const { supabase } = await requireStaff();
+  const id = val(formData.get('meeting_id'));
+  if (!id) return;
+  const { data: mtg } = await supabase
+    .from('meetings')
+    .select('daily_room_name')
+    .eq('id', id)
+    .maybeSingle();
+  const roomName = (mtg as any)?.daily_room_name as string | null | undefined;
+  if (!roomName) return;
+  try {
+    const recs = await listRecordings(roomName);
+    for (const rec of recs) {
+      if (!rec.id) continue;
+      const { error } = await supabase.from('meeting_recordings').upsert(
+        {
+          meeting_id: id,
+          provider: 'daily',
+          recording_ref: rec.id,
+          room_name: rec.room_name,
+          status: rec.status || 'ready',
+          duration_seconds: rec.duration ?? null,
+          started_at: rec.start_ts ? new Date(rec.start_ts * 1000).toISOString() : null,
+        },
+        { onConflict: 'meeting_id,recording_ref' },
+      );
+      if (error) console.error('refreshRecordings upsert failed:', error.message);
+    }
+  } catch (e: any) {
+    console.error('refreshRecordings failed:', e?.message || e);
+  }
+  refresh(id);
 }
