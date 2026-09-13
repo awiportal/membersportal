@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import Link from 'next/link';
 import { getSessionUser, getSessionProfile } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { canViewStaffConsole } from '@/lib/roles';
@@ -153,6 +154,7 @@ export default async function StaffReportsPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link href="/staff/reports/generate" className="btn btn-ghost btn-sm"><i className="fa-solid fa-folder-tree" /> Formal reports</Link>
           <ReportExport rows={exportRows} />
           <PrintButton label="Print report" className="btn btn-primary btn-sm" />
         </div>
