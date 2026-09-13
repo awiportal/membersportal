@@ -52,3 +52,10 @@ create policy sign_req_read_step_signer on public.sign_requests
         and s.signer_id = auth.uid()
     )
   );
+
+-- Broadcast fan-out: one shared document sent to many members, where each member
+-- gets their OWN sequential chain (member -> office-holders). Rows that belong to
+-- the same broadcast share a batch_id so the staff console can group them and show
+-- an M-of-N rollup. Single (individual) sends leave batch_id null.
+alter table public.sign_requests add column if not exists batch_id uuid;
+create index if not exists idx_sign_requests_batch on public.sign_requests(batch_id);

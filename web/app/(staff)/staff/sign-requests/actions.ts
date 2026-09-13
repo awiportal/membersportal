@@ -257,9 +257,21 @@ export async function countersignSignRequest(
 }
 
 // ---------------------------------------------------------------------------
-// Sequential (ordered) signing — ADDITIVE. Sends ONE document to an ordered list
-// of signers; each signs in turn and only the next signer is notified once the
-// previous has signed. Does not touch sendSignRequest / countersignSignRequest.
+// Sequential (ordered) signing — ADDITIVE. Sends ONE document down an ordered
+// chain of signers; each signs in turn and only the next signer is notified once
+// the previous has signed.
+//
+// Audience fan-out: the FIRST signer of every chain is a member (signing as
+// "investor"), and the SAME shared office-holder steps follow (e.g. secretary ->
+// treasurer -> chairlady). The first-signer audience may be:
+//   - 'all'        : every active member
+//   - 'list'        : the picked members
+//   - 'individual'  : one member (preserves the original single-chain behaviour)
+// Every member gets their OWN sign_requests row (one chain each). When more than
+// one member is targeted the rows share a batch_id so the console can group them
+// and show an M-of-N rollup; a single member leaves batch_id null.
+//
+// Does not touch sendSignRequest / countersignSignRequest.
 // ---------------------------------------------------------------------------
 export async function sendSequentialSignRequest(
   formData: FormData
@@ -287,22 +299,29 @@ export async function sendSequentialSignRequest(
     return { error: 'That file does not look like a valid PDF. Please upload a PDF.' };
   }
 
-  // 2) Parse the ordered signers. `signer_ids` and `signer_roles` are parallel
-  // arrays (index 0 = step 1). Pair by index BEFORE dropping any blank rows so
-  // the id/role alignment is preserved.
+  // 2) First-signer audience + role. Default 'individual' preserves the original
+  // single-chain behaviour (one chosen member -> office-holders).
+  const rawFirstAudience = String(formData.get('first_audience') || 'individual').trim();
+  const first_audience: 'all' | 'list' | 'individual' =
+    rawFirstAudience === 'all' ? 'all' : rawFirstAudience === 'list' ? 'list' : 'individual';
+  const first_role = String(formData.get('first_role') || 'investor').trim() || 'investor';
+
+  // 3) Parse the DOWNSTREAM office-holder signers (the steps AFTER the member).
+  // `signer_ids` / `signer_roles` are parallel arrays; pair by index BEFORE
+  // dropping any blank rows so the id/role alignment is preserved.
   const rawIds = formData.getAll('signer_ids').map((v) => String(v).trim());
   const rawRoles = formData.getAll('signer_roles').map((v) => String(v).trim());
-  const orderedSigners: { signer_id: string; signer_role: string | null }[] = [];
+  const downstreamSigners: { signer_id: string; signer_role: string | null }[] = [];
   for (let i = 0; i < rawIds.length; i++) {
     const sid = rawIds[i];
     if (!sid) continue;
-    orderedSigners.push({ signer_id: sid, signer_role: rawRoles[i] || null });
+    downstreamSigners.push({ signer_id: sid, signer_role: rawRoles[i] || null });
   }
-  if (orderedSigners.length < 2) {
-    return { error: 'A sequential signing flow needs at least two signers, in order.' };
+  if (downstreamSigners.length < 1) {
+    return { error: 'Add at least one office-holder to sign after the member.' };
   }
 
-  // 3) Confirm the server actually holds a real service-role key.
+  // 4) Confirm the server actually holds a real service-role key.
   const keyInfo = describeServiceKey();
   if (!keyInfo.ok) {
     console.error('sendSequentialSignRequest: service-role key not configured:', keyInfo.message);
@@ -311,7 +330,32 @@ export async function sendSequentialSignRequest(
 
   const admin = createAdminClient();
 
-  // 4) Ensure the private bucket and upload the PDF (identical to sendSignRequest).
+  // 5) Resolve the first-signer member set FIRST so we never upload/insert with
+  // an empty audience.
+  let memberIds: string[] = [];
+  if (first_audience === 'all') {
+    const { data: actives } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('status', 'active')
+      .eq('role', 'member');
+    memberIds = ((actives ?? []) as any[]).map((r) => r.id);
+  } else {
+    memberIds = formData.getAll('first_member_ids').map((v) => String(v)).filter(Boolean);
+  }
+  memberIds = Array.from(new Set(memberIds));
+  if (first_audience === 'individual') memberIds = memberIds.slice(0, 1);
+  if (memberIds.length === 0) {
+    return {
+      error:
+        first_audience === 'all'
+          ? 'There are no active members to send this to.'
+          : 'Pick at least one member to sign first.',
+    };
+  }
+
+  // 6) Ensure the private bucket and upload the PDF ONCE. The single stored file
+  // is reused by every member's chain.
   try {
     await admin.storage.createBucket(BUCKET, { public: false });
   } catch {
@@ -326,73 +370,105 @@ export async function sendSequentialSignRequest(
     return { error: 'Could not upload the file. Please try again.' };
   }
 
-  // 5) Insert the request (flow 'sequential'), then one step per signer in order.
-  const { data: reqRow, error: insErr } = await admin
-    .from('sign_requests')
-    .insert({
-      title,
-      doc_type,
-      note,
-      file_path: path,
-      file_name: file.name,
-      mime_type: file.type || 'application/pdf',
-      audience: 'sequential',
-      flow: 'sequential',
-      created_by: auth.userId,
-    })
-    .select('id')
-    .single();
-  if (insErr || !reqRow) {
-    console.error('sendSequentialSignRequest: request insert failed:', insErr?.message);
-    return { error: 'Could not save the request. Please try again.' };
+  // 7) A batch groups a fan-out (>1 member). A single member leaves batch_id null
+  // so it renders exactly like the original single-chain request.
+  const batchId = memberIds.length > 1 ? crypto.randomUUID() : null;
+  const audience: 'all' | 'list' | 'individual' = first_audience;
+
+  // 8) Insert one request row per member (one chain each), keeping id<->member
+  // alignment so the step builder cannot mis-pair.
+  const requestByMember: { memberId: string; requestId: string }[] = [];
+  for (const memberId of memberIds) {
+    const { data: reqRow, error: insErr } = await admin
+      .from('sign_requests')
+      .insert({
+        title,
+        doc_type,
+        note,
+        file_path: path,
+        file_name: file.name,
+        mime_type: file.type || 'application/pdf',
+        audience,
+        flow: 'sequential',
+        batch_id: batchId,
+        created_by: auth.userId,
+      })
+      .select('id')
+      .single();
+    if (insErr || !reqRow) {
+      console.error('sendSequentialSignRequest: request insert failed:', insErr?.message);
+      return { error: 'Could not save the request. Please try again.' };
+    }
+    requestByMember.push({ memberId, requestId: (reqRow as any).id });
   }
 
-  const stepRows = orderedSigners.map((s, i) => ({
-    request_id: reqRow.id,
-    step_order: i + 1,
-    signer_id: s.signer_id,
-    signer_role: s.signer_role,
-    status: i === 0 ? 'active' : 'pending',
-  }));
-  const { error: stepErr } = await admin.from('sign_request_steps').insert(stepRows);
+  // 9) Build EVERY step across ALL chains, then bulk-insert them in one call.
+  // Step 1 is the member (active). The office-holders follow, in order (pending).
+  const allStepRows: any[] = [];
+  for (const { memberId, requestId } of requestByMember) {
+    allStepRows.push({
+      request_id: requestId,
+      step_order: 1,
+      signer_id: memberId,
+      signer_role: first_role || 'investor',
+      status: 'active',
+    });
+    downstreamSigners.forEach((s, i) => {
+      allStepRows.push({
+        request_id: requestId,
+        step_order: i + 2,
+        signer_id: s.signer_id,
+        signer_role: s.signer_role || null,
+        status: 'pending',
+      });
+    });
+  }
+  const { error: stepErr } = await admin.from('sign_request_steps').insert(allStepRows);
   if (stepErr) {
     console.error('sendSequentialSignRequest: step insert failed:', stepErr.message);
     return { error: 'Could not set up the signing order. Please try again.' };
   }
 
-  // 6) Best-effort notify + email ONLY the first (active) signer.
+  // 10) Best-effort notify + email ONLY the step-1 member on each chain (the
+  // active signer). Never block the write.
   try {
-    const firstSigner = orderedSigners[0].signer_id;
-    try {
-      await admin.from('notifications').insert({
-        member_id: firstSigner,
+    await admin.from('notifications').insert(
+      memberIds.map((mid) => ({
+        member_id: mid,
         type: 'agreement',
         title: 'Document awaiting your signature',
         body: `It is your turn to sign: ${title}.`,
-      });
-    } catch (e: any) {
-      console.error('sendSequentialSignRequest: notify failed:', e?.message);
-    }
-    try {
-      const { data: p } = await admin
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', firstSigner)
-        .maybeSingle();
-      await sendMemberEmail({
-        to: (p as any)?.email,
-        subject: 'A document is waiting for your signature',
-        heading: 'Document awaiting your signature',
-        bodyHtml:
-          `<p style="margin:0 0 12px;">Hi ${(p as any)?.full_name || 'there'},</p>` +
-          `<p style="margin:0 0 12px;">A new document, <strong>${title}</strong>, needs to be signed in order and it is your turn first.</p>` +
-          `<p style="margin:0;">Please sign in and open <strong>Documents to Sign</strong> to review and sign it.</p>`,
-      });
-    } catch (e: any) {
-      console.error('sendSequentialSignRequest: email failed:', e?.message);
+      }))
+    );
+  } catch (e: any) {
+    console.error('sendSequentialSignRequest: notify insert failed:', e?.message);
+  }
+
+  try {
+    const { data: profs } = await admin
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', memberIds);
+    const byId: Record<string, any> = {};
+    ((profs ?? []) as any[]).forEach((p) => (byId[p.id] = p));
+    for (const mid of memberIds) {
+      const p = byId[mid];
+      try {
+        await sendMemberEmail({
+          to: p?.email,
+          subject: 'A document is waiting for your signature',
+          heading: 'Document awaiting your signature',
+          bodyHtml:
+            `<p style="margin:0 0 12px;">Hi ${p?.full_name || 'there'},</p>` +
+            `<p style="margin:0 0 12px;">A new document, <strong>${title}</strong>, needs to be signed in order and it is your turn first.</p>` +
+            `<p style="margin:0;">Please sign in and open <strong>Documents to Sign</strong> to review and sign it.</p>`,
+        });
+      } catch {
+        /* fail-soft per member */
+      }
     }
   } catch (e: any) {
-    console.error('sendSequentialSignRequest: first-signer messaging failed:', e?.message);
+    console.error('sendSequentialSignRequest: email step failed:', e?.message);
   }
 
   revalidatePath('/staff/sign-requests');
