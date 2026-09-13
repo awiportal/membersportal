@@ -21,8 +21,21 @@ type Item = {
   doc_type: string;
   note?: string | null;
   member_signed_name?: string | null;
+  member_signed_at?: string | null;
   countersigned_name?: string | null;
+  countersigned_at?: string | null;
 };
+
+function fmtDateTime(v?: string | null) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return (
+    d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ', ' +
+    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  );
+}
 
 function SignForm({ item }: { item: Item }) {
   const router = useRouter();
@@ -54,12 +67,21 @@ function SignForm({ item }: { item: Item }) {
       <input type="hidden" name="recipient_id" value={item.id} />
       <input type="hidden" name="member_signature_kind" value="draw" />
       {msg && (
-        <div className="badge badge-bad"><i className="fa-solid fa-circle-exclamation" /> {msg}</div>
+        <div className="badge badge-bad">
+          <i className="fa-solid fa-circle-exclamation" /> {msg}
+        </div>
       )}
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
         <div className="field" style={{ marginBottom: 0 }}>
           <label>Full name</label>
-          <input className="input" name="member_signed_name" placeholder="Your full name" required value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="input"
+            name="member_signed_name"
+            placeholder="Your full name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
           <label>Date</label>
@@ -86,30 +108,46 @@ export default function MemberSignRequests({ items }: { items: Item[] }) {
   return (
     <div>
       <div className="page-title">Documents to sign</div>
-      <div className="sub">Documents the office has sent you to sign online. Once you sign, the office countersigns and the completed document becomes available to download.</div>
+      <div className="sub">
+        Documents the office has sent you to sign online. Once you sign, the office countersigns and the completed document becomes
+        available to download.
+      </div>
 
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {items.length === 0 ? (
           <div className="card card-pad">
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Nothing to sign</div>
-            <div className="muted" style={{ fontSize: 13 }}>When the office sends you a document to sign, it will appear here.</div>
+            <div className="muted" style={{ fontSize: 13 }}>
+              When the office sends you a document to sign, it will appear here.
+            </div>
           </div>
         ) : (
           items.map((it) => (
             <div key={it.id} className="card card-pad">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span className="ic" style={{ width: 40, height: 40, borderRadius: 11, display: 'grid', placeItems: 'center', background: 'var(--surface)', color: 'var(--lime2)' }}>
+                  <span
+                    className="ic"
+                    style={{ width: 40, height: 40, borderRadius: 11, display: 'grid', placeItems: 'center', background: 'var(--surface)', color: 'var(--lime2)' }}
+                  >
                     <i className="fa-solid fa-file-pen" />
                   </span>
                   <div>
                     <div style={{ fontWeight: 700 }}>{it.title}</div>
-                    <div className="muted" style={{ fontSize: 12 }}>{TYPE_LABEL[it.doc_type] || 'Other'}</div>
-                    {it.note ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{it.note}</div> : null}
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {TYPE_LABEL[it.doc_type] || 'Other'}
+                    </div>
+                    {it.note ? (
+                      <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                        {it.note}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 {it.status === 'completed' ? (
-                  <span className="badge badge-good"><i className="fa-solid fa-circle-check" /> Completed</span>
+                  <span className="badge badge-good">
+                    <i className="fa-solid fa-circle-check" /> Completed
+                  </span>
                 ) : it.status === 'signed' ? (
                   <span className="badge badge-warn">Signed - awaiting countersignature</span>
                 ) : (
@@ -121,18 +159,38 @@ export default function MemberSignRequests({ items }: { items: Item[] }) {
 
               {it.status === 'signed' && (
                 <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>
-                  <i className="fa-solid fa-hourglass-half" /> Signed - awaiting countersignature by the office.
+                  <i className="fa-solid fa-hourglass-half" /> You signed
+                  {it.member_signed_at ? ` on ${fmtDateTime(it.member_signed_at)}` : ''} — awaiting countersignature by the office.
                 </div>
               )}
 
               {it.status === 'completed' && (
-                <div style={{ display: 'flex', gap: 9, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <a href={`/sign-requests/download/${it.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-lime btn-sm">
-                    <i className="fa-solid fa-file-circle-check" /> Download signed document
-                  </a>
-                  <a href={`/sign-requests/download/${it.id}?download=1`} className="btn btn-ghost btn-sm">
-                    <i className="fa-solid fa-download" /> Download
-                  </a>
+                <div style={{ marginTop: 14 }}>
+                  <div className="muted" style={{ fontSize: 12, marginBottom: 10, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                    {it.member_signed_at && (
+                      <span>
+                        <i className="fa-solid fa-pen" /> You signed {fmtDateTime(it.member_signed_at)}
+                      </span>
+                    )}
+                    {it.countersigned_at && (
+                      <span>
+                        <i className="fa-solid fa-stamp" /> Countersigned by {it.countersigned_name || 'the office'} on {fmtDateTime(it.countersigned_at)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <a
+                      href={`/sign-requests/download/${it.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-lime btn-sm"
+                    >
+                      <i className="fa-solid fa-file-circle-check" /> View signed document
+                    </a>
+                    <a href={`/sign-requests/download/${it.id}?download=1`} className="btn btn-ghost btn-sm">
+                      <i className="fa-solid fa-download" /> Download
+                    </a>
+                  </div>
                 </div>
               )}
             </div>

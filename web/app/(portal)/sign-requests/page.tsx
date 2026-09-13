@@ -38,7 +38,9 @@ export default async function MemberSignRequestsPage() {
       doc_type: req.doc_type || 'other',
       note: req.note || null,
       member_signed_name: r.member_signed_name,
+      member_signed_at: r.member_signed_at,
       countersigned_name: r.countersigned_name,
+      countersigned_at: r.countersigned_at,
     };
   });
 
