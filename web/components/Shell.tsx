@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isStaff } from "@/lib/roles";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
+import IdleTimeout from "./IdleTimeout";
 
 // Sections a member can reach before their membership is approved (manual 3.7):
 // Dashboard, KYC/onboarding, Profile, Notifications, Settings. The rest lock.
@@ -125,6 +126,7 @@ export default function Shell({
 
   return (
     <div className="shell">
+      <IdleTimeout />
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 20px 8px" }}>

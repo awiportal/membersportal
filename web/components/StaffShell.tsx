@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { displayRole, isAdmin, isAuditor } from '@/lib/roles';
 import NotificationBell from './NotificationBell';
+import IdleTimeout from './IdleTimeout';
 
 // Shows the user's uploaded photo when present, otherwise their coloured
 // initials — same 40x40 rounded shape everywhere.
@@ -40,6 +41,7 @@ export default function StaffShell({
 
   return (
     <div className="shell">
+      <IdleTimeout />
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 8px' }}>
