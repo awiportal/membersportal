@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { isAdmin, canViewStaffConsole } from '@/lib/roles';
 import { PASSWORD_MIN_LENGTH } from '@/lib/password';
+import MfaEnrollment from './MfaEnrollment';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,9 @@ export default async function StaffSecurityPage() {
         </div>
       ) : (
         <>
+          {/* Authenticator (TOTP) MFA */}
+          <MfaEnrollment />
+
           {/* Password policy */}
           <div className="card card-pad" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
