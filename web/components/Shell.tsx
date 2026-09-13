@@ -229,6 +229,7 @@ export default function Shell({
       <div className="content">
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setOpen(true)} aria-label="Open menu"><i className="fa-solid fa-bars" /></button>
+          <Link href="/dashboard" className="topbar-brand" aria-label="AWIVEST — Investor Portal"><span className="dot" aria-hidden="true" />AWIVEST</Link>
           <label className="search"><i className="fa-solid fa-magnifying-glass" /><input placeholder="Search holdings, forms, documents…" aria-label="Search" /></label>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
             <span className={`badge ${isActive ? "badge-good" : "badge-warn"} hide-sm`}>{profile?.status ? String(profile.status)[0].toUpperCase() + String(profile.status).slice(1) : "Member"}</span>
