@@ -8,7 +8,6 @@
 // Nav item ids a pending member may see and open in the sidebar.
 export const PENDING_ALLOWED_NAV = new Set<string>([
   'dashboard',
-  'information',
   'kyc',
   'profile',
   'notifications',
@@ -19,7 +18,6 @@ export const PENDING_ALLOWED_NAV = new Set<string>([
 // onboarding hub (reached from the dashboard CTA, not from a nav item).
 const PENDING_ALLOWED_PATHS = [
   '/dashboard',
-  '/information',
   '/kyc',
   '/onboarding',
   '/profile',
