@@ -93,31 +93,38 @@ export default function VerifyClient({ email }: { email: string }) {
           </div>
         ) : null}
 
-        <div className="field" style={{ marginTop: 14 }}>
-          <label>Sign-in code</label>
-          <input
-            className="input"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="Enter code"
-            style={{ letterSpacing: 6, fontSize: 20, textAlign: 'center' }}
-          />
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <div className="field" style={{ marginTop: 14 }}>
+            <label>Sign-in code</label>
+            <input
+              className="input"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="Enter code"
+              style={{ letterSpacing: 6, fontSize: 20, textAlign: 'center' }}
+            />
+          </div>
 
-        <button className="btn btn-primary btn-block" onClick={submit} disabled={pending}>
-          {pending ? (
-            <>
-              <i className="fa-solid fa-spinner fa-spin" /> Checking…
-            </>
-          ) : (
-            <>
-              <i className="fa-solid fa-arrow-right-to-bracket" /> Verify &amp; continue
-            </>
-          )}
-        </button>
-        <button className="btn btn-ghost btn-block mt-2" onClick={resend} disabled={sending}>
+          <button type="submit" className="btn btn-primary btn-block" disabled={pending}>
+            {pending ? (
+              <>
+                <i className="fa-solid fa-spinner fa-spin" /> Checking…
+              </>
+            ) : (
+              <>
+                <i className="fa-solid fa-arrow-right-to-bracket" /> Verify &amp; continue
+              </>
+            )}
+          </button>
+        </form>
+        <button type="button" className="btn btn-ghost btn-block mt-2" onClick={resend} disabled={sending}>
           {sending ? 'Sending…' : 'Resend code'}
         </button>
 
