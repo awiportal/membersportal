@@ -43,6 +43,38 @@ export default function PdfSignOverlay({
   const valuesRef = useRef<Record<string, string>>(values);
   valuesRef.current = values;
 
+  // Fields the signer has explicitly edited; these are never auto-overwritten.
+  const touchedRef = useRef<Set<string>>(new Set());
+  // Today (Africa/Nairobi) as YYYY-MM-DD for date-field defaults.
+  const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
+
+  // Avoid making the signer re-enter things already provided once elsewhere:
+  // name boxes mirror the signer's name (typed once in the shared "Full name"
+  // field) and date boxes default to today. Untouched boxes stay in sync; once
+  // the signer edits a specific box it is left alone. Values are reported up so
+  // they are captured on submit and satisfy required-field checks.
+  useEffect(() => {
+    const next = { ...valuesRef.current };
+    let changed = false;
+    for (const f of fields) {
+      if (touchedRef.current.has(f.id)) continue;
+      if (f.type === 'name') {
+        const want = signerName ?? '';
+        if ((next[f.id] ?? '') !== want) {
+          next[f.id] = want;
+          changed = true;
+        }
+      } else if (f.type === 'date') {
+        if (!next[f.id]) {
+          next[f.id] = todayIso;
+          changed = true;
+        }
+      }
+    }
+    if (changed) onChange(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signerName, fields, todayIso]);
+
   // Fetch + open the original PDF (same-origin, authenticated route).
   useEffect(() => {
     let cancelled = false;
@@ -99,8 +131,9 @@ export default function PdfSignOverlay({
     <div style={{ marginTop: 6, border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
       <div className="muted" style={{ fontSize: 11.5, padding: '8px 10px' }}>
         <i className="fa-solid fa-hand-pointer" style={{ marginRight: 6 }} />
-        Fill in the highlighted fields on the document below. Your signature (captured under the
-        document) is placed in each signature box automatically.
+        Fill in the highlighted fields on the document below. Your name and today's date are filled
+        in for you where needed — edit any box if it should differ. Your signature (captured under
+        the document) is placed in each signature box automatically.
       </div>
       <div style={{ padding: 10, maxHeight: 560, overflowY: 'auto', background: 'var(--surface)' }}>
         {loading && (
@@ -181,7 +214,10 @@ export default function PdfSignOverlay({
                         type={inputType}
                         value={values[f.id] ?? ''}
                         required={f.required}
-                        onChange={(e) => setValue(f.id, e.target.value)}
+                        onChange={(e) => {
+                          touchedRef.current.add(f.id);
+                          setValue(f.id, e.target.value);
+                        }}
                         onPointerDown={(e) => e.stopPropagation()}
                         placeholder={f.label || (f.type === 'name' ? 'Name' : f.type === 'date' ? 'Date' : 'Text')}
                         aria-label={f.label || f.type}
