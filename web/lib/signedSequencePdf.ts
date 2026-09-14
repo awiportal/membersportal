@@ -1,7 +1,6 @@
 import { PDFDocument, PDFFont, PDFPage } from "pdf-lib";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { roleLabel } from "@/lib/roles";
-import { parseCustomFields } from "@/lib/customFields";
 import {
   CERT_COLORS,
   CERT_MARGIN,
@@ -21,8 +20,15 @@ import {
 // client, appends it when it is really a PDF, then adds a signatures certificate
 // carrying every step in order. New pages are added as needed so long chains do
 // not overflow one page.
+//
+// The original-download and certificate-drawing steps are exported separately
+// (loadOriginalPdf / appendSequenceCertificate) so the positional-stamping
+// builder (lib/positionedSignPdf.ts) can stamp fields onto the SAME embedded
+// original and then append this exact certificate — keeping the two outputs from
+// drifting apart.
 
-const BUCKET = "sign-documents";
+export const SIGN_BUCKET = "sign-documents";
+const BUCKET = SIGN_BUCKET;
 
 function docTypeReadable(v?: string | null): string {
   const map: Record<string, string> = {
@@ -42,9 +48,43 @@ export type SignedSequencePdf = {
   originalIncluded: boolean;
 };
 
-export async function buildSignedSequencePdf(
-  requestId: string
-): Promise<SignedSequencePdf | null> {
+// Download the original from the private bucket with the service-role client and
+// load it as a PDFDocument. When the stored file is not a real PDF (or is
+// missing) an empty document is returned instead and originalIncluded is false.
+export async function loadOriginalPdf(
+  filePath: string | null | undefined
+): Promise<{ doc: PDFDocument; originalIncluded: boolean }> {
+  const admin = createAdminClient();
+  let doc: PDFDocument | null = null;
+  let originalIncluded = false;
+  if (filePath) {
+    try {
+      const { data: file } = await admin.storage.from(BUCKET).download(filePath);
+      if (file) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        if (new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-") {
+          doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+          originalIncluded = true;
+        }
+      }
+    } catch {
+      doc = null;
+      originalIncluded = false;
+    }
+  }
+  if (!doc) doc = await PDFDocument.create();
+  return { doc, originalIncluded };
+}
+
+// Append the sequential signatures certificate onto `doc` (adding as many A4
+// pages as the chain needs). Self-contained: it fetches the request, its ordered
+// steps and the signer profiles by requestId. `originalIncluded` only controls
+// the trailing "original could not be embedded" note.
+export async function appendSequenceCertificate(
+  doc: PDFDocument,
+  requestId: string,
+  originalIncluded: boolean
+): Promise<void> {
   const admin = createAdminClient();
 
   const { data: req } = await admin
@@ -52,7 +92,7 @@ export async function buildSignedSequencePdf(
     .select("*")
     .eq("id", requestId)
     .single();
-  if (!req) return null;
+  if (!req) return;
 
   const { data: stepRows } = await admin
     .from("sign_request_steps")
@@ -67,27 +107,6 @@ export async function buildSignedSequencePdf(
     : { data: [] as any[] };
   const profById: Record<string, any> = {};
   ((profRows ?? []) as any[]).forEach((p) => (profById[p.id] = p));
-
-  // Download the original from the private bucket with the service-role client.
-  let out: PDFDocument | null = null;
-  let originalIncluded = false;
-  if ((req as any).file_path) {
-    try {
-      const { data: file } = await admin.storage.from(BUCKET).download((req as any).file_path);
-      if (file) {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        if (new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-") {
-          out = await PDFDocument.load(bytes, { ignoreEncryption: true });
-          originalIncluded = true;
-        }
-      }
-    } catch {
-      out = null;
-      originalIncluded = false;
-    }
-  }
-  if (!out) out = await PDFDocument.create();
-  const doc = out;
 
   const PAGE_W = 595.28;
   const PAGE_H = 841.89;
@@ -203,6 +222,22 @@ export async function buildSignedSequencePdf(
       muted
     );
   }
+}
+
+export async function buildSignedSequencePdf(
+  requestId: string
+): Promise<SignedSequencePdf | null> {
+  const admin = createAdminClient();
+
+  const { data: req } = await admin
+    .from("sign_requests")
+    .select("id, title, file_path")
+    .eq("id", requestId)
+    .single();
+  if (!req) return null;
+
+  const { doc, originalIncluded } = await loadOriginalPdf((req as any).file_path);
+  await appendSequenceCertificate(doc, requestId, originalIncluded);
 
   const bytes = await doc.save();
   const filename = pdfSlug((req as any).title || "document") + "-signed.pdf";

@@ -1,6 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendMemberEmail } from '@/lib/email';
 import { mergeCustomFieldValues, parseCustomFields, type CustomField } from '@/lib/customFields';
+import {
+  mergePositionalValues,
+  parseFieldLayout,
+  signerKeyForStep,
+  type PlacedField,
+} from '@/lib/fieldLayout';
 
 // Shared logic for applying ONE ordered signature to a sequential sign request.
 // Plain module (NOT 'use server') so it can be imported by the portal server
@@ -22,6 +28,7 @@ export async function applySequentialSignature(opts: {
   image?: string | null;
   kind?: string | null;
   customFieldValues?: Record<string, string>;
+  positionalValues?: Record<string, string>;
 }): Promise<{ ok?: true; error?: string; completed?: boolean }> {
   const admin = createAdminClient();
 
@@ -37,6 +44,9 @@ export async function applySequentialSignature(opts: {
     return { error: 'It is not your turn to sign this document yet.' };
   }
 
+  const requestId = (step as any).request_id as string;
+  const currentOrder = (step as any).step_order as number;
+
   // Custom signer fields (additive): validate every required field has a value,
   // then merge the submitted values into this step's field definitions. A step
   // with no custom fields ([]) skips all of this and behaves exactly as before.
@@ -46,6 +56,29 @@ export async function applySequentialSignature(opts: {
     const res = mergeCustomFieldValues(fieldDefs, opts.customFieldValues || {});
     if (!res.ok) return { error: res.error };
     mergedFields = res.merged;
+  }
+
+  // Positional PDF fields (additive): if the request carries a visual field
+  // layout, merge THIS signer's typed values (keyed by field id) into it,
+  // validating required boxes. Signature boxes are stamped from this step's
+  // signature at completion, so they only require that a signature was captured.
+  // A request with no layout (or none for this signer) is a no-op and behaves
+  // exactly as before.
+  const signerKey = signerKeyForStep(currentOrder, (step as any).signer_role as string | null);
+  let mergedLayout: PlacedField[] | null = null;
+  {
+    const { data: reqLayout } = await admin
+      .from('sign_requests')
+      .select('field_layout')
+      .eq('id', requestId)
+      .maybeSingle();
+    const layout = parseFieldLayout((reqLayout as any)?.field_layout);
+    const mine = layout.filter((f) => f.signer_key === signerKey);
+    if (mine.length > 0) {
+      const res = mergePositionalValues(layout, signerKey, opts.positionalValues || {}, !!opts.image);
+      if (!res.ok) return { error: res.error };
+      mergedLayout = res.merged;
+    }
   }
 
   const nowIso = new Date().toISOString();
@@ -70,8 +103,18 @@ export async function applySequentialSignature(opts: {
     return { error: 'Could not record your signature. Please try again.' };
   }
 
-  const requestId = (step as any).request_id as string;
-  const currentOrder = (step as any).step_order as number;
+  // Persist this signer's merged positional values onto the request's layout.
+  // Best-effort: the signature is already recorded; a failed layout write only
+  // loses the stamped typed values, so log rather than block the chain.
+  if (mergedLayout) {
+    const { error: layoutErr } = await admin
+      .from('sign_requests')
+      .update({ field_layout: mergedLayout })
+      .eq('id', requestId);
+    if (layoutErr) {
+      console.error('applySequentialSignature: field_layout update failed:', layoutErr.message);
+    }
+  }
 
   // Load the request title for messaging (best-effort).
   const { data: req } = await admin

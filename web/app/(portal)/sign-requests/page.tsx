@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleLabel } from '@/lib/roles';
 import { parseCustomFields } from '@/lib/customFields';
+import { fieldsForSigner, parseFieldLayout, signerKeyForStep } from '@/lib/fieldLayout';
 import MemberSignRequests from './MemberSignRequests';
 
 export const dynamic = 'force-dynamic';
@@ -109,6 +110,11 @@ export default async function MemberSignRequestsPage() {
         active_role_label: activeRoleLabel,
         // Custom fields the member must fill in on THEIR step (empty array when none).
         custom_fields: parseCustomFields(myStep?.custom_fields),
+        // Positional PDF fields for THIS signer (empty array when none).
+        positional_fields: fieldsForSigner(
+          parseFieldLayout(req.field_layout),
+          signerKeyForStep(myStep?.step_order ?? 0, myStep?.signer_role)
+        ),
         created_at: req.created_at || null,
       };
     })

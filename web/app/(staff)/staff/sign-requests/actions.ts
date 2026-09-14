@@ -12,6 +12,7 @@ import {
   parseCustomFieldValuesJson,
   type CustomField,
 } from '@/lib/customFields';
+import { parseFieldLayoutJson, type PlacedField } from '@/lib/fieldLayout';
 import { DOC_TYPE_SET } from './docTypes';
 
 const BUCKET = 'sign-documents';
@@ -317,6 +318,14 @@ export async function sendSequentialSignRequest(
     String(formData.get('first_custom_fields') || '')
   );
 
+  // Visual PDF field layout (PandaDoc-style placement). Optional + additive: an
+  // empty layout preserves the original behaviour exactly. The SAME layout is
+  // copied onto every member chain of a broadcast so each chain merges its own
+  // signers' values in place.
+  const field_layout: PlacedField[] = parseFieldLayoutJson(
+    String(formData.get('field_layout') || '')
+  );
+
   // 3) Parse the DOWNSTREAM office-holder signers (the steps AFTER the member).
   // `signer_ids` / `signer_roles` / `signer_custom_fields` are parallel arrays;
   // pair by index BEFORE dropping any blank rows so the alignment is preserved.
@@ -412,6 +421,7 @@ export async function sendSequentialSignRequest(
         flow: 'sequential',
         batch_id: batchId,
         created_by: auth.userId,
+        field_layout,
       })
       .select('id')
       .single();
@@ -518,6 +528,9 @@ export async function signSequentialStep(
   const customFieldValues = parseCustomFieldValuesJson(
     String(formData.get('custom_field_values') || '')
   );
+  const positionalValues = parseCustomFieldValuesJson(
+    String(formData.get('positional_values') || '')
+  );
 
   if (!step_id || !signed_name) {
     return { error: 'Please enter your full name to sign.' };
@@ -531,6 +544,7 @@ export async function signSequentialStep(
     kind: signature_kind,
     signedDate: signed_date,
     customFieldValues,
+    positionalValues,
   });
   if (res.error) return { error: res.error };
 

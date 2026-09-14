@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canViewStaffConsole, isAdmin, roleLabel } from '@/lib/roles';
 import { parseCustomFields } from '@/lib/customFields';
+import { fieldsForSigner, parseFieldLayout, signerKeyForStep } from '@/lib/fieldLayout';
 import StaffSignRequests from './StaffSignRequests';
 
 export const dynamic = 'force-dynamic';
@@ -142,6 +143,11 @@ export default async function StaffSignRequestsPage() {
         note: r.note || null,
         // Custom fields this signer must fill in on their active step.
         custom_fields: parseCustomFields(s.custom_fields),
+        // Positional PDF fields for THIS signer's active step (empty when none).
+        positional_fields: fieldsForSigner(
+          parseFieldLayout((r as any).field_layout),
+          signerKeyForStep(s.step_order, s.signer_role)
+        ),
       };
     });
 

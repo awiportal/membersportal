@@ -7,6 +7,9 @@ import { roleLabel } from '@/lib/roles';
 import { sendSignRequest, countersignSignRequest, sendSequentialSignRequest, signSequentialStep } from './actions';
 import { DOC_TYPE_OPTIONS, docTypeLabel } from './docTypes';
 import type { CustomField } from '@/lib/customFields';
+import { officeSignerKey, serializeFieldLayout, type PlacedField } from '@/lib/fieldLayout';
+import PdfFieldPlacer, { type PlacerSigner } from './PdfFieldPlacer';
+import PdfSignOverlay from '@/components/PdfSignOverlay';
 
 type Recipient = {
   id: string;
@@ -63,6 +66,7 @@ type MyActiveStep = {
   doc_type: string;
   note?: string | null;
   custom_fields?: CustomField[];
+  positional_fields?: PlacedField[];
 };
 type PickerProfile = { id: string; full_name?: string | null; email?: string | null; role?: string | null };
 
@@ -298,6 +302,11 @@ function SendPanel({ activeMembers }: { activeMembers: Member[] }) {
 // The DOWNSTREAM office sequence — the signers AFTER the member. The member is
 // step 1 of every chain (signing as "Investor") and is chosen separately via the
 // first-signer audience control, so it is NOT part of these presets.
+// Per-signer highlight colours for placed PDF fields (builder boxes + signing
+// overlay legend). Index 0 is the member (Investor, step 1); office-holders take
+// the remaining colours in sequence order, wrapping if there are many.
+const SIGNER_COLORS = ['#7c3aed', '#2563eb', '#c026d3', '#0d9488', '#d97706', '#db2777'];
+
 const SEQ_ROLE_PRESETS: { label: string; role: string }[] = [
   { label: 'Secretary', role: 'secretary' },
   { label: 'Treasurer', role: 'treasurer' },
@@ -436,6 +445,31 @@ function SequentialSendPanel({
   // Custom fields for the FIRST (member) signer — step 1 of every chain.
   const [firstFields, setFirstFields] = useState<CustomFieldDraft[]>([]);
 
+  // Visual PDF field placement (optional layer): the chosen PDF and the boxes
+  // dropped onto it. Cleared on a successful send / form reset.
+  const [file, setFile] = useState<File | null>(null);
+  const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
+
+  // Signers available to place fields for: the member (step 1) plus each
+  // office-holder in the sequence, keyed the SAME way the signing/stamping side
+  // derives keys (member -> 'member', office -> role label lowercased).
+  const placerSigners: PlacerSigner[] = useMemo(() => {
+    const arr: PlacerSigner[] = [
+      { key: 'member', label: 'Member (Investor)', color: SIGNER_COLORS[0] },
+    ];
+    steps.forEach((s, i) => {
+      const key = officeSignerKey(s.roleLabel);
+      if (!key) return;
+      if (arr.some((a) => a.key === key)) return;
+      arr.push({
+        key,
+        label: s.roleLabel.trim() || 'Signer',
+        color: SIGNER_COLORS[(i + 1) % SIGNER_COLORS.length],
+      });
+    });
+    return arr;
+  }, [steps]);
+
   function move(idx: number, dir: -1 | 1) {
     setSteps((prev) => {
       const j = idx + dir;
@@ -547,6 +581,14 @@ function SequentialSendPanel({
       fd.append('signer_roles', s.roleLabel.trim() || 'Signer');
       fd.append('signer_custom_fields', fieldsToJson(s.fields));
     }
+    // Serialise the placed PDF fields, dropping any whose signer is no longer in
+    // the sequence (e.g. an office-holder step was removed after boxes were
+    // placed). An empty layout leaves the flow exactly as before.
+    const knownSignerKeys = new Set(placerSigners.map((ps) => ps.key));
+    fd.set(
+      'field_layout',
+      serializeFieldLayout(placedFields.filter((f) => knownSignerKeys.has(f.signer_key)))
+    );
     setBusy(true);
     try {
       const res = await sendSequentialSignRequest(fd);
@@ -559,6 +601,8 @@ function SequentialSendPanel({
       setPicked({});
       setPickQuery('');
       setSteps(makeInitial());
+      setFile(null);
+      setPlacedFields([]);
       setFormKey((k) => k + 1);
       router.refresh();
     } catch (err: any) {
@@ -820,11 +864,32 @@ function SequentialSendPanel({
         <label>
           PDF document <span style={{ color: 'var(--lime2)' }}>*</span>
         </label>
-        <input type="file" name="file" accept=".pdf,application/pdf" />
+        <input
+          type="file"
+          name="file"
+          accept=".pdf,application/pdf"
+          onChange={(e) => setFile(e.currentTarget.files && e.currentTarget.files[0] ? e.currentTarget.files[0] : null)}
+        />
         <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
           PDF only, up to 15 MB.
         </div>
       </div>
+
+      {file && placerSigners.length > 0 && (
+        <div className="field">
+          <label>Place fields on the document (optional)</label>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+            Drop signature, name, date and text boxes onto exact spots for each signer. Leave this
+            empty to send the document without placed fields (unchanged behaviour).
+          </div>
+          <PdfFieldPlacer
+            file={file}
+            signers={placerSigners}
+            fields={placedFields}
+            onChange={setPlacedFields}
+          />
+        </div>
+      )}
 
       <button className="btn btn-lime" type="submit" disabled={busy}>
         {busy ? (
@@ -1172,15 +1237,31 @@ function SequentialSignForm({ step }: { step: MyActiveStep }) {
   const fields = step.custom_fields ?? [];
   const [values, setValues] = useState<Record<string, string>>({});
 
+  // Positional PDF fields for THIS signer (additive; empty -> unchanged flow).
+  const posFields = step.positional_fields ?? [];
+  const [posValues, setPosValues] = useState<Record<string, string>>({});
+  const [sig, setSig] = useState('');
+
   const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
   const requiredOk = fields.every((f) => !f.required || (values[f.key] || '').trim().length > 0);
-  const canSubmit = name.trim().length > 1 && hasSig && requiredOk && !busy;
+  const posRequiredOk = posFields.every((f) => {
+    if (f.type === 'signature') return !f.required || hasSig;
+    if (f.type === 'name') return !f.required || (posValues[f.id] || name).trim().length > 0;
+    return !f.required || (posValues[f.id] || '').trim().length > 0;
+  });
+  const canSubmit = name.trim().length > 1 && hasSig && requiredOk && posRequiredOk && !busy;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
     const fd = new FormData(e.currentTarget);
     fd.set('custom_field_values', JSON.stringify(values));
+    // Fill any untouched name boxes with the signer's typed name before submit.
+    const finalPos: Record<string, string> = { ...posValues };
+    for (const f of posFields) {
+      if (f.type === 'name' && !(finalPos[f.id] && finalPos[f.id].trim())) finalPos[f.id] = name.trim();
+    }
+    fd.set('positional_values', JSON.stringify(finalPos));
     setBusy(true);
     try {
       const res = await signSequentialStep(fd);
@@ -1241,9 +1322,19 @@ function SequentialSignForm({ step }: { step: MyActiveStep }) {
           ))}
         </div>
       )}
+      {posFields.length > 0 && (
+        <PdfSignOverlay
+          originalUrl={`/staff/sign-requests/${step.request_id}/download?original=1`}
+          fields={posFields}
+          values={posValues}
+          onChange={setPosValues}
+          signatureDataUrl={sig}
+          signerName={name}
+        />
+      )}
       <div>
         <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}>Your signature</label>
-        <SignaturePad name="signature_image" onCapture={setHasSig} />
+        <SignaturePad name="signature_image" onCapture={setHasSig} onValue={setSig} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn btn-lime btn-sm" type="submit" disabled={!canSubmit}>
