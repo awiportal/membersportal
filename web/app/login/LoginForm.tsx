@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { COUNTRIES } from '@/lib/countries';
@@ -41,6 +41,17 @@ export default function LoginForm() {
 
   const [msg, setMsg] = useState<{ t: string; kind: 'bad' | 'good' } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Clear the idle "last active" marker whenever the login screen is shown so a
+  // legitimate fresh sign-in is never immediately bounced by IdleTimeout's
+  // returning-after-20-min stale-session check when the app next mounts.
+  useEffect(() => {
+    try {
+      localStorage.removeItem('awivest:last-active');
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const isOrg = memberType === 'group' || memberType === 'corporate';
   const nameLabel =
