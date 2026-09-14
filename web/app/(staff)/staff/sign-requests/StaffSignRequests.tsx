@@ -6,6 +6,7 @@ import SignaturePad from '@/components/SignaturePad';
 import { roleLabel } from '@/lib/roles';
 import { sendSignRequest, countersignSignRequest, sendSequentialSignRequest, signSequentialStep } from './actions';
 import { DOC_TYPE_OPTIONS, docTypeLabel } from './docTypes';
+import type { CustomField } from '@/lib/customFields';
 
 type Recipient = {
   id: string;
@@ -61,6 +62,7 @@ type MyActiveStep = {
   title: string;
   doc_type: string;
   note?: string | null;
+  custom_fields?: CustomField[];
 };
 type PickerProfile = { id: string; full_name?: string | null; email?: string | null; role?: string | null };
 
@@ -302,12 +304,94 @@ const SEQ_ROLE_PRESETS: { label: string; role: string }[] = [
   { label: 'Chairlady', role: 'superadmin' },
 ];
 
-type StepDraft = { uid: string; roleLabel: string; signerId: string };
+type CustomFieldDraft = { uid: string; label: string; type: 'text' | 'date'; required: boolean };
+type StepDraft = { uid: string; roleLabel: string; signerId: string; fields: CustomFieldDraft[] };
 
 let seqUidCounter = 0;
 function nextUid() {
   seqUidCounter += 1;
   return `seqstep-${seqUidCounter}`;
+}
+
+let fieldUidCounter = 0;
+function nextFieldUid() {
+  fieldUidCounter += 1;
+  return `seqfield-${fieldUidCounter}`;
+}
+
+// Serialise builder rows into the { label, type, required } shape the creation
+// action turns into stored custom_field DEFINITIONS (value = null).
+function fieldsToJson(fields: CustomFieldDraft[]): string {
+  return JSON.stringify(
+    fields.map((f) => ({ label: f.label.trim(), type: f.type, required: f.required }))
+  );
+}
+
+// Reusable editor for a signer's custom fields: rows of { label, type, required }.
+function CustomFieldsEditor({
+  fields,
+  onAdd,
+  onRemove,
+  onChange,
+}: {
+  fields: CustomFieldDraft[];
+  onAdd: () => void;
+  onRemove: (uid: string) => void;
+  onChange: (uid: string, patch: Partial<Pick<CustomFieldDraft, 'label' | 'type' | 'required'>>) => void;
+}) {
+  return (
+    <div style={{ marginTop: 8, borderTop: '1px dashed var(--border)', paddingTop: 8 }}>
+      <div className="muted" style={{ fontSize: 11.5, marginBottom: 6 }}>
+        Custom fields this signer must fill in when signing (optional)
+      </div>
+      {fields.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {fields.map((f) => (
+            <div key={f.uid} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                className="input"
+                value={f.label}
+                onChange={(e) => onChange(f.uid, { label: e.target.value })}
+                placeholder="Field label (e.g. National ID number)"
+                aria-label="Custom field label"
+                style={{ flex: 1, minWidth: 160 }}
+              />
+              <select
+                className="input"
+                value={f.type}
+                onChange={(e) => onChange(f.uid, { type: e.target.value === 'date' ? 'date' : 'text' })}
+                aria-label="Custom field type"
+                style={{ width: 110 }}
+              >
+                <option value="text">Text</option>
+                <option value="date">Date</option>
+              </select>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={f.required}
+                  onChange={(e) => onChange(f.uid, { required: e.target.checked })}
+                />
+                Required
+              </label>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => onRemove(f.uid)}
+                title="Remove field"
+                aria-label="Remove field"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={onAdd}>
+        <i className="fa-solid fa-plus" /> Add custom field
+      </button>
+    </div>
+  );
 }
 
 function SequentialSendPanel({
@@ -341,9 +425,16 @@ function SequentialSendPanel({
   };
   // Downstream office-holder steps only (the member is added server-side as step 1).
   const makeInitial = (): StepDraft[] =>
-    SEQ_ROLE_PRESETS.map((r) => ({ uid: nextUid(), roleLabel: r.label, signerId: defaultSignerFor(r.role) }));
+    SEQ_ROLE_PRESETS.map((r) => ({
+      uid: nextUid(),
+      roleLabel: r.label,
+      signerId: defaultSignerFor(r.role),
+      fields: [],
+    }));
 
   const [steps, setSteps] = useState<StepDraft[]>(makeInitial);
+  // Custom fields for the FIRST (member) signer — step 1 of every chain.
+  const [firstFields, setFirstFields] = useState<CustomFieldDraft[]>([]);
 
   function move(idx: number, dir: -1 | 1) {
     setSteps((prev) => {
@@ -358,13 +449,54 @@ function SequentialSendPanel({
     setSteps((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
   }
   function addStep() {
-    setSteps((prev) => [...prev, { uid: nextUid(), roleLabel: 'Signer', signerId: '' }]);
+    setSteps((prev) => [...prev, { uid: nextUid(), roleLabel: 'Signer', signerId: '', fields: [] }]);
   }
   function setSigner(idx: number, signerId: string) {
     setSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, signerId } : s)));
   }
   function setRoleLabel(idx: number, roleLabel: string) {
     setSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, roleLabel } : s)));
+  }
+
+  // First-signer (member) custom field handlers.
+  function addFirstField() {
+    setFirstFields((prev) => [...prev, { uid: nextFieldUid(), label: '', type: 'text', required: false }]);
+  }
+  function removeFirstField(uid: string) {
+    setFirstFields((prev) => prev.filter((f) => f.uid !== uid));
+  }
+  function changeFirstField(
+    uid: string,
+    patch: Partial<Pick<CustomFieldDraft, 'label' | 'type' | 'required'>>
+  ) {
+    setFirstFields((prev) => prev.map((f) => (f.uid === uid ? { ...f, ...patch } : f)));
+  }
+
+  // Per office-holder step custom field handlers.
+  function addStepField(idx: number) {
+    setSteps((prev) =>
+      prev.map((s, i) =>
+        i === idx
+          ? { ...s, fields: [...s.fields, { uid: nextFieldUid(), label: '', type: 'text', required: false }] }
+          : s
+      )
+    );
+  }
+  function removeStepField(idx: number, uid: string) {
+    setSteps((prev) =>
+      prev.map((s, i) => (i === idx ? { ...s, fields: s.fields.filter((f) => f.uid !== uid) } : s))
+    );
+  }
+  function changeStepField(
+    idx: number,
+    uid: string,
+    patch: Partial<Pick<CustomFieldDraft, 'label' | 'type' | 'required'>>
+  ) {
+    setSteps((prev) =>
+      prev.map((s, i) =>
+        i === idx ? { ...s, fields: s.fields.map((f) => (f.uid === uid ? { ...f, ...patch } : f)) } : s
+      )
+    );
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -399,6 +531,7 @@ function SequentialSendPanel({
     // Rebuild the audience + ordered signer fields from React state (source of truth).
     fd.set('first_audience', firstAudience);
     fd.set('first_role', 'investor');
+    fd.set('first_custom_fields', fieldsToJson(firstFields));
     fd.delete('first_member_ids');
     if (firstAudience === 'list') {
       for (const m of activeMembers) if (picked[m.id]) fd.append('first_member_ids', m.id);
@@ -407,10 +540,12 @@ function SequentialSendPanel({
     }
     fd.delete('signer_ids');
     fd.delete('signer_roles');
+    fd.delete('signer_custom_fields');
     for (const s of steps) {
       if (!s.signerId) continue;
       fd.append('signer_ids', s.signerId);
       fd.append('signer_roles', s.roleLabel.trim() || 'Signer');
+      fd.append('signer_custom_fields', fieldsToJson(s.fields));
     }
     setBusy(true);
     try {
@@ -579,6 +714,19 @@ function SequentialSendPanel({
       )}
 
       <div className="field">
+        <label>Custom fields for the member (step 1)</label>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+          Ask the member to fill in extra details when they sign. The same fields apply to step 1 of every chain.
+        </div>
+        <CustomFieldsEditor
+          fields={firstFields}
+          onAdd={addFirstField}
+          onRemove={removeFirstField}
+          onChange={changeFirstField}
+        />
+      </div>
+
+      <div className="field">
         <label>Office sequence (signs after the member)</label>
         <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
           These office-holders sign in turn AFTER the member. The next signer is only notified once the previous one
@@ -651,6 +799,14 @@ function SequentialSendPanel({
                 >
                   <i className="fa-solid fa-xmark" />
                 </button>
+              </div>
+              <div style={{ flexBasis: '100%', width: '100%' }}>
+                <CustomFieldsEditor
+                  fields={s.fields}
+                  onAdd={() => addStepField(i)}
+                  onRemove={(uid) => removeStepField(i, uid)}
+                  onChange={(uid, patch) => changeStepField(i, uid, patch)}
+                />
               </div>
             </div>
           ))}
@@ -1013,17 +1169,25 @@ function SequentialSignForm({ step }: { step: MyActiveStep }) {
   const [hasSig, setHasSig] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const fields = step.custom_fields ?? [];
+  const [values, setValues] = useState<Record<string, string>>({});
 
   const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
-  const canSubmit = name.trim().length > 1 && hasSig && !busy;
+  const requiredOk = fields.every((f) => !f.required || (values[f.key] || '').trim().length > 0);
+  const canSubmit = name.trim().length > 1 && hasSig && requiredOk && !busy;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
     const fd = new FormData(e.currentTarget);
+    fd.set('custom_field_values', JSON.stringify(values));
     setBusy(true);
     try {
-      await signSequentialStep(fd);
+      const res = await signSequentialStep(fd);
+      if (res?.error) {
+        setMsg(res.error);
+        return;
+      }
       router.refresh();
     } catch (err: any) {
       setMsg(err?.message || 'Could not submit your signature. Please try again.');
@@ -1058,6 +1222,25 @@ function SequentialSignForm({ step }: { step: MyActiveStep }) {
           <input className="input" type="date" name="signed_date" defaultValue={todayIso} />
         </div>
       </div>
+      {fields.length > 0 && (
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+          {fields.map((f) => (
+            <div className="field" style={{ marginBottom: 0 }} key={f.key}>
+              <label>
+                {f.label}
+                {f.required ? <span style={{ color: 'var(--lime2)' }}> *</span> : null}
+              </label>
+              <input
+                className="input"
+                type={f.type === 'date' ? 'date' : 'text'}
+                required={f.required}
+                value={values[f.key] || ''}
+                onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+      )}
       <div>
         <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}>Your signature</label>
         <SignaturePad name="signature_image" onCapture={setHasSig} />

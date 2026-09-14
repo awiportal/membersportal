@@ -110,7 +110,10 @@ export function drawCertHeader(
 // Draw one PandaDoc-style signer "audit card" starting at yTop. The card shows
 // the signature image (or the typed name) on the left and the signer's audit
 // detail lines on the right (name in bold, then up to four detail lines such as
-// role, email, exact timestamp and method). Returns the y just below the card.
+// role, email, exact timestamp and method, followed by any filled custom
+// fields). The card grows taller when custom fields are present so they never
+// overflow; a card with none renders exactly as before. Returns the y just
+// below the card.
 export async function drawSignerCard(
   doc: PDFDocument,
   page: PDFPage,
@@ -118,30 +121,44 @@ export async function drawSignerCard(
   width: number,
   yTop: number,
   label: string,
-  opts: { name: string; lines: string[]; img64?: string | null; pending?: boolean }
+  opts: { name: string; lines: string[]; img64?: string | null; pending?: boolean; extraLines?: string[] }
 ): Promise<number> {
   const M = CERT_MARGIN;
   const { ink, muted, purple, line, cardBg, white } = CERT_COLORS;
   const contentW = width - 2 * M;
-  const lines = (opts.lines || []).filter((l) => !!l && l.trim().length > 0).slice(0, 4);
-  const H = opts.pending ? 64 : 112;
+  const baseLines = (opts.lines || []).filter((l) => !!l && l.trim().length > 0).slice(0, 4);
+  const extraLines = (opts.extraLines || []).filter((l) => !!l && l.trim().length > 0);
+  const detailLines = [...baseLines, ...extraLines];
   const top = yTop;
+
+  if (opts.pending) {
+    const H = 64;
+    const bottom = top - H;
+    page.drawRectangle({ x: M, y: bottom, width: contentW, height: H, color: cardBg, borderColor: line, borderWidth: 1 });
+    const p = 14;
+    page.drawText(sanitizePdfText(label) || " ", { x: M + p, y: top - 18, size: 8.5, font: fonts.bold, color: purple });
+    page.drawText("Awaiting signature", { x: M + p, y: top - 42, size: 12, font: fonts.italic, color: muted });
+    return bottom - 16;
+  }
+
+  // Dynamic height so extra custom-field lines never overflow. With <=4 detail
+  // lines this evaluates to the original fixed height of 112.
+  const lineGap = 13;
+  const n = detailLines.length;
+  const H = Math.max(112, n > 0 ? 73 + (n - 1) * lineGap : 112);
   const bottom = top - H;
 
   page.drawRectangle({ x: M, y: bottom, width: contentW, height: H, color: cardBg, borderColor: line, borderWidth: 1 });
   const p = 14;
   page.drawText(sanitizePdfText(label) || " ", { x: M + p, y: top - 18, size: 8.5, font: fonts.bold, color: purple });
 
-  if (opts.pending) {
-    page.drawText("Awaiting signature", { x: M + p, y: top - 42, size: 12, font: fonts.italic, color: muted });
-    return bottom - 16;
-  }
-
-  // Signature box (left).
+  // Signature box (left). Anchored a fixed distance from the top so the card can
+  // grow downward for custom fields without moving it (preserves the original
+  // position when there are none).
   const sigX = M + p;
   const sigW = 200;
   const sigH = 62;
-  const sigY = bottom + 14;
+  const sigY = top - 36 - sigH;
   page.drawRectangle({ x: sigX, y: sigY, width: sigW, height: sigH, color: white, borderColor: line, borderWidth: 0.8 });
   const sig = parseSignatureDataUrl(opts.img64);
   let drew = false;
@@ -166,9 +183,9 @@ export async function drawSignerCard(
   let dy = top - 40;
   page.drawText(sanitizePdfText(opts.name) || "-", { x: dx, y: dy, size: 12.5, font: fonts.bold, color: ink });
   dy -= 16;
-  for (const ln of lines) {
+  for (const ln of detailLines) {
     page.drawText(sanitizePdfText(ln) || " ", { x: dx, y: dy, size: 9.5, font: fonts.regular, color: ink });
-    dy -= 13;
+    dy -= lineGap;
   }
 
   return bottom - 16;

@@ -1,6 +1,7 @@
 import { PDFDocument, PDFFont, PDFPage } from "pdf-lib";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { roleLabel } from "@/lib/roles";
+import { parseCustomFields } from "@/lib/customFields";
 import {
   CERT_COLORS,
   CERT_MARGIN,

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleLabel } from '@/lib/roles';
+import { parseCustomFields } from '@/lib/customFields';
 import MemberSignRequests from './MemberSignRequests';
 
 export const dynamic = 'force-dynamic';
@@ -106,6 +107,8 @@ export default async function MemberSignRequestsPage() {
         total,
         signed,
         active_role_label: activeRoleLabel,
+        // Custom fields the member must fill in on THEIR step (empty array when none).
+        custom_fields: parseCustomFields(myStep?.custom_fields),
         created_at: req.created_at || null,
       };
     })
