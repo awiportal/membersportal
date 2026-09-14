@@ -6,7 +6,7 @@
 A members-only investment portal for AWIVEST (women's investment collective, Kenya). Members ("Investors") see their money and transact; the office (Secretary / Treasurer / Admin / Chairlady) onboards, approves, publishes, reports, and collects e-signatures; an Auditor has read-only governance access.
 
 ## Stack in one line
-**Next.js 14 (App Router, TypeScript) + Tailwind** on **Vercel (Hobby)**, backed by **Supabase** (Postgres / Auth / Storage / RLS), with an **in-house PDF e-signature** system (pdf-lib for stamping, pdf.js for in-browser rendering/field placement), **CloudConvert** (Word .docx → exact PDF), **Resend** (transactional email), and **Daily** (live video rooms). Payments (M-Pesa Daraja) are planned, not yet wired.
+**Next.js 14 (App Router, TypeScript) + Tailwind** on **Vercel (Hobby)**, backed by **Supabase** (Postgres / Auth / Storage / RLS), with an **in-house PDF e-signature** system (pdf-lib for stamping, pdf.js for in-browser rendering/field placement) for Documents-to-Sign and agreement signing — plus **PandaDoc** retained for the membership agreement (onboarding e-sign) and one-off template sends — **CloudConvert** (Word .docx → exact PDF), **Resend** (transactional email), and **Daily** (live video rooms). Payments (M-Pesa Daraja) are planned, not yet wired.
 
 ## Run it locally
 ```bash
@@ -38,7 +38,7 @@ DB: apply SQL in `supabase/migrations` to your Supabase project.
 | Scheduled jobs | `lib/cron.ts` + `app/api/cron/*` |
 | DB schema & RLS | `supabase/migrations/*` |
 | Clickable prototype | `prototype/index.html` |
-| Legacy e-sign helper | `lib/pandadoc.ts` (superseded by the in-house signer) |
+| Agreements e-sign (PandaDoc) | `lib/pandadoc.ts` — retained for the membership agreement (onboarding) & one-off template sends; Documents-to-Sign uses the in-house signer |
 
 ## Roles (DB enum `member_role`)
 `member` = Investor · `secretary` = Secretary · `treasurer` = Treasurer · `auditor` = Auditor (read-only governance) · `admin` = Admin · `superadmin` = Chairlady.
@@ -62,7 +62,8 @@ Total **119,939,314** · excl-exits **105,865,370** · contributions **83,202,42
 
 ## Env vars
 **Required (all secrets server-only — never `NEXT_PUBLIC_`):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TWOFA_SIGNING_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `CLOUDCONVERT_API_KEY`, `DAILY_API_KEY`, `CRON_SECRET`.
-**Planned / legacy:** `MPESA_*` (Daraja payments — not yet wired), `SENTRY_DSN` (error monitoring), `PANDADOC_*` (legacy e-sign).
+**Optional integrations:** `PANDADOC_*` (PandaDoc e-sign — enables the membership-agreement onboarding flow & one-off template sends; falls back to in-house signing when unset).
+**Planned:** `MPESA_*` (Daraja payments — not yet wired), `SENTRY_DSN` (error monitoring).
 
 ## Deploy
 Feature branch → Vercel preview → PR → merge to `main` → prod. DB changes via migrations, staging before prod.
