@@ -160,9 +160,15 @@ export async function appendSequenceCertificate(
     const step = steps[i];
     const prof = profById[step.signer_id] || {};
     const roleName = String(step.signer_role || roleLabel(prof.role) || "");
+    // Present the capacity the person signed in (matching the step header)
+    // rather than their account role, so a Chairlady signing as Treasurer reads
+    // consistently ("STEP 3 - TREASURER" / "Signed as Treasurer").
+    const roleTitle = roleName
+      ? roleName.charAt(0).toUpperCase() + roleName.slice(1).toLowerCase()
+      : roleLabel(prof.role);
     const label = `STEP ${i + 1} - ${roleName.toUpperCase()}`;
     const lines = [
-      roleLabel(prof.role),
+      roleTitle ? "Signed as " + roleTitle : roleLabel(prof.role),
       prof.email || "",
       "Signed: " + fmtCertDateTime(step.signed_at),
       "Method: " + signatureMethodLabel(step.signature_kind),
