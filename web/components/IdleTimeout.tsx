@@ -42,6 +42,7 @@ export default function IdleTimeout() {
     loggingOutRef.current = true;
     try {
       localStorage.setItem(LOGOUT_KEY, String(Date.now()));
+      localStorage.removeItem(ACTIVITY_KEY);
     } catch {
       /* ignore */
     }
@@ -56,7 +57,23 @@ export default function IdleTimeout() {
   }, [router]);
 
   useEffect(() => {
-    // Seed a fresh timestamp so a newly mounted tab is never instantly idle.
+    // Returning after time away: if a previous authenticated session was left
+    // idle past the limit (e.g. the browser was closed and reopened after
+    // >20 min, or a tab sat untouched), sign out immediately on mount instead
+    // of resuming, forcing a fresh email + password + code login. The /login
+    // screen clears this marker, so a legitimate fresh sign-in that lands in the
+    // app is never caught by this check.
+    let seeded = 0;
+    try {
+      seeded = Number(localStorage.getItem(ACTIVITY_KEY) || "0");
+    } catch {
+      /* ignore: fall through to seeding a fresh timestamp */
+    }
+    if (seeded > 0 && Date.now() - seeded >= IDLE_MS) {
+      doLogout();
+      return;
+    }
+    // Otherwise resume the idle clock from now.
     markActive();
 
     const onActivity = () => {
