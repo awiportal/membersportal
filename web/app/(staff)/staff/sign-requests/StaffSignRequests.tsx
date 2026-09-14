@@ -449,6 +449,11 @@ function SequentialSendPanel({
   // dropped onto it. Cleared on a successful send / form reset.
   const [file, setFile] = useState<File | null>(null);
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
+  // Phase 5b — document source: upload a PDF directly, or upload a Word (.docx)
+  // that is converted server-side to an exact-layout PDF before placement/send.
+  const [docSource, setDocSource] = useState<'pdf' | 'word'>('pdf');
+  const [converting, setConverting] = useState(false);
+  const [convertMsg, setConvertMsg] = useState<string | null>(null);
 
   // Signers available to place fields for: the member (step 1) plus each
   // office-holder in the sequence, keyed the SAME way the signing/stamping side
@@ -539,15 +544,18 @@ function SequentialSendPanel({
     const form = e.currentTarget;
     const fd = new FormData(form);
     const title = String(fd.get('title') || '').trim();
-    const file = fd.get('file');
     if (!title) {
       setMsg('Please give the document a title.');
       return;
     }
     if (!(file instanceof File) || file.size === 0) {
-      setMsg('Please choose a PDF to send.');
+      setMsg('Please choose a document to send.');
       return;
     }
+    // `file` (React state) is the document to send: the chosen PDF, or the PDF
+    // produced from a Word upload by /api/sign/convert-docx. Submit THAT file,
+    // not whatever raw upload is still sitting in the native <input>.
+    fd.set('file', file, file.name);
     // Validate the first-signer audience.
     if (firstAudience === 'list' && pickedCount === 0) {
       setMsg('Pick at least one member, or choose "All active members".');
@@ -602,6 +610,8 @@ function SequentialSendPanel({
       setPickQuery('');
       setSteps(makeInitial());
       setFile(null);
+      setDocSource('pdf');
+      setConvertMsg(null);
       setPlacedFields([]);
       setFormKey((k) => k + 1);
       router.refresh();
@@ -862,16 +872,108 @@ function SequentialSendPanel({
 
       <div className="field">
         <label>
-          PDF document <span style={{ color: 'var(--lime2)' }}>*</span>
+          Document <span style={{ color: 'var(--lime2)' }}>*</span>
         </label>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="doc_source"
+              value="pdf"
+              checked={docSource === 'pdf'}
+              onChange={() => {
+                setDocSource('pdf');
+                setFile(null);
+                setConvertMsg(null);
+              }}
+            />
+            PDF
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="doc_source"
+              value="word"
+              checked={docSource === 'word'}
+              onChange={() => {
+                setDocSource('word');
+                setFile(null);
+                setConvertMsg(null);
+              }}
+            />
+            Word (.docx)
+          </label>
+        </div>
         <input
           type="file"
           name="file"
-          accept=".pdf,application/pdf"
-          onChange={(e) => setFile(e.currentTarget.files && e.currentTarget.files[0] ? e.currentTarget.files[0] : null)}
+          accept={
+            docSource === 'pdf'
+              ? '.pdf,application/pdf'
+              : '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          }
+          onChange={async (e) => {
+            const picked =
+              e.currentTarget.files && e.currentTarget.files[0] ? e.currentTarget.files[0] : null;
+            if (docSource === 'pdf') {
+              setFile(picked);
+              return;
+            }
+            // Word (.docx): convert to an exact-layout PDF server-side, then feed
+            // the converted PDF into the existing placement/signing flow.
+            setConvertMsg(null);
+            if (!picked) {
+              setFile(null);
+              return;
+            }
+            setConverting(true);
+            setFile(null);
+            try {
+              const body = new FormData();
+              body.append('file', picked);
+              const res = await fetch('/api/sign/convert-docx', { method: 'POST', body });
+              if (res.ok) {
+                const blob = await res.blob();
+                setFile(
+                  new File([blob], picked.name.replace(/\.docx$/i, '.pdf'), {
+                    type: 'application/pdf',
+                  })
+                );
+              } else if (res.status === 503) {
+                setConvertMsg(
+                  "Word conversion isn't set up yet. Add CLOUDCONVERT_API_KEY in Vercel (Production, server-only) and redeploy."
+                );
+              } else {
+                let detail = 'Could not convert this Word document. Please try again.';
+                try {
+                  const j = await res.json();
+                  if (j?.error) detail = String(j.error);
+                } catch {
+                  /* non-JSON error body */
+                }
+                setConvertMsg(detail);
+              }
+            } catch (err: any) {
+              setConvertMsg(err?.message || 'Could not convert this Word document. Please try again.');
+            } finally {
+              setConverting(false);
+            }
+          }}
         />
+        {converting && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            <i className="fa-solid fa-spinner fa-spin" /> Converting Word to PDF…
+          </div>
+        )}
+        {convertMsg && (
+          <div className="badge badge-bad" style={{ marginTop: 6 }}>
+            <i className="fa-solid fa-circle-exclamation" /> {convertMsg}
+          </div>
+        )}
         <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-          PDF only, up to 15 MB.
+          {docSource === 'pdf'
+            ? 'PDF only, up to 15 MB.'
+            : 'Word (.docx), up to 15 MB. The exact original layout is preserved: the file is converted to PDF, then you drag the signing fields onto that converted PDF.'}
         </div>
       </div>
 
