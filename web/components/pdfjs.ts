@@ -2,7 +2,7 @@
 //
 // IMPORTANT: never import this from a server component, server action, route
 // handler or any other server module. It dynamically imports `pdfjs-dist`, which
-// is browser-only, and configures the worker via `import.meta.url`. It is used
+// is browser-only, and configures the worker from a same-origin /public asset. It is used
 // exclusively by the "use client" components PdfFieldPlacer and PdfSignOverlay.
 //
 // The module surface is deliberately narrow and locally typed so the app does not
@@ -34,12 +34,14 @@ let cached: PdfjsModule | null = null;
 async function loadPdfjs(): Promise<PdfjsModule> {
   if (cached) return cached;
   const mod = (await import('pdfjs-dist')) as unknown as PdfjsModule;
-  // Bundled worker: Next/webpack rewrites this `new URL(..., import.meta.url)`
-  // into a same-origin asset URL (allowed by the app's `worker-src 'self'` CSP).
-  mod.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-  ).toString();
+  // Serve the worker as a same-origin static asset from /public
+  // (public/pdf.worker.min.mjs) and point pdf.js at that path. We deliberately do
+  // NOT emit the worker through webpack as an import-meta asset URL, because Next
+  // then runs Terser over pdfjs-dist v4's ESM worker and fails with
+  // "'import'/'export' cannot be used outside of module code". Serving the file
+  // as-is from /public bypasses webpack/Terser and satisfies worker-src 'self'.
+  // Keep public/pdf.worker.min.mjs in sync with the pdfjs-dist version on upgrade.
+  mod.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
   cached = mod;
   return mod;
 }
