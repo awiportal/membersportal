@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import SignaturePad from '@/components/SignaturePad';
 import { signSignRequest, signSequentialStep } from './actions';
 import type { CustomField } from '@/lib/customFields';
+import type { PlacedField } from '@/lib/fieldLayout';
+import PdfSignOverlay from '@/components/PdfSignOverlay';
 
 const TYPE_LABEL: Record<string, string> = {
   enrollment: 'Enrollment',
@@ -42,6 +44,7 @@ type SequentialItem = {
   signed: number;
   active_role_label?: string | null;
   custom_fields?: CustomField[];
+  positional_fields?: PlacedField[];
 };
 
 function fmtDateTime(v?: string | null) {
@@ -132,15 +135,31 @@ function SequentialSignForm({ item }: { item: SequentialItem }) {
   const fields = item.custom_fields ?? [];
   const [values, setValues] = useState<Record<string, string>>({});
 
+  // Positional PDF fields for THIS signer (additive; empty -> unchanged flow).
+  const posFields = item.positional_fields ?? [];
+  const [posValues, setPosValues] = useState<Record<string, string>>({});
+  const [sig, setSig] = useState('');
+
   const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
   const requiredOk = fields.every((f) => !f.required || (values[f.key] || '').trim().length > 0);
-  const canSubmit = name.trim().length > 1 && hasSig && requiredOk && !busy;
+  const posRequiredOk = posFields.every((f) => {
+    if (f.type === 'signature') return !f.required || hasSig;
+    if (f.type === 'name') return !f.required || (posValues[f.id] || name).trim().length > 0;
+    return !f.required || (posValues[f.id] || '').trim().length > 0;
+  });
+  const canSubmit = name.trim().length > 1 && hasSig && requiredOk && posRequiredOk && !busy;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
     const fd = new FormData(e.currentTarget);
     fd.set('custom_field_values', JSON.stringify(values));
+    // Fill any untouched name boxes with the signer's typed name before submit.
+    const finalPos: Record<string, string> = { ...posValues };
+    for (const f of posFields) {
+      if (f.type === 'name' && !(finalPos[f.id] && finalPos[f.id].trim())) finalPos[f.id] = name.trim();
+    }
+    fd.set('positional_values', JSON.stringify(finalPos));
     setBusy(true);
     try {
       const res = await signSequentialStep(fd);
@@ -201,9 +220,19 @@ function SequentialSignForm({ item }: { item: SequentialItem }) {
           ))}
         </div>
       )}
+      {posFields.length > 0 && (
+        <PdfSignOverlay
+          originalUrl={`/sign-requests/download/${item.request_id}?original=1`}
+          fields={posFields}
+          values={posValues}
+          onChange={setPosValues}
+          signatureDataUrl={sig}
+          signerName={name}
+        />
+      )}
       <div>
         <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}>Signature</label>
-        <SignaturePad name="signature_image" onCapture={setHasSig} />
+        <SignaturePad name="signature_image" onCapture={setHasSig} onValue={setSig} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn btn-lime btn-sm" type="submit" disabled={!canSubmit}>

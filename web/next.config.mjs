@@ -73,6 +73,15 @@ const nextConfig = {
   // Required on Next.js 14.x for instrumentation.ts (Sentry server/edge init).
   experimental: { instrumentationHook: true },
   images: { remotePatterns: imageRemotePatterns },
+  webpack: (config) => {
+    // pdfjs-dist (client-side PDF rendering for Documents to Sign field placement)
+    // references an optional Node-only 'canvas' module. It is never needed in the
+    // browser bundle, so alias it away to avoid a "Module not found: canvas" build
+    // error. Purely additive; does not affect any other module resolution.
+    config.resolve = config.resolve || {};
+    config.resolve.alias = { ...(config.resolve.alias || {}), canvas: false };
+    return config;
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

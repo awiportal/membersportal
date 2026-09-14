@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { applySequentialSignature } from '@/lib/sequentialSign';
 import { parseCustomFieldValuesJson } from '@/lib/customFields';
-
 // A member signs a document that was sent to them: typed full name plus a drawn
 // OR uploaded signature (data URL). The write goes through the service-role
 // admin client (members never write these rows directly), after verifying the
@@ -101,6 +100,9 @@ export async function signSequentialStep(
   const customFieldValues = parseCustomFieldValuesJson(
     String(formData.get('custom_field_values') || '')
   );
+  const positionalValues = parseCustomFieldValuesJson(
+    String(formData.get('positional_values') || '')
+  );
 
   if (!step_id || !signed_name) {
     return { error: 'Please enter your full name to sign.' };
@@ -114,6 +116,7 @@ export async function signSequentialStep(
     kind: signature_kind,
     signedDate: signed_date,
     customFieldValues,
+    positionalValues,
   });
   if (res.error) return { error: res.error };
 

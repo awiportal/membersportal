@@ -2,7 +2,15 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 
-type Props = { name?: string; height?: number; onCapture?: (hasSignature: boolean) => void };
+type Props = {
+  name?: string;
+  height?: number;
+  onCapture?: (hasSignature: boolean) => void;
+  // Optional: receive the captured signature data URL (or '' when cleared). Used
+  // by the positional signing overlay to preview the signature inside its box.
+  // Purely additive — existing callers that omit it are unaffected.
+  onValue?: (dataUrl: string) => void;
+};
 type Mode = "draw" | "upload";
 
 // A lightweight in-app signature capture. The member can either draw their
@@ -14,7 +22,7 @@ type Mode = "draw" | "upload";
 // onCapture callback lets the parent keep its submit button disabled until a
 // signature is actually present, which prevents submitting before an upload has
 // finished decoding (the cause of the false "add your signature" error).
-export default function SignaturePad({ name = "signature_image", height = 160, onCapture }: Props) {
+export default function SignaturePad({ name = "signature_image", height = 160, onCapture, onValue }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const drawing = useRef(false);
@@ -25,13 +33,16 @@ export default function SignaturePad({ name = "signature_image", height = 160, o
   const [value, setValue] = useState(""); // single source of truth -> controlled hidden input
   const [busy, setBusy] = useState(false);
 
-  // Update the captured value AND notify the parent (for submit gating).
+  // Update the captured value AND notify the parent (for submit gating), and
+  // surface the raw data URL to any parent that wants to preview it (e.g. the
+  // positional signing overlay). onValue is optional and additive.
   const commit = useCallback(
     (v: string) => {
       setValue(v);
       if (onCapture) onCapture(v.length > 0);
+      if (onValue) onValue(v);
     },
-    [onCapture]
+    [onCapture, onValue]
   );
 
   const setup = useCallback(() => {
