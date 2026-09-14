@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   // 3) Convert and return the PDF bytes.
   try {
     const pdf = await convertDocxToPdf(bytes, f.name);
-    return new Response(pdf, {
+    return new Response(pdf as BodyInit, {
       headers: { 'Content-Type': 'application/pdf' },
     });
   } catch (err: any) {

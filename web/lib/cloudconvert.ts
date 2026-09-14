@@ -90,7 +90,7 @@ export async function convertDocxToPdf(
   }
   // The presigned form requires the file field LAST. No Authorization header:
   // form.url is a presigned upload endpoint (e.g. S3), not the CloudConvert API.
-  upload.append('file', new Blob([bytes]), filename);
+  upload.append('file', new Blob([bytes as BlobPart]), filename);
   const uploadRes = await fetch(form.url, { method: 'POST', body: upload });
   if (!uploadRes.ok) {
     const detail = await safeText(uploadRes);
