@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { clearTwoFactorGate } from "@/app/verify/actions";
 
 // Inactivity auto sign-out (security hardening #179).
 //
@@ -45,6 +46,15 @@ export default function IdleTimeout() {
       localStorage.removeItem(ACTIVITY_KEY);
     } catch {
       /* ignore */
+    }
+    try {
+      // Drop the 12h "this device is verified" gate (awi_2fa_ok) and any pending
+      // challenge server-side, so signing back in must re-enter a FRESHLY emailed
+      // code at /verify — not just email + password — even within the 12h window.
+      // Without this, a re-login after an idle timeout skips the emailed-code step.
+      await clearTwoFactorGate();
+    } catch {
+      /* best-effort: still sign out and redirect below */
     }
     try {
       const supabase = createClient();
