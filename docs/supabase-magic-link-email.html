@@ -1,0 +1,54 @@
+<!--
+  AWIVEST — Supabase "Magic Link" email template (sign-in code).
+
+  Where to paste:
+    Supabase Dashboard -> Authentication -> Emails -> "Magic Link" template
+    (this is the template used by signInWithOtp, i.e. the sign-in code fallback).
+
+  Notes:
+    - {{ .Token }} renders the 6-digit one-time code.
+    - This is intentionally code-only (no magic-link button) so it matches the
+      portal's code-entry flow at /verify. If you ever want a one-click link,
+      add a button pointing at {{ .ConfirmationURL }} — but the app expects the
+      code to be entered, so keep the code prominent.
+    - Mirror the same look on the "Confirm signup" template for full consistency.
+-->
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="color-scheme" content="light only"/>
+</head>
+<body style="margin:0;padding:0;background:#f4f5f7;">
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:28px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <tr><td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="480" style="width:480px;max-width:100%;background:#ffffff;border:1px solid #ece8f0;border-radius:16px;border-collapse:separate;">
+          <tr><td style="padding:34px 40px 0;text-align:center;">
+            <div style="font-size:24px;font-weight:800;letter-spacing:3px;color:#7A1E50;">AWIVEST</div>
+          </td></tr>
+          <tr><td style="padding:14px 40px 0;text-align:center;">
+            <h1 style="font-size:19px;font-weight:800;margin:0;color:#1a1420;">Your sign-in code</h1>
+          </td></tr>
+          <tr><td style="padding:14px 40px 4px;text-align:center;color:#3a3540;font-size:14px;line-height:1.6;">
+            Enter this code on the AWIVEST sign-in screen to continue.
+          </td></tr>
+          <tr><td style="padding:4px 40px;">
+            <div style="text-align:center;margin:12px 0 6px;">
+              <span style="display:inline-block;border:2px dashed #B22C75;background:#fbeaf2;border-radius:14px;padding:14px 12px 14px 24px;font-size:30px;font-weight:800;letter-spacing:12px;color:#7A1E50;">{{ .Token }}</span>
+            </div>
+            <p style="margin:14px 0 0;text-align:center;color:#9a94a2;font-size:12.5px;line-height:1.6;">This code expires in 10 minutes. If you didn&rsquo;t try to sign in, you can safely ignore this email.</p>
+          </td></tr>
+          <tr><td style="padding:16px 40px 30px;">
+            <div style="border-top:1px solid #efecf3;margin:8px 0 14px;"></div>
+            <p style="color:#9a94a2;font-size:11.5px;line-height:1.6;text-align:center;margin:0;">
+              AWIVEST &middot; African Women Investors<br/>
+              &copy; AWIVEST. All rights reserved. This is an automated message from the Investor Portal.
+            </p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </div>
+</body>
+</html>

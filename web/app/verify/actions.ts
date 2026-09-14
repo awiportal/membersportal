@@ -11,7 +11,7 @@ import {
   SIGNIN_CODE_TTL_SECONDS,
 } from '@/lib/twofa';
 import { rateLimitAllow } from '@/lib/rateLimit';
-import { sendMemberEmail } from '@/lib/email';
+import { sendMemberEmail, codeBlockHtml } from '@/lib/email';
 
 // One-time challenge cookie holding the signed (never plaintext) sign-in code.
 const CHALLENGE_COOKIE = 'awi_2fa_chal';
@@ -46,11 +46,11 @@ export async function sendCode(): Promise<{ ok?: true; error?: string }> {
 
   const res = await sendMemberEmail({
     to: user.email,
-    subject: `${code} is your AWIVEST sign-in code`,
+    subject: 'Your AWIVEST sign-in code',
     heading: 'Your sign-in code',
-    bodyHtml: `<p style="margin:0 0 6px;">Use this code to finish signing in:</p>
-<p style="font-size:30px;font-weight:800;letter-spacing:8px;margin:8px 0 14px;color:#7e2674;">${code}</p>
-<p style="margin:0;color:#6a6a6a;">It expires in 10 minutes. If you didn't try to sign in, you can safely ignore this email.</p>`,
+    bodyHtml: `<p style="margin:0 0 4px;text-align:center;color:#3a3540;font-size:14px;line-height:1.6;">Enter this code on the AWIVEST sign-in screen to continue.</p>
+${codeBlockHtml(code)}
+<p style="margin:14px 0 0;text-align:center;color:#9a94a2;font-size:12.5px;line-height:1.6;">This code expires in 10 minutes. If you didn't try to sign in, you can safely ignore this email.</p>`,
   });
 
   if (res.ok) {
